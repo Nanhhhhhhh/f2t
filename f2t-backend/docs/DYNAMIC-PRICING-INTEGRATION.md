@@ -69,7 +69,7 @@ Restart the backend. No code changes required.
 6. Overrides expire after `PRICING_SUGGESTION_TTL_HOURS` (default 1h). Expired overrides revert to base price automatically.
 
 **Farmer UX validation checklist:**
-- [ ] Push notification received within 5 minutes of pricing tick
+- [ ] Push notification received at next hourly cron tick (within 60 minutes by default)
 - [ ] `/api/dynamic-pricing/suggestions` returns correct product names and price deltas
 - [ ] Accept action updates product card `dynamicPrice` within one request cycle
 - [ ] Reject action removes suggestion from pending list
