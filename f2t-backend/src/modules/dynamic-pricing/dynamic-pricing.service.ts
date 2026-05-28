@@ -11,6 +11,21 @@ import { Farm, FarmDocument } from "@modules/farms/schemas/farm.schema";
 import { NotificationsService } from "@modules/notifications/notifications.service";
 import { NotificationType } from "@modules/notifications/enums/notification-type.enum";
 
+interface SidecarOverride {
+  targetPrice?: number;
+  target_price?: number;
+  deltaPct?: number;
+  delta_pct?: number;
+  freshnessScore?: number;
+  freshness_score?: number;
+  freshnessTag?: string;
+  freshness_tag?: string;
+  safetyClipped?: boolean;
+  safety_clipped?: boolean;
+  productId?: string;
+  product_id?: string;
+}
+
 @Injectable()
 export class DynamicPricingService {
   private readonly logger = new Logger(DynamicPricingService.name);
@@ -202,7 +217,7 @@ export class DynamicPricingService {
     };
 
     const sidecarUrl = this.configService.get<string>("PRICING_SIDECAR_URL", "http://localhost:8000");
-    let ov: any;
+    let ov: SidecarOverride | undefined;
     try {
       const response$ = this.httpService.post(sidecarUrl + "/predict", { state_vectors: [stateVector] }, { timeout: 10000 });
       const resp = await firstValueFrom(response$);
@@ -253,7 +268,7 @@ export class DynamicPricingService {
     return map;
   }
 
-  async getSuggestionsForOwner(ownerId: string): Promise<{ items: any[]; total: number }> {
+  async getSuggestionsForOwner(ownerId: string): Promise<{ items: (Record<string, unknown> & { id: string; productName: string })[]; total: number }> {
     const farms = await this.farmModel.find({ ownerId: new Types.ObjectId(ownerId) }).select("_id");
     const farmIds = farms.map((f) => f._id);
 
