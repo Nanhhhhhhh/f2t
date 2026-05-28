@@ -111,10 +111,10 @@ db.freshness_cache.deleteMany({})
 
 | Agent | Path |
 |---|---|
-| Leafy DQN | `dynamic-pricing-v2/checkpoints/dqn_leafy.pt` |
-| Root DQN | `dynamic-pricing-v2/checkpoints/dqn_root.pt` |
-| Fruit DQN | `dynamic-pricing-v2/checkpoints/dqn_fruit.pt` |
-| Herbs DQN | `dynamic-pricing-v2/checkpoints/dqn_herbs.pt` |
+| Leafy DQN | `pricing-sidecar/dqn_checkpoints/dqn_leafy.pt` |
+| Root DQN | `pricing-sidecar/dqn_checkpoints/dqn_root.pt` |
+| Fruit DQN | `pricing-sidecar/dqn_checkpoints/dqn_fruit.pt` |
+| Herbs DQN | `pricing-sidecar/dqn_checkpoints/dqn_herbs.pt` |
 | Fruit freshness (CoreML) | `freshnessmodels-1/MyFreshnessClassifier-fruit.mlmodel` |
 | Root freshness (CoreML) | `freshnessmodels-1/MyFreshnessClassifier-root.mlmodel` |
 

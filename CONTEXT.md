@@ -162,7 +162,7 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 | TD-008 | 🟡 Low | Push notification failure is fire-and-forget | Intentional |
 | TD-011 | 🟡 Low | GHN credentials not set — delivery uses mock | Open (see GHN setup above) |
 | TD-014 | ✅ Fixed | Checkout screen now auto-launches Stripe after order creation | Fixed |
-| TD-015 | ✅ Fixed | payments.controller.ts uses `any` for JwtUser type | Fixed |
+| TD-015 | ✅ Fixed | `any` types in dynamic-pricing.service.ts — added SidecarOverride interface, typed getSuggestionsForOwner return | Fixed |
 | TD-016 | ✅ Fixed | Delivery weight now calculated: items.reduce(sum + qty × 100g) | Fixed |
 | TD-017 | ✅ Fixed | payments.service.spec.ts — 7 tests added | Fixed |
 | TD-018 | ✅ Fixed | delivery.service.spec.ts — 4 tests added | Fixed |
