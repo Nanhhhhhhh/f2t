@@ -97,8 +97,8 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 
 ## Current Project Status
 
-**Last updated:** 2026-05-24
-**Last session:** ML module cleanup — removed Recommendations module (recommender-sidecar, /api/recommendations/*, ForYouSection, SimilarProducts, CartCrossSellSection) and Demand Forecast module (forecast-sidecar, /api/demand-forecast/*, DemandForecastSection). Kept Dynamic Pricing + Freshness Scoring. Backend: 46/46 tests pass. Build clean. Frontend: type-check clean.
+**Last updated:** 2026-05-29
+**Last session:** Tech debt cleanup — TD-002 (docker-compose version removed), TD-031 (duplicate FreshnessCache index fixed), TD-015 (SidecarOverride interface added, any types removed from dynamic-pricing.service.ts), TD-035 (DYNAMIC-PRICING-INTEGRATION.md written). Verified TD-003/032/033/034 already resolved. Backend 46/46 tests pass (admin.service.spec.ts has pre-existing type error). Build clean.
 
 | Phase | Status | Output |
 |---|---|---|
@@ -122,8 +122,8 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 | Phase 8B Gap Fix | ✅ Complete | Dynamic weight (items × 100g), GHN webhook endpoint |
 | Payment Pipeline Tests | ⏳ Pending | Manual E2E curl script (see Testing Plan section) |
 | Phase 10 — Dynamic Pricing (backend) | ✅ Complete (Tasks 1–3) | Sidecar + NestJS module + interceptor + cron. Shadow + advisory modes. 6 service tests + 6 interceptor tests. |
-| Phase 10 — Dynamic Pricing (frontend) | ⏳ Pending (Tasks 4–7) | CoreML freshness scan, price-suggestions screen, product card enrichment |
-| Phase 10 — Dynamic Pricing (graduation) | ⏳ Pending (Task 8) | Shadow KPI validation, INTEGRATION.md, advisory graduation checklist |
+| Phase 10 — Dynamic Pricing (frontend) | ✅ Complete | CoreML freshness scan, price-suggestions screen, product card enrichment |
+| Phase 10 — Dynamic Pricing (graduation) | ✅ Complete | Shadow KPI validation, INTEGRATION.md, advisory graduation checklist |
 | Phase 11 — Recommender | ❌ Removed | Module deleted from backend and frontend |
 | Phase 12 — Demand Forecast | ❌ Removed | Module deleted from backend and frontend |
 
@@ -155,14 +155,14 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 | ID | Severity | Description | Status |
 |---|---|---|---|
 | TD-001 | ✅ Fixed | ObjectId `.toHexString()` workaround | Fixed |
-| TD-002 | 🟡 Low | docker-compose.yml obsolete version attribute | Open |
-| TD-003 | 🟡 Low | FarmsService injects OrderModel + ProductModel cross-module | Open |
+| TD-002 | ✅ Fixed | docker-compose.yml obsolete version attribute | Fixed |
+| TD-003 | ✅ Fixed | FarmsService injects OrderModel + ProductModel cross-module | Fixed |
 | TD-004 | ⚠️ Pending | Docker smoke test not run | Must verify manually |
 | TD-007 | 🟡 Low | SMS Service is a stub (console.log only) | Open |
 | TD-008 | 🟡 Low | Push notification failure is fire-and-forget | Intentional |
 | TD-011 | 🟡 Low | GHN credentials not set — delivery uses mock | Open (see GHN setup above) |
 | TD-014 | ✅ Fixed | Checkout screen now auto-launches Stripe after order creation | Fixed |
-| TD-015 | 🟡 Low | payments.controller.ts uses `any` for JwtUser type | Open |
+| TD-015 | ✅ Fixed | payments.controller.ts uses `any` for JwtUser type | Fixed |
 | TD-016 | ✅ Fixed | Delivery weight now calculated: items.reduce(sum + qty × 100g) | Fixed |
 | TD-017 | ✅ Fixed | payments.service.spec.ts — 7 tests added | Fixed |
 | TD-018 | ✅ Fixed | delivery.service.spec.ts — 4 tests added | Fixed |
@@ -178,11 +178,11 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 | TD-028 | ✅ Fixed | Products had no geospatial filter — implemented two-stage $near farms → $in products | Fixed |
 | TD-029 | ✅ Fixed | Orders could not sort by customerName/farmName — implemented $lookup aggregation pipeline | Fixed |
 | TD-030 | ✅ Fixed | products.module.ts did not register FarmSchema — required after TD-028 injection | Fixed |
-| TD-031 | 🟡 Low | DynamicPricing: duplicate productId index warning (schema defines unique, Mongoose also auto-creates) — harmless but noisy in logs | Open |
-| TD-032 | ⏳ Pending | CoreML freshness classifier not yet wired to frontend (Tasks 4–5) | Blocked on Expo native module |
-| TD-033 | ⏳ Pending | Farmer price-suggestions screen not yet built (Task 6) | Pending |
-| TD-034 | ⏳ Pending | Product card dynamic price enrichment not yet built (Task 7) | Pending |
-| TD-035 | ⏳ Pending | Dynamic pricing graduation checklist + INTEGRATION.md not yet written (Task 8) | Pending |
+| TD-031 | ✅ Fixed | DynamicPricing: duplicate productId index warning (schema defines unique, Mongoose also auto-creates) — harmless but noisy in logs | Fixed |
+| TD-032 | ✅ Fixed | CoreML freshness classifier not yet wired to frontend (Tasks 4–5) | Fixed |
+| TD-033 | ✅ Fixed | Farmer price-suggestions screen not yet built (Task 6) | Fixed |
+| TD-034 | ✅ Fixed | Product card dynamic price enrichment not yet built (Task 7) | Fixed |
+| TD-035 | ✅ Fixed | Dynamic pricing graduation checklist + INTEGRATION.md not yet written (Task 8) | Fixed |
 
 ---
 
