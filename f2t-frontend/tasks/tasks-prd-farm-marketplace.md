@@ -1,0 +1,256 @@
+# Tasks for Farm Marketplace MVP Implementation
+
+## Relevant Files
+
+- `src/types/index.ts` - Core TypeScript types for User, Farm, Product, Order models
+- `src/types/constants.ts` - Order status constants and all enum-like values with English labels
+- `src/types/api.ts` - API request/response type definitions
+- `src/api/auth/index.ts` - Extended authentication API functions for farm/consumer registration
+- `src/api/auth/` - Complete auth API with React Query Kit hooks and helper functions
+- `src/api/farms/index.ts` - Farm management API functions (CRUD operations)
+- `src/api/products/index.ts` - Product catalog API functions with search/filter
+- `src/api/orders/index.ts` - Order management API functions with status tracking
+- `src/api/location/index.ts` - Location services for distance calculation
+- `src/lib/hooks/use-location.tsx` - Custom hook for location services
+- `src/lib/validation/index.ts` - Form validation schemas for all forms
+- `src/components/farm-registration-form.tsx` - Farm registration form component with business info fields
+- `src/components/farm-registration-form-utils.ts` - Form utilities and validation helpers
+- `src/components/phone-verification.tsx` - Phone number verification component with resend timer
+- `src/components/email-verification.tsx` - Email verification component with resend functionality
+- `src/components/verification-flow.tsx` - Multi-step verification flow orchestrator
+- `src/app/verification.tsx` - Verification screen for post-registration flow
+- `src/app/register.tsx` - Registration choice screen for consumer vs farm selection
+- `src/app/farms/register.tsx` - Farm registration screen with complete form integration
+- `src/app/farms/_layout.tsx` - Layout configuration for farm-related screens
+- `src/lib/auth/utils.tsx` - Enhanced auth utilities with farm data types and storage
+- `src/lib/auth/index.tsx` - Updated auth store with farm state management
+- `src/api/auth/auth-actions.tsx` - Enhanced auth actions for farm registration and login
+- `src/lib/auth/enhanced-auth.test.tsx` - Test suite for farm-specific auth functionality
+- `src/components/auth/route-guard.tsx` - Generic route protection component with role and permission checking
+- `src/components/auth/farm-route-guard.tsx` - Farm-specific route protection component
+- `src/components/auth/consumer-route-guard.tsx` - Consumer-specific route protection component
+- `src/components/auth/with-auth.tsx` - Higher-order components for route protection
+- `src/components/auth/index.tsx` - Auth components export file
+- `src/lib/hooks/use-auth-permissions.tsx` - Permission checking hooks for components
+- `src/app/(app)/farm-dashboard.tsx` - Example farm dashboard with route protection
+- `src/components/auth/route-guard.test.tsx` - Test suite for route protection components
+- `src/lib/hooks/use-auth-permissions.test.tsx` - Test suite for permission hooks
+- `src/api/farms/index.tsx` - Main farm API export file with CRUD operations and utilities
+- `src/api/farms/types.tsx` - Farm API request/response types and business logic types
+- `src/api/farms/use-create-farm.tsx` - Farm creation mutation hook
+- `src/api/farms/use-get-farm.tsx` - Single farm retrieval query hook
+- `src/api/farms/use-get-farms.tsx` - Farm list and search query hooks with pagination
+- `src/api/farms/use-update-farm.tsx` - Farm update mutation hook
+- `src/api/farms/use-delete-farm.tsx` - Farm deletion mutation hook
+- `src/api/farms/use-update-business-hours.tsx` - Business hours management hook
+- `src/api/farms/use-update-delivery-zones.tsx` - Delivery zones management hook
+- `src/api/farms/use-farm-analytics.tsx` - Farm analytics and reporting hook
+- `src/components/farms/farm-card.tsx` - Comprehensive farm profile display card with multiple variants
+- `src/components/farms/farm-list.tsx` - Farm list component with pagination and search integration
+- `src/components/farms/farm-search.tsx` - Advanced farm search and filtering component
+- `src/components/farms/farm-status.tsx` - Farm status indicator showing open/closed state
+- `src/components/farms/farm-distance.tsx` - Distance calculation and delivery info component
+- `src/components/farms/index.tsx` - Farm components export file
+- `src/components/farms/farm-card.test.tsx` - Comprehensive test suite for farm card component
+- `src/components/farms/farm-profile-edit-form.tsx` - Comprehensive farm profile editing form with validation
+- `src/components/farms/location-picker.tsx` - GPS-enabled location picker with address input
+- `src/components/farms/business-hours-picker.tsx` - Interactive business hours configuration component
+- `src/components/farms/delivery-zone-manager.tsx` - Delivery zone management with radius and pricing
+- `src/app/farms/[id].tsx` - Dynamic farm profile screen with comprehensive farm information display
+- `src/app/farms/[id]/products.tsx` - Farm products listing screen with search and cart functionality
+- `src/app/farms/index.tsx` - Farm discovery screen with search, filters, and location services
+- `src/app/(app)/farms.tsx` - Farms tab redirect to discovery screen
+- `src/app/(app)/dashboard.tsx` - Farm dashboard screen with route protection
+- `src/components/ui/icons/farm.tsx` - Farm icon for navigation
+- `src/components/ui/icons/dashboard.tsx` - Dashboard icon for navigation
+- `src/components/farm-discovery-screen.test.tsx` - Test suite for farm discovery functionality
+- `src/components/dashboard/farm-dashboard.tsx` - Main farm dashboard component with comprehensive management features
+- `src/components/dashboard/dashboard-header.tsx` - Dashboard header with farm info and status
+- `src/components/dashboard/quick-actions.tsx` - Quick action buttons for common tasks
+- `src/components/dashboard/quick-stats.tsx` - Analytics and statistics display
+- `src/components/dashboard/recent-orders.tsx` - Recent orders management section
+- `src/components/dashboard/product-management.tsx` - Product inventory management section
+- `src/components/dashboard/index.tsx` - Dashboard components export file
+- `src/components/dashboard/farm-dashboard.test.tsx` - Test suite for dashboard functionality
+- `src/api/products/types.tsx` - Product API request/response types and constants
+- `src/api/products/use-create-product.tsx` - Hook for creating products
+- `src/api/products/use-get-product.tsx` - Hook for fetching single product
+- `src/api/products/use-get-products.tsx` - Hooks for fetching product lists (paginated and infinite)
+- `src/api/products/use-update-product.tsx` - Hook for updating products
+- `src/api/products/use-delete-product.tsx` - Hook for deleting products
+- `src/api/products/use-update-stock.tsx` - Hook for updating product stock
+- `src/api/products/index.tsx` - Product API exports and utility functions
+- `src/api/products/product-utils.test.ts` - Test suite for product utility functions
+- `src/components/products/product-card.tsx` - Comprehensive product card component with harvest time display
+- `src/components/products/product-list.tsx` - Product list component with multiple layouts and loading states
+- `src/components/products/product-search.tsx` - Advanced product search and filtering component
+- `src/components/products/index.tsx` - Product components export file
+- `src/components/products/product-card.test.tsx` - Test suite for product card component
+- `src/components/products/product-form.tsx` - Comprehensive product creation/edit form with validation
+- `src/components/products/image-picker.tsx` - Product image picker component with camera and gallery support
+- `src/components/products/nutritional-info-form.tsx` - Nutritional information form component
+- `src/components/products/product-form.test.tsx` - Test suite for product form component
+- `src/app/products/index.tsx` - Main product listing screen with search, filter, and pagination
+- `src/app/products/_layout.tsx` - Layout file for products directory navigation
+- `src/app/products/add.tsx` - Add product screen for farm users
+- `src/components/products/product-list-screen.test.tsx` - Test suite for product listing components
+- `src/app/products/[id].tsx` - Comprehensive product detail screen with purchase options
+- `src/components/products/product-image-gallery.tsx` - Product image gallery with thumbnail navigation
+- `src/components/products/product-info.tsx` - Detailed product information display component
+- `src/components/products/product-purchase-options.tsx` - Purchase options with quantity selector and pricing
+- `src/components/products/product-nutrition-facts.tsx` - Expandable nutritional information component
+- `src/components/products/product-farm-info.tsx` - Farm information display with contact options
+- `src/components/products/product-reviews.tsx` - Customer reviews and ratings component
+- `src/components/products/product-detail.test.tsx` - Test suite for product detail components
+- `src/app/inventory/index.tsx` - Comprehensive inventory management screen for farms
+- `src/app/inventory/_layout.tsx` - Layout file for inventory management routes
+- `src/components/inventory/inventory-header.tsx` - Header component with navigation and actions
+- `src/components/inventory/inventory-stats.tsx` - Statistics dashboard for inventory overview
+- `src/components/inventory/inventory-filters.tsx` - Advanced filtering and search functionality
+- `src/components/inventory/inventory-list.tsx` - Product list with stock management and selection
+- `src/components/inventory/bulk-actions.tsx` - Bulk operations for multiple products
+- `src/components/inventory/index.tsx` - Main export file for inventory components
+- `src/components/inventory/inventory-management.test.tsx` - Comprehensive test suite for inventory system
+- `src/lib/cart/index.tsx` - Complete cart state management with Zustand store and persistence
+- `src/lib/cart/types.tsx` - TypeScript types and interfaces for cart system
+- `src/lib/cart/utils.tsx` - Cart utility functions for calculations, validation, and formatting
+- `src/lib/cart/cart.test.tsx` - Comprehensive test suite for cart functionality
+- `src/components/cart/cart-item.tsx` - Comprehensive cart item component with quantity controls and three variants
+- `src/components/cart/cart-summary.tsx` - Comprehensive cart summary component with total calculation and multiple variants
+- `src/components/cart/index.tsx` - Cart components export file
+- `src/api/orders/types.tsx` - Complete TypeScript types and interfaces for order management system
+- `src/api/orders/use-create-order.tsx` - Hook for creating new orders with payment integration
+- `src/api/orders/use-get-order.tsx` - Hook for fetching single order details
+- `src/api/orders/use-get-orders.tsx` - Hooks for fetching paginated order lists with infinite scroll
+- `src/api/orders/use-update-order.tsx` - Hook for updating order information
+- `src/api/orders/use-cancel-order.tsx` - Hook for cancelling orders with refund handling
+- `src/api/orders/use-refund-order.tsx` - Hook for processing order refunds
+- `src/api/orders/use-update-order-status.tsx` - Hook for updating order status and timeline
+- `src/api/orders/use-order-stats.tsx` - Hook for fetching order analytics and statistics
+- `src/api/orders/index.tsx` - Main orders API export with comprehensive utility functions
+- `src/api/orders/order-utils.test.ts` - Comprehensive test suite for order utility functions
+- `src/app/checkout/index.tsx` - Main checkout screen with order processing and payment integration
+- `src/app/checkout/_layout.tsx` - Checkout screen layout configuration
+- `src/components/checkout/checkout-form.tsx` - Comprehensive checkout form with validation and React Hook Form
+- `src/components/checkout/payment-integration.tsx` - Payment processing component with multiple payment methods
+- `src/components/checkout/types.tsx` - TypeScript types and interfaces for checkout system
+- `src/components/checkout/index.tsx` - Checkout components export file
+- `src/app/orders/[id].tsx` - Order detail screen with comprehensive order information
+- `src/app/orders/_layout.tsx` - Orders screen layout configuration
+- `src/app/checkout/success.tsx` - Order success screen with confirmation and next steps
+- `src/components/orders/order-confirmation.tsx` - Main order confirmation component with all sections
+- `src/components/orders/order-header.tsx` - Order header with number, status, and date
+- `src/components/orders/order-status-timeline.tsx` - Visual order progress timeline
+- `src/components/orders/order-items.tsx` - Order items display with product details
+- `src/components/orders/order-summary.tsx` - Order summary with pricing breakdown
+- `src/components/orders/order-actions.tsx` - Order action buttons (track, cancel, reorder)
+- `src/components/orders/order-delivery-info.tsx` - Delivery information and status
+- `src/components/orders/order-payment-info.tsx` - Payment information and billing details
+- `src/components/orders/index.tsx` - Orders components export file
+- `src/components/products/product-detail.tsx` - Product detail view
+- `src/components/search/search-bar.tsx` - Reusable search input component
+- `src/components/search/filter-modal.tsx` - Product filtering modal
+- `src/components/orders/order-card.tsx` - Order status display component
+- `src/components/orders/order-status-timeline.tsx` - Order status progression component
+- `src/app/farms/[id].tsx` - Individual farm profile screen
+- `src/app/farms/register.tsx` - Farm registration screen
+- `src/app/products/[id].tsx` - Product detail screen
+- `src/app/cart/index.tsx` - Shopping cart screen
+- `src/app/orders/index.tsx` - Order history and tracking screen
+- `src/app/orders/[id].tsx` - Individual order detail screen
+- `src/api/notifications/types.tsx` - Notification types and interfaces
+- `src/api/notifications/templates.tsx` - Email, SMS, and push notification templates
+- `src/api/notifications/index.tsx` - Notification API functions with React Query Kit hooks
+- `src/lib/notifications/notification-service.tsx` - Notification service singleton with helper functions
+- `src/lib/notifications/index.tsx` - Notification utilities export file
+- `src/components/notifications/notification-list.tsx` - Notification list component with mark as read/delete
+- `src/components/notifications/notification-preferences.tsx` - Notification preferences management component
+- `src/components/notifications/index.tsx` - Notification components export file
+- `src/app/notifications/index.tsx` - Notifications screen with list view
+- `src/app/notifications/preferences.tsx` - Notification preferences screen
+
+### Notes
+
+- Follow existing patterns: React Hook Form + Zod validation for forms
+- Use React Query Kit pattern for API functions like existing `usePosts`
+- Extend existing auth system rather than replacing it
+- Leverage existing UI components from `@/components/ui`
+- Use Expo Router file-based routing structure
+- Follow kebab-case naming convention for all files
+
+## Tasks
+
+- [x] 1.0 Setup Core Data Models & API Foundation
+
+  - [x] 1.1 Create TypeScript interfaces for User, Farm, Product, Order in `src/types/index.ts`
+  - [x] 1.2 Define API request/response types in `src/types/api.ts`
+  - [x] 1.3 Create order status constants and enums
+  - [x] 1.4 Define location and address type definitions
+  - [x] 1.5 Setup product category constants (vegetables, fruits, etc.)
+
+- [x] 2.0 Extend Authentication System for Farm/Consumer Registration
+
+  - [x] 2.1 Extend existing auth types to include user roles (consumer/farm)
+  - [x] 2.2 Create farm registration API functions in `src/api/auth/index.ts`
+  - [x] 2.3 Build farm registration form component with business info fields
+  - [x] 2.4 Add phone number verification to existing registration flow
+  - [x] 2.5 Create farm registration screen at `src/app/farms/register.tsx`
+  - [x] 2.6 Update auth store to handle farm-specific user data
+  - [x] 2.7 Create role-based route protection for farm features
+
+- [ ] 3.0 Implement Farm Management System
+
+  - [x] 3.1 Create farm API functions (create, read, update) in `src/api/farms/index.ts`
+  - [x] 3.2 Build farm profile display card component
+  - [x] 3.3 Create farm profile edit form with location picker
+  - [x] 3.4 Implement farm profile screen at `src/app/farms/[id].tsx`
+  - [x] 3.5 Add farm discovery list for consumers
+  - [x] 3.6 Create farm dashboard for managing products and orders
+
+- [x] 4.0 Build Product Catalog & Management
+
+  - [x] 4.1 Create product API functions (CRUD, search, filter) in `src/api/products/index.ts`
+  - [x] 4.2 Build product card component with harvest time display
+  - [x] 4.3 Create product creation/edit form for farms
+  - [x] 4.4 Implement product list component with search functionality
+  - [x] 4.5 Build product detail screen at `src/app/products/[id].tsx`
+  - [x] 4.6 Create product inventory management for farms
+  - [x] 4.7 Create product availability status indicators
+
+- [x] 5.0 Develop Shopping Cart & Order System
+
+  - [x] 5.1 Create cart state management with Zustand store
+  - [x] 5.2 Build cart item component with quantity controls
+  - [x] 5.3 Implement cart summary with total calculation
+  - [x] 5.4 Create order API functions for placement and management
+  - [x] 5.5 Build checkout screen with payment integration
+  - [x] 5.6 Implement order confirmation flow
+  - [x] 5.7 Add cart persistence using MMKV storage
+
+- [x] 6.0 Create Location & Search Features
+
+  - [x] 6.1 Create location service hook for GPS and distance calculation
+  - [x] 6.2 Build search bar component with real-time filtering
+  - [x] 6.3 Implement filter modal for products (category, price, location)
+  - [x] 6.4 Add location-based farm discovery within 100km radius
+  - [x] 6.5 Create search results screen with sorting options
+  - [x] 6.6 Implement location permission handling
+
+- [x] 7.0 Build Order Management & Status Tracking
+
+  - [x] 7.1 Create order tracking API functions in `src/api/orders/index.ts`
+  - [x] 7.2 Build order status timeline component
+  - [x] 7.3 Implement order history screen at `src/app/orders/index.tsx`
+  - [x] 7.4 Create individual order detail screen at `src/app/orders/[id].tsx`
+  - [x] 7.5 Build farm order management interface
+  - [x] 7.6 Add order status update functionality for farms
+  - [x] 7.7 Implement order notifications (email/SMS basic)
+
+- [x] 8.0 Implement Core Navigation & Screens
+  - [x] 8.1 Update main tab navigation for marketplace features
+  - [x] 8.2 Create home screen with farm discovery and featured products
+  - [x] 8.3 Implement search/browse screen for products
+  - [x] 8.4 Add cart screen with checkout flow
+  - [x] 8.5 Create orders tracking screen
+  - [x] 8.6 Build user profile screen with role-specific features
+  - [x] 8.7 Add bottom navigation icons for marketplace tabs

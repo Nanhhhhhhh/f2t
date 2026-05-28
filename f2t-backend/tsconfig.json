@@ -1,0 +1,82 @@
+{
+  "compilerOptions": {
+    // ── Target & Module ─────────────────────────────────────────────────────────
+    "module": "commonjs",
+    "target": "ES2021",
+    "lib": ["ES2021"],
+    "moduleResolution": "node",
+
+    // ── Output ──────────────────────────────────────────────────────────────────
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "removeComments": true,
+
+    // ── Decorators — required for NestJS ────────────────────────────────────────
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+
+    // ── Strict mode — ON, but with targeted escape hatches ───────────────────────
+    "strict": true,
+
+    // Keep strict null checks — catches the most bugs
+    "strictNullChecks": true,
+
+    // Keep strict function types
+    "strictFunctionTypes": true,
+
+    // Keep strict property initialization
+    // NestJS DI injects properties — we use ! assertion where needed
+    "strictPropertyInitialization": true,
+
+    // Keep no implicit any — forces explicit types
+    "noImplicitAny": true,
+
+    // Keep no implicit returns
+    "noImplicitReturns": true,
+
+    // Keep no implicit this
+    "noImplicitThis": true,
+
+    // Allow unused locals only in test/seed files (controlled via exclude)
+    "noUnusedLocals": false,   // ESLint handles this with better control
+    "noUnusedParameters": false, // ESLint handles this
+
+    // ── Mongoose / NestJS specific ───────────────────────────────────────────────
+
+    // Allows importing CommonJS modules (bcrypt, multer, etc.) without
+    // having to do `import * as bcrypt from 'bcrypt'`
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    // Allows `import type` to be used for type-only imports
+    "verbatimModuleSyntax": false,
+
+    // Skip lib checks — avoids conflicts between @types/* packages
+    "skipLibCheck": true,
+
+    // Allows JSON imports (for i18n translation files, etc.)
+    "resolveJsonModule": true,
+
+    // ── Path aliases ─────────────────────────────────────────────────────────────
+    "paths": {
+      "@/*": ["./src/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@common/*": ["./src/common/*"],
+      "@config/*": ["./src/config/*"]
+    },
+    "baseUrl": "."
+  },
+
+  // ── Include / Exclude ────────────────────────────────────────────────────────
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",       // test files have their own tsconfig
+    "**/*.e2e-spec.ts",
+    "src/seed/**"         // seed scripts are run via ts-node, not compiled
+  ]
+}

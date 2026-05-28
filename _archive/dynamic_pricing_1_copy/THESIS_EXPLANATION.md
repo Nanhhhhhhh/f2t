@@ -1,0 +1,125 @@
+# Dynamic Pricing for a Vietnamese Farm-to-Table App: A Multi-Agent Reinforcement Learning System
+
+## 1. Problem Framing
+Dynamic pricing for perishable goods in a farm-to-table (F2T) ecommerce environment is a uniquely challenging control problem. Unlike durable goods, agricultural products undergo continuous quality degradation (freshness decay), culminating in total loss (waste) if not sold before expiry. The pricing agent must dynamically balance the tradeoff between maintaining high profit margins on fresh inventory and aggressively discounting to clear aging stock before it spoils.
+
+This problem is further complicated by two systemic factors. First, multiple product categories (Stock Keeping Units, or SKUs) such as leafy greens, root vegetables, fruits, and herbs exhibit complex cross-price elasticities. Discounting one product may cannibalize sales of another or conversely act as a loss leader that boosts overall basket sizes. Second, the F2T platform operates in a competitive market environment where external vendors adjust their prices dynamically, requiring our platform to respond strategically to preserve market share without triggering a race to the bottom.
+
+Standard single-agent reinforcement learning (RL) is insufficient because the state-action space scales exponentially with the number of SKUs, rendering a centralized pricing agent intractable. Furthermore, the pricing problem encompasses two fundamentally different objectives: an internal, cooperative goal of maximizing total platform revenue while minimizing waste across interdependent SKUs, and an external, competitive goal of responding to rival vendors. Standard RL paradigms cannot natively handle simultaneous cooperative and competitive structures within a single optimization objective.
+
+Formally, the system must learn a policy that maximizes the expected cumulative urgency-weighted profit minus waste penalties over an episode, while simultaneously adapting a market-level multiplier to remain competitive.
+
+## 2. From Q-Learning to Deep Q-Learning to QMIX
+The foundational algorithm for value-based RL is Q-learning, which seeks to learn the optimal action-value function via the Bellman optimality equation, representing the expected return of taking an action in a given state and following the optimal policy thereafter. In environments with large or continuous state spaces, tabular Q-learning fails due to the curse of dimensionality. Deep Q-Networks (DQN) address this by approximating the Q-function with a neural network.
+
+However, in a multi-agent setting where multiple SKUs must be priced simultaneously, a single centralized DQN faces an exponentially large action space. Conversely, running independent DQNs—one for each SKU—fails due to the credit assignment problem. In a cooperative setting, agents receive a shared global reward (total platform profit), making it impossible for an independent agent to discern how its specific pricing action contributed to the global outcome amidst the noise of other agents' actions. 
+
+To resolve this, the system employs QMIX, a cooperative multi-agent RL (MARL) algorithm operating on the Centralised Training, Decentralised Execution (CTDE) principle. CTDE allows agents to learn cooperatively using global state information during training, while restricting them to use only their local observations during execution. QMIX achieves this by introducing a mixing network that combines the individual agent utilities into a joint action-value. 
+
+A critical requirement of QMIX is the Individual-Global Max (IGM) property, which guarantees that the optimal joint action is exactly the set of optimal individual actions. QMIX enforces IGM via a monotonicity constraint: the derivative of the joint Q-value with respect to any individual Q-value must be non-negative. Architecturally, this is realized by using a hypernetwork to generate the weights of the mixing network and applying an absolute value function (`abs()`) to these weights, ensuring they are strictly positive.
+
+## 3. The Agent: GRU Q-Network
+Pricing fresh produce requires temporal awareness. An agent must understand where it is in the freshness lifecycle and anticipate upcoming scheduled restocks to appropriately discount aging inventory before a new delivery arrives. A standard Multi-Layer Perceptron (MLP) cannot capture this temporal dependency, as it only processes the immediate state. Therefore, each SKU agent is modeled using a Gated Recurrent Unit (GRU) network (hidden dimension 64), which maintains a hidden state that acts as memory across the hourly ticks of an episode.
+
+The agent's observation vector is 15-dimensional, engineered to provide necessary context for pricing decisions:
+- **[0] Freshness ($f \in [0,1]$)**: The immediate quality metric dictating urgency.
+- **[1] Normalized Inventory ($inv / 100$)**: Essential for knowing the volume at risk of spoiling.
+- **[2] CTR Proxy**: A demand response metric based on current price, providing a local gradient of price elasticity.
+- **[3] Add-to-cart rate**: A baseline popularity metric reflecting average units per buying basket.
+- **[4-7] Price History**: The last 3 tick prices. Prevents oscillatory pricing by grounding the agent in its recent trajectory.
+- **[7-10] Competitor Prices**: Three reference prices from simulated market competitors, allowing contextualization of relative positioning.
+- **[10] MADDPG Multiplier ($M$)**: The global competitive scaling factor (active in Phase 2+), allowing the QMIX agent to condition its delta choices on the overarching competitive stance.
+- **[11] Hours to Next Restock ($h / 168$)**: A deterministic countdown clock critical for anticipating inventory replenishment and avoiding waste.
+- **[12-16] Cyclical Time Encoding**: $\sin/\cos$ for hour and day-of-week, capturing diurnal and weekly seasonality in consumer demand.
+
+The agent outputs Q-values for 5 discrete action choices representing percentage price deltas: `{-30%, -15%, 0%, +10%, +20%}`. These raw outputs are subject to a strict safety layer during execution, which enforces a cost floor ($1.05 \times \text{cost}$) to prevent negative margins and a price ceiling ($2.0 \times \text{base\_price}$) to prevent price gouging.
+
+Mathematically, a forward pass proceeds as follows: the 15-dim observation and the previous hidden state are passed through the GRU layer to produce an updated hidden state. This state is then projected through a linear layer to yield 5 Q-values. Finally, during execution, the agent selects the action corresponding to the maximum Q-value: $a_t = \text{argmax}(\mathbf{Q}_t)$.
+
+## 4. The Mixing Network (QMIX)
+During training, the QMIX mixing network aggregates the local Q-values from the four SKU agents (leafy, root, fruit, herbs) into a joint $Q_{tot}$. To do this, it utilizes a 38-dimensional global state vector, which is strictly restricted to the training phase (CTDE). This global state provides an omniscient view of the environment, including the exact freshness, normalized inventory, current prices, demand velocities, rolling hourly revenues, and cumulative waste events for all four agents, as well as platform-level metrics like total inventory, session rate, and the competitive multiplier $M$. 
+
+The mixing network utilizes a hypernetwork architecture. Rather than learning the weights of the mixing network directly via backpropagation, the hypernetwork takes the 38-dim global state as input and outputs the weights and biases for the mixing network layers. This allows the mixing function to be dynamically conditioned on the global state at every timestep.
+
+Crucially, to enforce the monotonicity constraint required for IGM, the outputs of the hypernetwork that serve as the weights of the mixing network are passed through an absolute value function `abs()`. If a standard activation like `ReLU` were used, weights could become zero, zeroing out an agent's gradient and halting learning, or if unconstrained, could become negative, violating the monotonicity guarantee. The `abs()` function ensures weights are strictly positive, preserving the gradient flow and the IGM property.
+
+The forward pass involves the hypernetwork generating strictly positive weights $W_1, W_2$ and unconstrained biases $b_1, b_2$ from the global state $s$. The individual agent utilities $\mathbf{Q}_{ag} = [Q_{leafy}, Q_{root}, Q_{fruit}, Q_{herbs}]$ are then combined:
+$$ h = \text{ELU}(\mathbf{Q}_{ag} W_1(s) + b_1(s)) $$
+$$ Q_{tot} = h W_2(s) + b_2(s) $$
+
+## 5. Training: Episode Replay Buffer and Double Q-Learning
+Unlike standard DQN which trains on isolated transitions, QMIX with recurrent agents must train on complete episodes. The Episode Replay Buffer stores entire 168-step sequences (representing a one-week episode). This is mathematically necessary because updating the GRU network requires backpropagating errors through time (BPTT). If transitions were sampled randomly and independently, the continuous sequence of hidden states would be broken, destroying the agent's temporal memory and its ability to plan for future restock events.
+
+The training objective utilizes the Double Q-learning formulation to mitigate overestimation bias—a known flaw in standard Q-learning where the `max` operator tends to overestimate Q-values due to noise. In Double Q-learning, action selection is decoupled from action evaluation. The online networks (agents and mixer) are used to select the greedy next action, while the target networks evaluate the value of that chosen action. This reduces overestimation by approximately 15-20%.
+
+To maintain stable learning targets, the system employs soft target updates ($\tau = 0.005$) rather than hard copying weights periodically. At each training step, the target network parameters $\theta^-$ are slowly nudged toward the online parameters $\theta$. Hard copies can cause sudden, jarring shifts in the target values, destabilizing the recurrent learning dynamics.
+
+Exploration is managed via an epsilon-greedy schedule that decays $\epsilon$ linearly from 1.0 (pure exploration) to 0.05 (mostly exploitation) over the first 300,000 steps of the 500,000-step training regimen. This elongated decay ensures the agents sufficiently explore the combinatorial joint action space and experience a wide variety of freshness and inventory trajectories before converging on a deterministic pricing strategy.
+
+## 6. The Simulation Environment
+The simulation environment is built on the PettingZoo Parallel API and models a highly realistic F2T marketplace. Freshness decay is modeled using a multiplicative Weibull distribution: $f_{t+1} = f_t \times \exp(-(1/\lambda)^k)$. The Weibull distribution was explicitly chosen over linear or exponential decay because its shape parameter $k$ allows for modeling the varying degradation profiles of different produce types. For instance, leafy greens have $k=1.8$ (accelerating decay), while root vegetables have $k=0.6$ (slow, decelerating decay).
+
+The demand model utilizes a log-linear formulation representing constant elasticity of demand. Cross-price elasticity defines how the price of SKU $i$ affects the demand for SKU $j$. During the initial parameter estimation from empirical transaction data, a critical mechanical bias was identified: regressing $\log(\text{Sales Value} / \text{Baskets})$ against $\log(\text{Price})$ circularly embedded price on both sides of the equation, artificially shifting all elasticity betas ($\beta$) by exactly $+1.0$. This flaw caused the model to predict that demand would remain relatively inelastic or even increase with higher prices. The fix involved utilizing normalized quantity ($\text{Units} \times \text{Size}$) as the dependent variable, yielding the expected negative elasticities.
+
+Inventory restocks occur at fixed hour intervals based on typical vendor schedules. Crucially, when new inventory arrives, the freshness score is not simply reset to 1.0. Instead, it is volume-blended: $f_{new} = \frac{inv_{old} \cdot f_{old} + qty_{new} \cdot f_{delivery}}{inv_{old} + qty_{new}}$. This forces the agent to deal with mixed-quality batches, accurately reflecting physical retail constraints.
+
+The reward function incorporates urgency tiers $\omega(f)$. When produce is peak fresh ($f \geq 0.8$), $\omega=1.0$. However, as freshness drops below 0.4, $\omega=1.90$, heavily amplifying the reward for selling the item at any margin to avoid waste. If an item expires ($f < 0.2$) while still in inventory, a massive waste penalty $\lambda=3.0$ is applied. This penalty must be carefully tuned; if set too high, the agents experience action collapse, perpetually choosing the -30% discount to avoid the punishing gradients of waste.
+
+To accelerate learning, a curriculum of three stages is employed. Stage 1 initializes episodes with small inventory and high freshness, making it easy for the agents to clear stock without waste. As the rolling waste rate drops below specific thresholds (e.g., 20% and 12%), the curriculum advances to Stage 2 and 3, gradually expanding the initial inventory ranges and introducing pre-aged stock, forcing the agents to learn increasingly aggressive discounting strategies.
+
+## 7. Domain Randomization
+To bridge the simulation-to-reality (sim-to-real) gap, the system utilizes a `RandomizedMarketEnv`. The underlying demand parameters are derived from US supermarket data, which structurally differs from the target Vietnamese market where consumers are 20-30% more price-sensitive and consume significantly more herbs. 
+
+To ensure the policy is robust to these discrepancies, the environment injects domain randomization at the start of every episode: demand elasticities ($\beta$) are perturbed by $\pm 30\%$ and Weibull decay parameters by $\pm 20\%$. This forces the QMIX agents to learn generalized pricing heuristics rather than overfitting to a specific fixed demand curve. 
+
+During development, a critical "drift bug" was identified in the randomization logic. The environment was randomizing parameters relative to the *previous* episode's parameters rather than the original baseline. This caused multiplicative accumulation, leading parameters to drift into extreme, unrecoverable states over thousands of episodes. The architecture was corrected to explicitly store original parameters upon initialization and apply perturbations independently from this fixed anchor.
+
+## 8. Phase 2: MADDPG Competitive Layer
+While Phase 1 (QMIX) solves the cooperative intra-vendor pricing problem, it assumes a static external market. Phase 2 introduces a competitive layer using Multi-Agent Deep Deterministic Policy Gradient (MADDPG) to dynamically adjust to competitor pricing. The MADDPG actor outputs a continuous vendor-level multiplier $M \in [0.70, 1.30]$. Economically, $M$ represents the platform's overarching competitive stance (e.g., $M=0.90$ dictates a 10% platform-wide price cut to capture market share). The `HybridPricingEnv` seamlessly wraps QMIX: QMIX selects the discrete SKU-specific delta $\Delta_i$, and MADDPG applies the continuous scalar $M$, yielding a final price change of $\Delta_i + (M - 1.0)$.
+
+MADDPG differs fundamentally from QMIX. It utilizes decentralized actors with continuous action spaces and a centralized critic that observes the state and actions of all vendors during training to estimate the gradient. To facilitate continuous exploration, Ornstein-Uhlenbeck (OU) noise is added to the actor's output. OU noise is temporally correlated, meaning it models "drift" in strategy (e.g., slowly raising prices over a day) rather than independent Gaussian jitter, making it vastly superior for exploring continuous control trajectories.
+
+A critical failure mode identified during Phase 2 was the "sigma floor collapse". If the OU noise decay allows $\sigma$ to drop too low, exploration ceases. Because the actor's deterministic gradient overwhelmingly favors higher prices (as higher prices yield higher immediate margins in the absence of a direct waste penalty in the MADDPG reward formulation), the multiplier rapidly collapses to the architectural ceiling ($M=1.30$) and becomes trapped. To prevent this, a hard floor of `sigma_min=0.10` is enforced, ensuring perpetual exploration. Additionally, the multiplier is strictly clipped to $[0.90, 1.10]$ during training to prevent the actor from locking into ceiling biases before the critic can evaluate the long-term impact on market share. Despite this, a persistent actor ceiling bias remains, resulting in an operational mean multiplier of $M \approx 1.065$ at convergence.
+
+## 9. Phase 3: Joint Fine-Tuning
+Training both the recurrent QMIX agents and the MADDPG continuous actors simultaneously from scratch is notoriously unstable due to non-stationarity: each algorithm's optimal target constantly shifts as the other learns. Therefore, Phase 3 performs joint fine-tuning only after both systems have independently converged. 
+
+However, due to the aforementioned MADDPG actor ceiling bias ($M \to 1.3$), unfettering both algorithms led to severe QMIX regression, as the cooperative agents were forced to compensate for the actor's extreme price gouging. Consequently, Phase 3 employs a "frozen-MADDPG" approach. The MADDPG weights are frozen, and the environment simulates a competitive multiplier drawn from the empirical Phase 2 distribution. QMIX is then fine-tuned under this competitive pressure with a significantly reduced learning rate to adapt its internal deltas to the external scalar.
+
+A subtle logging bug was corrected in this phase: evaluating the model using a modulo of global steps frequently misfired because it relied on the Least Common Multiple (LCM) of the episode length (168) and the evaluation interval. This was rectified by evaluating based on episode counts rather than absolute steps. Finally, a stringent regression check ensures that QMIX under $M=1.0$ retains at least 90% of its Phase 1 baseline revenue. Crucially, this baseline must be measured against the `RandomizedMarketEnv`, as comparing it to the deterministic `MarketEnv` would result in a false-positive failure due to the inherent revenue drop caused by domain randomization.
+
+## 10. Hyperparameter Rationale Table
+
+| Hyperparameter | Value | Rationale | Failure Mode |
+| :--- | :--- | :--- | :--- |
+| **Discount Factor ($\gamma$)** | 0.99 | Standard value to optimize for long-term reward over the 168-step (one week) horizon. | Too low: Agents become myopic, discounting early to secure immediate profit rather than holding for peak demand. |
+| **Soft Update ($\tau$)** | 0.005 | Ensures target networks track online networks smoothly, vital for stabilizing GRU gradients. | Too high: Target values oscillate violently, causing the pricing policy to jitter $\pm 20\%$ every few ticks. |
+| **Learning Rates (lr)** | QMIX: $5\times 10^{-4}$ <br> MADDPG Actor: $1\times 10^{-4}$ <br> MADDPG Critic: $1\times 10^{-3}$ | QMIX requires a balanced rate for GRU convergence. MADDPG uses the established two-timescale update rule where the critic learns faster than the actor to provide stable gradients. | Too high: TD loss diverges (NaN) or policy oscillates wildly. |
+| **Gradient Clip** | 10.0 (Phase 1) <br> 0.5 (Phase 2) | Prevents exploding gradients commonly seen in recurrent networks (BPTT) and deep Q-learning. | Too high: Loss explodes to NaN, typically around 100k steps in Phase 1. |
+| **Buffer Capacity** | 500 episodes (Phase 1) <br> 100k transitions (Phase 2) | Phase 1 requires complete episodes for GRU context. 500 episodes equates to 84k steps, sufficient for a diverse replay distribution. Phase 2 MADDPG actors are MLPs, needing transition-level buffers. | Too low: Catastrophic forgetting; agents overfit to the most recent restock cycle. |
+| **Batch Size** | 8 episodes (Phase 1) <br> 256 transitions (Phase 2) | 8 full episodes is large enough to average gradients across different randomized demand curves without exhausting memory. | Too low: High gradient variance. Too high: Out-of-memory errors on CPU. |
+| **Epsilon Schedule** | $1.0 \to 0.05$ over 300k steps | Ensures prolonged exploration of the complex 15-dim state space before exploiting. | Too fast: Policy converges prematurely without learning end-of-week urgency dynamics. |
+| **Waste Penalty ($\lambda$)** | 3.0 | Punishes inventory expiring. Balanced to force preemptive discounting without completely overwhelming the profit motive. | Too high (>8.0): Action collapse; agents permanently select the -30% discount out of fear of the waste penalty. |
+| **Urgency Tiers ($\omega$)** | 1.0 (fresh) to 1.9 (aging) | Non-linear multiplier to mathematically encourage selling aging stock even at low margins to clear inventory. | If linear: Agents do not sufficiently differentiate between "slightly old" and "expiring tomorrow". |
+| **MADDPG M Clip** | $[0.90, 1.10]$ (Training) | Restricts the competitive multiplier during training to prevent the actor from getting trapped in extreme architectural bounds before the critic learns. | Unclipped: Actor rapidly hits the $M=1.30$ ceiling due to immediate margin rewards and becomes permanently stuck. |
+| **OU Noise $\sigma_{min}$** | 0.10 | The absolute floor for continuous action exploration decay. | Too low (<0.05): Exploration ceases, resulting in the deterministic ceiling collapse. |
+| **Curriculum Thresholds** | Stage 1 $\to$ 2: <20% waste <br> Stage 2 $\to$ 3: <12% waste | Incrementally introduces difficulty (larger inventories, older stock) only when the agent has mastered the current difficulty. | Too aggressive: Agents fail to learn basic pricing mechanics and get overwhelmed by unavoidable waste penalties. |
+
+## 11. Results and Convergence Analysis
+At the conclusion of Phase 1 training (500k steps), the QMIX agents converged to a stable, highly performant policy. The final metrics demonstrated an expected reward of roughly 1830 and a waste rate between 6.3% and 7.9% in the fixed environment, handily exceeding the architectural target of 6-12% waste. Interestingly, the curriculum manager never advanced past Stage 1. This occurred because the 100-episode rolling average used for curriculum gating was highly susceptible to the extreme variance of individual episodes (waste ranging from 0% to 74.9%). While the average was suppressed by occasional difficult episodes, the underlying policy was demonstrably robust.
+
+Phase 2 MADDPG training successfully learned to modulate the multiplier, though it exhibited the known actor ceiling bias. The deterministic output converged to the upper bound, but with the required `sigma_min=0.10` exploration noise active and the training clip applied, the effective operational multiplier distributed as $M \sim \mathcal{N}(1.065, 0.046)$. 
+
+Following Phase 3 joint fine-tuning, the QMIX regression check yielded a ratio of 0.921. This confirms that even under the stochastically fluctuating competitive multiplier introduced by Phase 2, the core QMIX pricing intelligence retained over 92% of its optimal single-agent baseline efficiency, successfully satisfying the $>90\%$ deployment mandate.
+
+## 12. Shadow Mode and Production Deployment
+Prior to live execution, the system must undergo validation in "shadow mode." In this state, the ML models actively receive live observation data and output recommended price deltas to a segregated Firebase database path (`shadow_prices/`), but these recommendations do not affect user-facing prices. This allows developers to monitor the agent's real-time decisions without financial risk.
+
+During shadow mode evaluation, revenue estimates are inherently counterfactual. Because the Phase 2 MADDPG actor possesses a known upward bias ($M_{mean} \approx 1.065$), it will systematically recommend prices ~6.5% higher than the baseline. To accurately assess the volume impact, the counterfactual revenue metric must be bias-corrected by dividing the shadow revenue by $M\_bias\_factor = 1.065$, normalizing the estimate to an $M=1.0$ equivalent.
+
+To graduate from shadow mode to live production, the system must satisfy three stringent criteria continuously over a 7-day period:
+1. **Bias-Adjusted Counterfactual Lift $\geq +8\%$**: Ensures the ML system is genuinely outperforming the static baseline pricing.
+2. **Shadow Waste Rate $\leq 10\%$**: Confirms the agents are successfully clearing perishable inventory in realistic market conditions.
+3. **Safety Clip Rate $\leq 40\%$**: Guarantees the network's raw outputs are naturally well-calibrated and not persistently relying on the hard-coded safety bounds to prevent extreme pricing.
+
+Once deployed, the model relies on a Bayesian online adapter. While the initial demand parameters were calibrated using domain-randomized US data, the online adapter will continuously ingest real Vietnamese transaction data. It will recursively update the demand elasticity priors, seamlessly shifting the policy's pricing heuristics from the simulated environment to the empirical realities of the live Vietnamese market without requiring complete retraining.

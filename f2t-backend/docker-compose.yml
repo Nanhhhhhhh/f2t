@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  f2t-backend:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/f2t
+      - JWT_SECRET=super-secret-key
+      - JWT_REFRESH_SECRET=even-more-secret-key
+    depends_on:
+      - mongodb
+    volumes:
+      - ./uploads:/app/uploads
+
+  mongodb:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:

@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables (contain secrets)
+.env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+build/
+.expo/
+web-build/
+*.tsbuildinfo
+tsconfig.build.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.venv/
+*.egg-info/
+
+# Large ML model files / training projects
+freshnessmodels-1/
+*.mlproj/
+
+# Old archived checkpoints (too large for git)
+untouch/
+
+# Symlink / duplicate of f2t-backend inside pricing-sidecar
+pricing-sidecar/f2t-backend-link/
+
+# Runtime files
+f2t-backend/uploads/
+f2t-backend/app.log
+*.log
+
+# Coverage
+coverage/
+.nyc_output/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+~$*
+
+# iOS native pods
+ios/Pods/
+f2t-frontend/ios/Pods/
+
+# Claude private config
+.claude/
+
+# Expo
+expo-env.d.ts

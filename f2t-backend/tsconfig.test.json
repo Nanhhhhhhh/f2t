@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Tests don't get compiled to dist — ts-jest handles them directly
+    "noEmit": true,
+
+    // Relax unused variable checks in tests — mocks create a lot of
+    // variables that are set up but only partially used
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+
+    // Allow any in test mocks (jest.fn() return types)
+    // TypeScript's strict mode conflicts with jest mock typing
+    "noImplicitAny": false
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "test/**/*.ts",
+    "src/**/*.e2e-spec.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
