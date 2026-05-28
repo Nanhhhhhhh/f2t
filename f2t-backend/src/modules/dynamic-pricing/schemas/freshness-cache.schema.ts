@@ -23,7 +23,7 @@ export class FreshnessReading {
   },
 })
 export class FreshnessCache {
-  @Prop({ type: Types.ObjectId, required: true, unique: true })
+  @Prop({ type: Types.ObjectId, required: true })
   productId!: Types.ObjectId;
 
   @Prop({ type: [FreshnessReading], default: [] })
