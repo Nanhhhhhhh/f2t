@@ -37,7 +37,7 @@ export default function RootLayout() {
       <View style={styles.container}>
         <Stack>
           <Stack.Screen name="(app)" options={{ headerShown: false }} />
-          <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+          <Stack.Screen name="admin" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="register" options={{ headerShown: false }} />
@@ -53,8 +53,8 @@ function Providers({ children }: { children: React.ReactNode }) {
   const theme = useThemeConfig();
   const _renderCount = useRef(0);
   _renderCount.current += 1;
-  if (__DEV__ && _renderCount.current > 10) {
-    console.warn('[DEBUG] Providers render loop detected:', _renderCount.current);
+  if (__DEV__ && _renderCount.current > 5) {
+    console.error('[LOOP] Providers re-rendered', _renderCount.current, 'times — loop is in providers or above');
   }
   return (
     <GestureHandlerRootView style={styles.container}>

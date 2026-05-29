@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import { useFarmAnalytics } from '@/api/farms';
 import { Text, View } from '@/components/ui';
@@ -114,16 +114,16 @@ const StatsErrorState = () => (
 );
 
 export const QuickStats = ({ farmId }: QuickStatsProps) => {
+  const analyticsVariables = useMemo(
+    () => ({ farmId, period: 'week' as const }),
+    [farmId]
+  );
+
   const {
     data: analyticsResponse,
     isLoading,
     error,
-  } = useFarmAnalytics({
-    variables: {
-      farmId,
-      period: 'week',
-    },
-  });
+  } = useFarmAnalytics({ variables: analyticsVariables });
 
   const analytics = analyticsResponse?.success ? analyticsResponse.data : null;
 

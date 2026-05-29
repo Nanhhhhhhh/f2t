@@ -72,7 +72,7 @@ export class DynamicPricingService {
   ): Promise<number> {
     try {
       const farm = await this.farmModel.findById(farmId).select("location").lean();
-      if (!farm?.location?.coordinates) return ownPrice * 0.95;
+      if (!farm?.location.coordinates) return ownPrice * 0.95;
 
       const nearbyFarms = await this.farmModel
         .find({

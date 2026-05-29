@@ -45,8 +45,8 @@ export class DynamicPricingInterceptor implements NestInterceptor {
         let ids: string[] = [];
         if (hasItems) {
           ids = (payload as { items: any[] }).items.map((p) => p?._id?.toString() ?? p?.id);
-        } else if ((payload as any)._id || (payload as any).id) {
-          ids = [(payload as any)._id?.toString() ?? (payload as any).id];
+        } else if ((payload)._id || (payload).id) {
+          ids = [(payload)._id?.toString() ?? (payload).id];
         } else {
           return raw;
         }

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView } from 'react-native';
 
 import { useGetFarm } from '@/api/farms';
@@ -20,14 +20,17 @@ const useDashboardData = () => {
   const currentFarm = getCurrentFarm();
   const [refreshing, setRefreshing] = useState(false);
 
+  const farmVariables = useMemo(
+    () => ({ id: currentFarm?.id || '' }),
+    [currentFarm?.id]
+  );
+
   const {
     data: farmResponse,
     isLoading,
     error,
     refetch,
-  } = useGetFarm({
-    variables: { id: currentFarm?.id || '' },
-  });
+  } = useGetFarm({ variables: farmVariables });
 
   const farm = farmResponse?.success ? farmResponse.data : null;
 

@@ -253,7 +253,7 @@ export class DeliveryService {
 
     try {
       // Fetch live from GHN
-      const tracking = await this.ghnProvider.getTracking(order.ghnOrderCode as string);
+      const tracking = await this.ghnProvider.getTracking(order.ghnOrderCode);
 
       // Sync tracking steps back to our DB
       const steps = tracking.logs.map(l => ({
