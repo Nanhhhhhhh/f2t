@@ -76,6 +76,16 @@ export class OrderTrackingStep {
         ret.customerPhone = '';
       }
 
+      // Map populated farm info if present
+      if (ret.farmId && typeof ret.farmId === 'object' && 'name' in ret.farmId) {
+        const farm = ret.farmId as Record<string, unknown>;
+        ret.farmName = typeof farm.name === 'string' ? farm.name : '';
+        const farmId = farm.id || farm._id;
+        ret.farmId = typeof farmId === 'string' ? farmId : (farmId && typeof farmId === 'object' && 'toString' in farmId ? (farmId as {toString(): string}).toString() : '');
+      } else if (ret.farmId) {
+        ret.farmId = typeof ret.farmId === 'string' ? ret.farmId : (ret.farmId as {toString(): string}).toString();
+      }
+
       delete ret._id;
       delete ret.__v;
       return ret;

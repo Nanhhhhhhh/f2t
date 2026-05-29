@@ -148,6 +148,7 @@ export class AdminService {
       .skip((page - 1) * limit)
       .limit(limit)
       .populate('customerId')
+      .populate('farmId', 'name')
       .exec();
 
     return new PaginationResponseDto(items, total, page, limit);
