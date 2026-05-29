@@ -99,13 +99,13 @@ export default function AdminOrders() {
 
               <View className="mb-3">
                 <Text className="text-sm text-gray-600">
-                  Consumer ID: {item.consumerId}
+                  Customer: {item.customerName || item.customerId || '—'}
                 </Text>
                 <Text className="text-sm text-gray-600">
-                  Farm ID: {item.farmId}
+                  Farm: {item.farmName || item.farmId || '—'}
                 </Text>
                 <Text className="mt-1 text-base font-bold text-blue-600">
-                  {formatVND(item.totalAmount)}
+                  {formatVND(item.total ?? item.totalAmount ?? 0)}
                 </Text>
               </View>
 
@@ -117,8 +117,9 @@ export default function AdminOrders() {
             </View>
           )}
           onEndReached={() => {
-            if (hasNextPage) fetchNextPage();
+            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
           }}
+          onEndReachedThreshold={0.5}
           ListFooterComponent={
             isFetchingNextPage ? (
               <ActivityIndicator

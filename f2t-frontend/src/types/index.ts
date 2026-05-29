@@ -320,11 +320,15 @@ export type PaymentMethod = 'cash' | 'stripe';
 
 export type Order = {
   id: string;
-  consumerId: string;
+  customerId: string;
+  consumerId?: string; // legacy alias
   farmId: string;
+  customerName?: string; // enriched by admin $lookup
+  farmName?: string;    // enriched by admin $lookup
   items: OrderItem[];
   status: OrderStatus;
   totalAmount: number;
+  total?: number;       // alias used by some endpoints
   subtotalAmount: number;
   deliveryFee: number;
   deliveryMethod: DeliveryMethod;

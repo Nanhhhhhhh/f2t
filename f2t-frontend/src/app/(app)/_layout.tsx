@@ -109,6 +109,11 @@ export default function TabLayout() {
     return <Redirect href="/login" />;
   }
 
+  // Admin users should always use the dedicated admin interface
+  if (user?.role === 'admin') {
+    return <Redirect href="/admin" />;
+  }
+
   return (
     <Tabs screenOptions={screenOptions}>
       {/* Home/Dashboard Tab - Different for consumer vs farm */}
