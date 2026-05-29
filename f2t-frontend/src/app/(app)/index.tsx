@@ -45,13 +45,15 @@ const ConsumerHome = () => {
     [location?.latitude, location?.longitude]
   );
 
+  const productsVariables = useMemo(() => ({ page: 1, limit: 6 }), []);
+
   // Fetch featured products (limit 6)
   const {
     data: productsData,
     isLoading: isProductsLoading,
     refetch: refetchProducts,
   } = useGetProducts({
-    variables: { page: 1, limit: 6 },
+    variables: productsVariables,
   });
 
   // Fetch nearby farms (limit 4)

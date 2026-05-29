@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 
 // Location types
@@ -293,24 +293,36 @@ export function useLocation(): LocationService {
     initializeLocation();
   }, [getCurrentLocation]);
 
-  return {
-    // State
-    coordinates: state.coordinates,
-    permission: state.permission,
-    isLoading: state.isLoading,
-    error: state.error,
-    lastUpdated: state.lastUpdated,
-
-    // Actions
-    requestPermission,
-    getCurrentLocation,
-    refreshLocation,
-    clearError,
-
-    // Utilities
-    calculateDistance,
-    isWithinRadius,
-    formatDistance,
-    getLocationAccuracy,
-  };
+  return useMemo(
+    () => ({
+      coordinates: state.coordinates,
+      permission: state.permission,
+      isLoading: state.isLoading,
+      error: state.error,
+      lastUpdated: state.lastUpdated,
+      requestPermission,
+      getCurrentLocation,
+      refreshLocation,
+      clearError,
+      calculateDistance,
+      isWithinRadius,
+      formatDistance,
+      getLocationAccuracy,
+    }),
+    [
+      state.coordinates,
+      state.permission,
+      state.isLoading,
+      state.error,
+      state.lastUpdated,
+      requestPermission,
+      getCurrentLocation,
+      refreshLocation,
+      clearError,
+      calculateDistance,
+      isWithinRadius,
+      formatDistance,
+      getLocationAccuracy,
+    ]
+  );
 }

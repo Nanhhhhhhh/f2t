@@ -5,6 +5,11 @@ import Svg, { Path } from 'react-native-svg';
 
 import { isRTL } from '@/lib';
 
+const RTL_STYLE = StyleSheet.create({
+  flip: { transform: [{ scaleX: -1 }] },
+  normal: {},
+});
+
 export const ArrowRight = ({ color = '#CCC', style, ...props }: SvgProps) => (
   <Svg
     width={7}
@@ -12,10 +17,7 @@ export const ArrowRight = ({ color = '#CCC', style, ...props }: SvgProps) => (
     viewBox="0 0 7 14"
     fill="none"
     {...props}
-    style={StyleSheet.flatten([
-      style,
-      { transform: [{ scaleX: isRTL ? -1 : 1 }] },
-    ])}
+    style={[style, isRTL ? RTL_STYLE.flip : RTL_STYLE.normal]}
   >
     <Path
       d="M.872 13.101a.874.874 0 0 0 .621-.253l5.252-5.253a.875.875 0 0 0 0-1.234L1.493 1.11A.875.875 0 0 0 .26 2.343l4.63 4.63-4.63 4.632A.876.876 0 0 0 .872 13.1Z"

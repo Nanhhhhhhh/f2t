@@ -202,7 +202,7 @@ function FreshnessScanner({
           tag: result.tag,
           medianScore: result.medianScore,
           freshnessTag: result.freshnessTag,
-          suggestion: result.suggestion,
+          suggestion: null,
         });
       }
     },
