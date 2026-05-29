@@ -97,7 +97,13 @@ export default function AdminUsers() {
     );
   };
 
-  const displayUsers = data?.pages.flatMap((page) => page.data?.items || []) || [];
+  const allUsers = data?.pages.flatMap((page) => page.data?.items || []) || [];
+  const seen = new Set<string>();
+  const displayUsers = allUsers.filter((u) => {
+    if (seen.has(u.id)) return false;
+    seen.add(u.id);
+    return true;
+  });
 
   return (
     <View className="flex-1 bg-gray-50">
