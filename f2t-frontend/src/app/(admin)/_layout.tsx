@@ -1,8 +1,10 @@
 import { Redirect, Stack } from 'expo-router';
 import React from 'react';
+import { TouchableOpacity } from 'react-native';
 
 import { AdminRouteGuard } from '@/components/auth';
-import { useAuth } from '@/lib';
+import { signOut, useAuth } from '@/lib';
+import { Text } from '@/components/ui';
 
 export default function AdminLayout() {
   const user = useAuth.use.user();
@@ -28,6 +30,11 @@ export default function AdminLayout() {
           options={{
             title: 'Admin Dashboard',
             headerShown: true,
+            headerRight: () => (
+              <TouchableOpacity onPress={signOut} hitSlop={8}>
+                <Text className="font-medium text-red-500">Sign Out</Text>
+              </TouchableOpacity>
+            ),
           }}
         />
         <Stack.Screen
