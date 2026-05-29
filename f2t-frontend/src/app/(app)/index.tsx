@@ -78,20 +78,14 @@ const ConsumerHome = () => {
   };
 
   const categories = [
-    {
-      id: 'vegetables',
-      label: 'Vegetables',
-      icon: '🥬',
-      value: PRODUCT_CATEGORY.VEGETABLES,
-    },
-    {
-      id: 'fruits',
-      label: 'Fruits',
-      icon: '🍎',
-      value: PRODUCT_CATEGORY.FRUITS,
-    },
-    { id: 'dairy', label: 'Sữa', icon: '🥛', value: PRODUCT_CATEGORY.DAIRY },
-    { id: 'mushrooms', label: 'Nấm', icon: '🍄', value: PRODUCT_CATEGORY.MUSHROOMS },
+    { id: 'vegetables', label: 'Rau củ',       icon: '🥬', value: PRODUCT_CATEGORY.VEGETABLES },
+    { id: 'fruits',     label: 'Trái cây',      icon: '🍎', value: PRODUCT_CATEGORY.FRUITS },
+    { id: 'herbs',      label: 'Rau thơm',      icon: '🌿', value: PRODUCT_CATEGORY.HERBS },
+    { id: 'mushrooms',  label: 'Nấm',           icon: '🍄', value: PRODUCT_CATEGORY.MUSHROOMS },
+    { id: 'grains',     label: 'Ngũ cốc',       icon: '🌾', value: PRODUCT_CATEGORY.GRAINS },
+    { id: 'dairy',      label: 'Sữa',           icon: '🥛', value: PRODUCT_CATEGORY.DAIRY },
+    { id: 'eggs',       label: 'Trứng',         icon: '🥚', value: PRODUCT_CATEGORY.EGGS },
+    { id: 'honey',      label: 'Mật ong',       icon: '🍯', value: PRODUCT_CATEGORY.HONEY },
   ];
 
   return (
