@@ -47,19 +47,19 @@ export default function AdminDashboard() {
         {/* Navigation Buttons */}
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-blue-600 py-3"
-          onPress={() => router.push('/admin/users')}
+          onPress={() => router.push('/users')}
         >
           <Text className="text-center font-bold text-white">Users</Text>
         </TouchableOpacity>
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-blue-600 py-3"
-          onPress={() => router.push('/admin/farms')}
+          onPress={() => router.push('/farms')}
         >
           <Text className="text-center font-bold text-white">Farms</Text>
         </TouchableOpacity>
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-blue-600 py-3"
-          onPress={() => router.push('/admin/orders')}
+          onPress={() => router.push('/orders')}
         >
           <Text className="text-center font-bold text-white">Orders</Text>
         </TouchableOpacity>
