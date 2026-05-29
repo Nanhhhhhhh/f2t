@@ -5,6 +5,7 @@ export type AdminUsersQuery = {
   limit?: number;
   search?: string;
   role?: string;
+  isBanned?: boolean;
 };
 
 export type AdminFarmsQuery = {

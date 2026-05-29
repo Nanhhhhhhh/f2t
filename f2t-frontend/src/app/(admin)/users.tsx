@@ -34,10 +34,8 @@ export default function AdminUsers() {
   } = useGetAdminUsers({
     variables: {
       search: debouncedSearch || undefined,
-      role:
-        roleFilter !== 'all' && roleFilter !== 'banned'
-          ? roleFilter
-          : undefined,
+      role: roleFilter !== 'all' && roleFilter !== 'banned' ? roleFilter : undefined,
+      isBanned: roleFilter === 'banned' ? true : undefined,
     },
   });
 
@@ -99,15 +97,7 @@ export default function AdminUsers() {
     );
   };
 
-  const users = data?.pages.flatMap((page) => page.data?.items || []) || [];
-
-  // Client-side filter for 'banned' since API uses `role` query param typically,
-  // but if 'banned' is selected, we filter locally or could pass a `status` query.
-  // Assuming 'suspended' status means banned based on UserStatus type.
-  const displayUsers =
-    roleFilter === 'banned'
-      ? users.filter((u) => u.status === 'suspended')
-      : users;
+  const displayUsers = data?.pages.flatMap((page) => page.data?.items || []) || [];
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -197,8 +187,9 @@ export default function AdminUsers() {
             </View>
           )}
           onEndReached={() => {
-            if (hasNextPage) fetchNextPage();
+            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
           }}
+          onEndReachedThreshold={0.5}
           ListFooterComponent={
             isFetchingNextPage ? (
               <ActivityIndicator
