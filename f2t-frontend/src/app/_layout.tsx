@@ -6,7 +6,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import React, { useRef } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -51,11 +51,6 @@ export default function RootLayout() {
 
 function Providers({ children }: { children: React.ReactNode }) {
   const theme = useThemeConfig();
-  const _renderCount = useRef(0);
-  _renderCount.current += 1;
-  if (__DEV__ && _renderCount.current > 5) {
-    console.error('[LOOP] Providers re-rendered', _renderCount.current, 'times — loop is in providers or above');
-  }
   return (
     <GestureHandlerRootView style={styles.container}>
       <KeyboardProvider>

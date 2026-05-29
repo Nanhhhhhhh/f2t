@@ -1,5 +1,5 @@
 import { Link, Redirect, SplashScreen, Tabs } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import * as SafeAreaContext from 'react-native-safe-area-context';
 
@@ -62,11 +62,6 @@ const CartBadge = ({ count }: { count: number }) => {
 };
 
 export default function TabLayout() {
-  const _renderCount = useRef(0);
-  _renderCount.current += 1;
-  if (__DEV__ && _renderCount.current > 10) {
-    console.warn('[DEBUG] TabLayout render loop detected:', _renderCount.current);
-  }
   const { status, isFirstTime, shouldBypassLogin } = useAppInitialization();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';

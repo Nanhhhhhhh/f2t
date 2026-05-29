@@ -49,6 +49,15 @@ export default function ProductsTabScreen() {
   const [searchInput, setSearchInput] = useState((params.search as string) || '');
   const debouncedSearch = useDebounce(searchInput, 400);
   const [activeCategory, setActiveCategory] = useState((params.category as string) || 'all');
+
+  // Sync URL params into state when navigated from outside (e.g. home category banner)
+  useEffect(() => {
+    if (params.category) setActiveCategory(params.category as string);
+  }, [params.category]);
+
+  useEffect(() => {
+    if (params.search) setSearchInput(params.search as string);
+  }, [params.search]);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sortIndex, setSortIndex] = useState(0);
