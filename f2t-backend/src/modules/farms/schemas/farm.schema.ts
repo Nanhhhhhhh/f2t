@@ -18,12 +18,22 @@ const PointSchema = SchemaFactory.createForClass(Point);
 class Address {
   @Prop({ required: true }) street!: string;
   @Prop({ required: true }) city!: string;
-  @Prop({ required: true }) state!: string;
   @Prop({ required: true }) zipCode!: string;
   @Prop({ required: true }) country!: string;
 }
 
 const AddressSchema = SchemaFactory.createForClass(Address);
+
+@Schema({ _id: false })
+class RestockScheduleItem {
+  @Prop({ required: true })
+  category!: string;
+
+  @Prop({ required: true, min: 1, max: 30 })
+  intervalDays!: number;
+}
+
+const RestockScheduleItemSchema = SchemaFactory.createForClass(RestockScheduleItem);
 
 @Schema({
   timestamps: true,
@@ -71,6 +81,9 @@ export class Farm {
 
   @Prop({ type: MongooseSchema.Types.Mixed })
   businessHours!: Record<string, unknown>;
+
+  @Prop({ type: [RestockScheduleItemSchema], default: [] })
+  restockSchedule!: RestockScheduleItem[];
 
   @Prop({ default: true })
   isActive!: boolean;

@@ -29,7 +29,6 @@ class CoordinatesDto {
 export class AddressDto {
   @ApiProperty() @IsString() street!: string;
   @ApiProperty() @IsString() city!: string;
-  @ApiProperty() @IsString() state!: string;
   @ApiProperty() @IsString() zipCode!: string;
   @ApiProperty() @IsString() country!: string;
 }
@@ -71,6 +70,26 @@ export class UpdateFarmDto extends PartialType(CreateFarmDto) {
   @IsUrl({ require_tld: false })
   @IsString()
   coverImageUrl?: string;
+}
+
+export class RestockScheduleItemDto {
+  @ApiProperty({ example: 'vegetables' })
+  @IsString()
+  category!: string;
+
+  @ApiProperty({ example: 4, minimum: 1, maximum: 30 })
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  intervalDays!: number;
+}
+
+export class UpdateRestockScheduleDto {
+  @ApiProperty({ type: [RestockScheduleItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RestockScheduleItemDto)
+  schedule!: RestockScheduleItemDto[];
 }
 
 export class GetFarmsFilterDto {

@@ -133,6 +133,9 @@ export class Product {
   @Prop({ type: [ProductCertification] })
   certifications?: ProductCertification[];
 
+  @Prop()
+  lastRestockedAt?: Date;
+
   @Prop({ default: false, select: false })
   _seeded?: boolean;
 }

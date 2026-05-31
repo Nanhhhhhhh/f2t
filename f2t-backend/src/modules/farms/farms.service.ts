@@ -282,6 +282,16 @@ export class FarmsService {
     return updatedFarm;
   }
 
+  async updateRestockSchedule(
+    ownerId: string,
+    schedule: { category: string; intervalDays: number }[],
+  ): Promise<Farm> {
+    const farm = await this.farmModel.findOne({ ownerId: new Types.ObjectId(ownerId) });
+    if (!farm) throw new NotFoundException('Farm not found');
+    farm.restockSchedule = schedule;
+    return farm.save();
+  }
+
   async getAnalytics(id: string, ownerId: string): Promise<FarmStats> {
     const farm = await this.findOne(id);
     if (farm.ownerId.toHexString() !== ownerId) {

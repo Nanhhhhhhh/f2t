@@ -3,18 +3,20 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { FarmsService, FarmStats } from './farms.service';
 import {
   CreateFarmDto,
   UpdateFarmDto,
   GetFarmsFilterDto,
+  UpdateRestockScheduleDto,
 } from './dto/farm.dto';
 import { UpdateDeliveryZonesDto } from './dto/update-delivery-zones.dto';
 import { UpdateBusinessHoursDto } from './dto/update-business-hours.dto';
@@ -22,7 +24,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { FarmDocument } from "./schemas/farm.schema";
+import { Farm, FarmDocument } from "./schemas/farm.schema";
 
 interface RequestUser {
   userId: string;
@@ -135,5 +137,17 @@ export class FarmsController {
     @CurrentUser() user: RequestUser,
   ): Promise<FarmStats> {
     return this.farmsService.getAnalytics(id, user.userId);
+  }
+
+  @Patch('me/restock-schedule')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Set restock schedule per category for my farm' })
+  @ApiResponse({ status: 200, description: 'Schedule updated' })
+  async updateRestockSchedule(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: UpdateRestockScheduleDto,
+  ): Promise<Farm> {
+    return this.farmsService.updateRestockSchedule(user.userId, dto.schedule);
   }
 }
