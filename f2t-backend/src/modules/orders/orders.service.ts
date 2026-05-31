@@ -536,6 +536,12 @@ export class OrdersService {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException('Order not found');
 
+    if (order.paymentMethod === 'stripe') {
+      throw new BadRequestException(
+        'Payment status for Stripe orders is managed automatically',
+      );
+    }
+
     // Ownership check — farm must own this order
     const farm = await this.farmsService.findOneByOwner(userId);
     const orderFarmId = extractId(order.farmId);
@@ -577,10 +583,36 @@ export class OrdersService {
       paidAt?: Date;
     },
   ): Promise<void> {
-    await this.orderModel.findByIdAndUpdate(orderId, {
-      paymentStatus: status,
-      ...extra,
-    });
+    const order = await this.orderModel
+      .findByIdAndUpdate(
+        orderId,
+        { paymentStatus: status, ...extra },
+        { new: true },
+      )
+      .exec();
+
+    if (!order || status !== 'paid') return;
+
+    try {
+      const farm = await this.farmsService.findOne(
+        (order.farmId as Types.ObjectId).toHexString(),
+      );
+      void this.notificationsService.createAndPush({
+        userId: (farm.ownerId as Types.ObjectId).toHexString(),
+        type: NotificationType.PaymentReceived,
+        title: 'Thanh toán nhận được!',
+        message: `Đơn hàng #${order.orderNumber} đã được thanh toán thành công.`,
+        referenceId: (order._id as Types.ObjectId).toHexString(),
+        referenceType: 'order',
+        data: {
+          orderId: (order._id as Types.ObjectId).toHexString(),
+          orderNumber: order.orderNumber,
+          totalAmount: order.total,
+        },
+      });
+    } catch {
+      // Notification failure must never break the payment flow
+    }
   }
 
   async savePaymentUrl(orderId: string, paymentUrl: string): Promise<void> {
