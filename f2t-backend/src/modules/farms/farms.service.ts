@@ -285,7 +285,7 @@ export class FarmsService {
   async updateRestockSchedule(
     ownerId: string,
     schedule: { category: string; intervalDays: number }[],
-  ): Promise<Farm> {
+  ): Promise<FarmDocument> {
     const farm = await this.farmModel.findOne({ ownerId: new Types.ObjectId(ownerId) });
     if (!farm) throw new NotFoundException('Farm not found');
     farm.restockSchedule = schedule;

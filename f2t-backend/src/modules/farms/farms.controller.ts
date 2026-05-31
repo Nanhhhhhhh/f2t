@@ -24,7 +24,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Farm, FarmDocument } from "./schemas/farm.schema";
+import { FarmDocument } from "./schemas/farm.schema";
 
 interface RequestUser {
   userId: string;
@@ -140,14 +140,16 @@ export class FarmsController {
   }
 
   @Patch('me/restock-schedule')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('farm')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Set restock schedule per category for my farm' })
   @ApiResponse({ status: 200, description: 'Schedule updated' })
+  @ApiResponse({ status: 404, description: 'Farm not found' })
   async updateRestockSchedule(
     @CurrentUser() user: RequestUser,
     @Body() dto: UpdateRestockScheduleDto,
-  ): Promise<Farm> {
+  ): Promise<FarmDocument> {
     return this.farmsService.updateRestockSchedule(user.userId, dto.schedule);
   }
 }
