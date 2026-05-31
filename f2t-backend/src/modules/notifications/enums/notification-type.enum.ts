@@ -10,6 +10,7 @@ export enum NotificationType {
 
   // Order lifecycle — sent to farm
   NewOrder = 'new_order',
+  PaymentReceived = 'payment_received',
 
   // Stock — sent to farm
   LowStock = 'low_stock',
