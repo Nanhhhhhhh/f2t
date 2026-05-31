@@ -1,6 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 
+const formatVND = (amount: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+
 import { useGetOrder } from '@/api/orders';
 import { ConsumerRouteGuard } from '@/components/auth';
 import { Button, Text, View } from '@/components/ui';
@@ -132,7 +135,7 @@ const CheckoutSuccessScreen = () => {
                   Total Amount
                 </Text>
                 <Text className="text-xl font-bold text-gray-900 dark:text-white">
-                  ${order.total.toFixed(2)}
+                  {formatVND(order.total)}
                 </Text>
               </View>
             </View>

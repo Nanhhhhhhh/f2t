@@ -1,6 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post, UseGuards, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -25,7 +24,6 @@ export class DeliveryController {
 
   @Get('orders/:orderId/tracking')
   @UseGuards(JwtAuthGuard)
-  @Throttle({ short: { limit: 40, ttl: 60000 } })
   async getTracking(
     @Param('orderId') orderId: string,
     @CurrentUser() user: JwtUser,

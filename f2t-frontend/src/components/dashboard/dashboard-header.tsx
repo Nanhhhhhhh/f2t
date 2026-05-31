@@ -1,6 +1,8 @@
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FarmStatus } from '@/components/farms';
+import { NotificationBell } from '@/components/ui/notification-bell';
 import { Text, View } from '@/components/ui';
 import type { Farm } from '@/types';
 
@@ -9,6 +11,7 @@ type DashboardHeaderProps = {
 };
 
 export const DashboardHeader = ({ farm }: DashboardHeaderProps) => {
+  const insets = useSafeAreaInsets();
   const currentTime = new Date().toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -22,14 +25,17 @@ export const DashboardHeader = ({ farm }: DashboardHeaderProps) => {
   });
 
   return (
-    <View className="bg-white px-4 py-6 dark:bg-gray-800">
-      <View className="mb-4">
-        <Text className="text-sm text-gray-500 dark:text-gray-400">
-          {currentDate} • {currentTime}
-        </Text>
-        <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-          Farm Dashboard
-        </Text>
+    <View className="bg-white px-4 pb-6 dark:bg-gray-800" style={{ paddingTop: insets.top + 16 }}>
+      <View className="mb-4 flex-row items-start justify-between">
+        <View className="flex-1">
+          <Text className="text-sm text-gray-500 dark:text-gray-400">
+            {currentDate} • {currentTime}
+          </Text>
+          <Text className="text-2xl font-bold text-gray-900 dark:text-white">
+            Farm Dashboard
+          </Text>
+        </View>
+        <NotificationBell />
       </View>
 
       {farm && (
@@ -47,7 +53,7 @@ export const DashboardHeader = ({ farm }: DashboardHeaderProps) => {
 
           <View className="flex-row items-center">
             <Text className="text-xs text-gray-500 dark:text-gray-500">
-              📍 {farm.location?.address?.city}, {farm.location?.address?.state}
+              📍 {farm.location?.address?.city}
             </Text>
           </View>
         </View>

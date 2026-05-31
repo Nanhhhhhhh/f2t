@@ -29,34 +29,35 @@ export function OrderDeliveryInfo({ order }: OrderDeliveryInfoProps) {
         </View>
 
         {/* Delivery Address */}
-        <View>
-          <Text className="mb-1 text-sm font-medium text-gray-600 dark:text-gray-400">
-            Delivery Address
-          </Text>
-          <View className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
-            <Text className="text-sm text-gray-900 dark:text-white">
-              {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+        {order.shippingAddress && (
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-600 dark:text-gray-400">
+              Delivery Address
             </Text>
-            <Text className="text-sm text-gray-900 dark:text-white">
-              {order.shippingAddress.addressLine1}
-            </Text>
-            {order.shippingAddress.addressLine2 && (
+            <View className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
               <Text className="text-sm text-gray-900 dark:text-white">
-                {order.shippingAddress.addressLine2}
+                {order.shippingAddress.firstName} {order.shippingAddress.lastName}
               </Text>
-            )}
-            <Text className="text-sm text-gray-900 dark:text-white">
-              {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
-              {order.shippingAddress.postalCode}
-            </Text>
-            <Text className="text-sm text-gray-900 dark:text-white">
-              {order.shippingAddress.country}
-            </Text>
-            <Text className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Phone: {order.shippingAddress.phoneNumber}
-            </Text>
+              <Text className="text-sm text-gray-900 dark:text-white">
+                {order.shippingAddress.addressLine1}
+              </Text>
+              {order.shippingAddress.addressLine2 && (
+                <Text className="text-sm text-gray-900 dark:text-white">
+                  {order.shippingAddress.addressLine2}
+                </Text>
+              )}
+              <Text className="text-sm text-gray-900 dark:text-white">
+                {order.shippingAddress.city} {order.shippingAddress.postalCode}
+              </Text>
+              <Text className="text-sm text-gray-900 dark:text-white">
+                {order.shippingAddress.country}
+              </Text>
+              <Text className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                Phone: {order.shippingAddress.phoneNumber}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Delivery Date and Time */}
         {order.deliveryDate && (

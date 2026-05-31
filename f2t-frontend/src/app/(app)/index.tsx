@@ -9,10 +9,12 @@ import {
   TextInput,
   TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useGetFarms } from '@/api/farms';
 import { formatPrice, useGetProducts } from '@/api/products';
 import { FarmDashboard } from '@/components/dashboard';
+import { NotificationBell } from '@/components/ui/notification-bell';
 import { FarmCard } from '@/components/farms/farm-card';
 import { Image, Text, View } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
@@ -24,6 +26,7 @@ const MIN_HEIGHT_STYLE = { minHeight: 34 } as const;
 
 const ConsumerHome = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -96,10 +99,13 @@ const ConsumerHome = () => {
       }
     >
       {/* Hero Section with Search */}
-      <View className="bg-green-600 p-6 dark:bg-green-700">
-        <Text className="mb-2 text-3xl font-bold text-white">
-          Welcome to Farm Marketplace
-        </Text>
+      <View className="bg-green-600 px-6 pb-6 dark:bg-green-700" style={{ paddingTop: insets.top + 16 }}>
+        <View className="mb-2 flex-row items-start justify-between">
+          <Text className="flex-1 text-3xl font-bold text-white">
+            Welcome to Farm Marketplace
+          </Text>
+          <NotificationBell />
+        </View>
         <Text className="mb-4 text-lg text-green-100">
           Fresh produce directly from local farms
         </Text>

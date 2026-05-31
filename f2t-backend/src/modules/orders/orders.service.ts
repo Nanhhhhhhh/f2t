@@ -595,10 +595,10 @@ export class OrdersService {
 
     try {
       const farm = await this.farmsService.findOne(
-        (order.farmId as Types.ObjectId).toHexString(),
+        (order.farmId).toHexString(),
       );
       void this.notificationsService.createAndPush({
-        userId: (farm.ownerId as Types.ObjectId).toHexString(),
+        userId: (farm.ownerId).toHexString(),
         type: NotificationType.PaymentReceived,
         title: 'Thanh toán nhận được!',
         message: `Đơn hàng #${order.orderNumber} đã được thanh toán thành công.`,
@@ -610,8 +610,8 @@ export class OrdersService {
           totalAmount: order.total,
         },
       });
-    } catch {
-      // Notification failure must never break the payment flow
+    } catch (err) {
+      console.error('[updatePaymentStatus] Failed to send farm notification:', err);
     }
   }
 

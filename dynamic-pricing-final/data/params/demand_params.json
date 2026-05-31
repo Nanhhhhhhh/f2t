@@ -1,0 +1,42 @@
+{
+  "leafy": {
+    "beta": -2.448634,
+    "spread": 4.0,
+    "base_demand": 7.463,
+    "ref_price": 1.479701,
+    "cost_ratio": 0.55,
+    "sin_weekly": -0.021453,
+    "cos_weekly": -0.018568,
+    "gamma": 0.3
+  },
+  "root": {
+    "beta": -0.457123,
+    "spread": 0.8,
+    "base_demand": 5.631,
+    "ref_price": 1.059582,
+    "cost_ratio": 0.5,
+    "sin_weekly": 0.023284,
+    "cos_weekly": -0.021368,
+    "gamma": 0.3
+  },
+  "fruit": {
+    "beta": -1.125556,
+    "spread": 1.5,
+    "base_demand": 2.05,
+    "ref_price": 2.049797,
+    "cost_ratio": 0.58,
+    "sin_weekly": -0.005355,
+    "cos_weekly": -0.014501,
+    "gamma": 0.3
+  },
+  "herbs": {
+    "beta": -1.34815,
+    "spread": 1.5,
+    "base_demand": 4.575,
+    "ref_price": 4.544026,
+    "cost_ratio": 0.45,
+    "sin_weekly": 0.0,
+    "cos_weekly": 0.0,
+    "gamma": 0.3
+  }
+}

@@ -16,7 +16,6 @@ export const MOCK_FARMS: Farm[] = [
       address: {
         street: '123 Đường Nông Nghiệp',
         city: 'Hồ Chí Minh',
-        state: 'Hồ Chí Minh',
         zipCode: '700000',
         country: 'Vietnam',
         district: 'Quận 9',
@@ -85,7 +84,6 @@ export const MOCK_FARMS: Farm[] = [
       address: {
         street: '456 Đường Trái Cây',
         city: 'Hồ Chí Minh',
-        state: 'Hồ Chí Minh',
         zipCode: '700000',
         country: 'Vietnam',
         district: 'Quận 2',
@@ -149,7 +147,6 @@ export const MOCK_FARMS: Farm[] = [
       address: {
         street: '789 Đường Xanh',
         city: 'Hồ Chí Minh',
-        state: 'Hồ Chí Minh',
         zipCode: '700000',
         country: 'Vietnam',
         district: 'Thủ Đức',
@@ -218,7 +215,6 @@ export const MOCK_FARMS: Farm[] = [
       address: {
         street: '321 Đường Tươi Mát',
         city: 'Hồ Chí Minh',
-        state: 'Hồ Chí Minh',
         zipCode: '700000',
         country: 'Vietnam',
         district: 'Quận 1',
@@ -263,7 +259,6 @@ export const MOCK_FARMS: Farm[] = [
       address: {
         street: '555 Đường Hữu Cơ',
         city: 'Hồ Chí Minh',
-        state: 'Hồ Chí Minh',
         zipCode: '700000',
         country: 'Vietnam',
         district: 'Bình Thạnh',
@@ -332,7 +327,6 @@ export const MOCK_FARMS: Farm[] = [
       address: {
         street: '888 Đường Thiên Nhiên',
         city: 'Hồ Chí Minh',
-        state: 'Hồ Chí Minh',
         zipCode: '700000',
         country: 'Vietnam',
         district: 'Quận 7',

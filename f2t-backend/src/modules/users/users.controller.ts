@@ -90,7 +90,6 @@ export class UsersController {
         address: {
           street: updateData.location.addressLine1 ?? '',
           city: updateData.location.city ?? '',
-          state: updateData.location.state ?? '',
           zipCode: updateData.location.postalCode ?? '',
           country: updateData.location.country ?? '',
         },

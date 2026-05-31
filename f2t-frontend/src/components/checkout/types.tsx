@@ -8,10 +8,9 @@ export type CheckoutFormData = {
 
   // Shipping address
   shippingAddress: {
-    addressLine1: string;
-    addressLine2?: string;
+    street: string;
+    addressLine1?: string;
     city: string;
-    state: string;
     postalCode: string;
     country: string;
   };

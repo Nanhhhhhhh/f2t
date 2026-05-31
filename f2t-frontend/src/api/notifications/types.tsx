@@ -62,7 +62,6 @@ export type SendNotificationResponse = {
 
 // Get notifications request
 export type GetNotificationsRequest = {
-  userId?: string;
   type?: NotificationType;
   status?: NotificationStatus;
   page?: number;

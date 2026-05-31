@@ -28,9 +28,6 @@ class AddressDto {
   city!: string;
   @ApiProperty()
   @IsString()
-  state!: string;
-  @ApiProperty()
-  @IsString()
   zipCode!: string;
   @ApiProperty()
   @IsString()

@@ -113,6 +113,9 @@ const StatsErrorState = () => (
   </View>
 );
 
+const formatVND = (amount: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+
 export const QuickStats = ({ farmId }: QuickStatsProps) => {
   const analyticsVariables = useMemo(
     () => ({ farmId, period: 'week' as const }),
@@ -146,7 +149,7 @@ export const QuickStats = ({ farmId }: QuickStatsProps) => {
         />
         <StatCard
           title="Revenue"
-          value={`$${(analytics.totalRevenue || 0).toLocaleString()}`}
+          value={formatVND(analytics.totalRevenue || 0)}
           subtitle="This period"
           icon="💰"
           color="green"
@@ -156,7 +159,7 @@ export const QuickStats = ({ farmId }: QuickStatsProps) => {
       <View className="flex-row space-x-3">
         <StatCard
           title="Avg Order Value"
-          value={`$${(analytics.averageOrderValue || 0).toFixed(2)}`}
+          value={formatVND(analytics.averageOrderValue || 0)}
           subtitle="Per order"
           icon="🥕"
           color="orange"

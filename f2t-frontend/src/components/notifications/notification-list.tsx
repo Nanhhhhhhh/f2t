@@ -131,7 +131,7 @@ export function NotificationList({
 }: NotificationListProps) {
   const [page, setPage] = useState(1);
   const { data, isLoading, error, refetch } = useNotifications({
-    variables: { userId, status: filter, page, limit },
+    variables: { status: filter, page, limit },
   });
 
   const markReadMutation = useMarkNotificationRead();

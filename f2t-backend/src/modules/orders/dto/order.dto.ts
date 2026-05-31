@@ -18,7 +18,6 @@ export class ShippingAddressDto {
   @IsString() @IsOptional() city?: string;
   @IsOptional() @IsString() addressLine1?: string;
   @IsOptional() @IsString() addressLine2?: string;
-  @IsOptional() @IsString() state?: string;
   @IsOptional() @IsString() postalCode?: string;
   @IsOptional() @IsString() country?: string;
   @IsOptional() @IsString() firstName?: string;

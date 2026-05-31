@@ -18,10 +18,9 @@ const checkoutSchema = z.object({
 
   // Shipping address
   shippingAddress: z.object({
-    addressLine1: z.string().min(1, 'Shipping address is required'),
-    addressLine2: z.string().optional(),
+    street: z.string().min(1, 'Street is required'),
+    addressLine1: z.string().optional(),
     city: z.string().min(1, 'Shipping city is required'),
-    state: z.string().min(1, 'Shipping state is required'),
     postalCode: z.string().min(1, 'Shipping postal code is required'),
     country: z.string().min(1, 'Shipping country is required'),
     phoneNumber: z.string().optional(),
@@ -106,10 +105,9 @@ export const CheckoutForm = ({
       email: '',
       phone: '',
       shippingAddress: {
+        street: '',
         addressLine1: '',
-        addressLine2: '',
         city: '',
-        state: '',
         postalCode: '',
         country: 'VNM',
       },
@@ -237,28 +235,28 @@ export const CheckoutForm = ({
           <View className="space-y-4">
             <Controller
               control={control}
-              name="shippingAddress.addressLine1"
+              name="shippingAddress.street"
               render={({ field: { onChange, value } }) => (
                 <Input
-                  label="Address Line 1 *"
-                  placeholder="Enter street address"
+                  label="Street *"
+                  placeholder="Số nhà, tên đường"
                   value={value}
                   onChangeText={onChange}
-                  error={errors.shippingAddress?.addressLine1?.message}
+                  error={errors.shippingAddress?.street?.message}
                 />
               )}
             />
 
             <Controller
               control={control}
-              name="shippingAddress.addressLine2"
+              name="shippingAddress.addressLine1"
               render={({ field: { onChange, value } }) => (
                 <Input
-                  label="Address Line 2"
-                  placeholder="Apartment, suite, etc. (optional)"
-                  value={value}
+                  label="Address Line 1"
+                  placeholder="Chung cư, tòa nhà, tầng (không bắt buộc)"
+                  value={value ?? ''}
                   onChangeText={onChange}
-                  error={errors.shippingAddress?.addressLine2?.message}
+                  error={errors.shippingAddress?.addressLine1?.message}
                 />
               )}
             />
@@ -275,22 +273,6 @@ export const CheckoutForm = ({
                       value={value}
                       onChangeText={onChange}
                       error={errors.shippingAddress?.city?.message}
-                    />
-                  )}
-                />
-              </View>
-              <View className="flex-1">
-                <Controller
-                  control={control}
-                  name="shippingAddress.state"
-                  render={({ field: { onChange, value } }) => (
-                    <Select
-                      label="State *"
-                      placeholder="Select state"
-                      value={value}
-                      onSelect={onChange}
-                      options={stateOptions}
-                      error={errors.shippingAddress?.state?.message}
                     />
                   )}
                 />

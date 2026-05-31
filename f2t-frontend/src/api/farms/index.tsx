@@ -151,7 +151,6 @@ export const formatFarmAddress = (farm: Farm): string => {
   const parts = [
     address.street,
     address.city,
-    address.state,
     address.zipCode,
   ].filter(Boolean);
 

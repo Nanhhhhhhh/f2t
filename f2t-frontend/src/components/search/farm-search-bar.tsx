@@ -63,7 +63,6 @@ const searchInFarm = (farm: Farm, query: string): boolean => {
     farm.name,
     farm.description,
     farm.location?.address?.city,
-    farm.location?.address?.state,
     farm.contactEmail,
     farm.contactPhone,
   ].filter(Boolean);

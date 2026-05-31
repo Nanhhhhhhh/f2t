@@ -8,10 +8,9 @@ const createAddressFromForm = (formData: FarmRegistrationFormType) => ({
   street: formData.street,
   streetNumber: formData.streetNumber,
   city: formData.city,
-  state: formData.state,
   zipCode: formData.zipCode,
   country: formData.country,
-  formattedAddress: `${formData.streetNumber ? formData.streetNumber + ' ' : ''}${formData.street}, ${formData.city}, ${formData.state} ${formData.zipCode}, ${formData.country}`,
+  formattedAddress: `${formData.streetNumber ? formData.streetNumber + ' ' : ''}${formData.street}, ${formData.city} ${formData.zipCode}, ${formData.country}`,
 });
 
 // Helper function to create location object
@@ -91,7 +90,6 @@ export const validateFormData = (
   // Check required location fields
   if (!formData.street?.trim()) errors.push('Street address is required');
   if (!formData.city?.trim()) errors.push('City is required');
-  if (!formData.state?.trim()) errors.push('State is required');
   if (!formData.zipCode?.trim()) errors.push('ZIP code is required');
   if (!formData.country?.trim()) errors.push('Country is required');
 

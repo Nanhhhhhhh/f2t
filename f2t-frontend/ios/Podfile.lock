@@ -1,6 +1,8 @@
 PODS:
   - boost (1.84.0)
   - DoubleConversion (1.1.6)
+  - EXApplication (6.1.5):
+    - ExpoModulesCore
   - EXConstants (17.1.8):
     - ExpoModulesCore
   - EXImageLoader (5.1.0):
@@ -8,6 +10,8 @@ PODS:
     - React-Core
   - EXJSONUtils (0.15.0)
   - EXManifests (0.16.6):
+    - ExpoModulesCore
+  - EXNotifications (0.31.5):
     - ExpoModulesCore
   - Expo (53.0.27):
     - DoubleConversion
@@ -2466,10 +2470,12 @@ PODS:
 DEPENDENCIES:
   - "boost (from `../node_modules/.pnpm/react-native@0.79.6_@babel+core@7.29.0_@types+react@19.0.14_react@19.0.0/node_modules/react-native/third-party-podspecs/boost.podspec`)"
   - "DoubleConversion (from `../node_modules/.pnpm/react-native@0.79.6_@babel+core@7.29.0_@types+react@19.0.14_react@19.0.0/node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)"
+  - "EXApplication (from `../node_modules/.pnpm/expo-application@6.1.5_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-_3e7485f54c51efc96bdb9c897c4fa48a/node_modules/expo-application/ios`)"
   - "EXConstants (from `../node_modules/.pnpm/expo-constants@17.1.8_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-n_76a9725053ae9455f11ff4b560823ec7/node_modules/expo-constants/ios`)"
   - "EXImageLoader (from `../node_modules/.pnpm/expo-image-loader@5.1.0_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react_59fa55d3948c75026b562cac46bee70b/node_modules/expo-image-loader/ios`)"
   - "EXJSONUtils (from `../node_modules/.pnpm/expo-json-utils@0.15.0/node_modules/expo-json-utils/ios`)"
   - "EXManifests (from `../node_modules/.pnpm/expo-manifests@0.16.6_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-n_52fd5f57f7dbc6ec268e6d0e599223c0/node_modules/expo-manifests/ios`)"
+  - "EXNotifications (from `../node_modules/.pnpm/expo-notifications@0.31.5_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_rea_73050de89ebad291ee368da190ed91d7/node_modules/expo-notifications/ios`)"
   - "Expo (from `../node_modules/.pnpm/expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-native@0.79.6_@babel+co_ef5f3a1004676d546b953b0338a30143/node_modules/expo`)"
   - "expo-dev-client (from `../node_modules/.pnpm/expo-dev-client@5.2.4_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-n_4c95b732b4c67fd366f8ebdbf8845722/node_modules/expo-dev-client/ios`)"
   - "expo-dev-launcher (from `../node_modules/.pnpm/expo-dev-launcher@5.1.16_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_reac_985735a439af81ce0be07376a41b58fd/node_modules/expo-dev-launcher`)"
@@ -2589,6 +2595,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/.pnpm/react-native@0.79.6_@babel+core@7.29.0_@types+react@19.0.14_react@19.0.0/node_modules/react-native/third-party-podspecs/boost.podspec"
   DoubleConversion:
     :podspec: "../node_modules/.pnpm/react-native@0.79.6_@babel+core@7.29.0_@types+react@19.0.14_react@19.0.0/node_modules/react-native/third-party-podspecs/DoubleConversion.podspec"
+  EXApplication:
+    :path: "../node_modules/.pnpm/expo-application@6.1.5_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-_3e7485f54c51efc96bdb9c897c4fa48a/node_modules/expo-application/ios"
   EXConstants:
     :path: "../node_modules/.pnpm/expo-constants@17.1.8_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-n_76a9725053ae9455f11ff4b560823ec7/node_modules/expo-constants/ios"
   EXImageLoader:
@@ -2597,6 +2605,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/.pnpm/expo-json-utils@0.15.0/node_modules/expo-json-utils/ios"
   EXManifests:
     :path: "../node_modules/.pnpm/expo-manifests@0.16.6_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-n_52fd5f57f7dbc6ec268e6d0e599223c0/node_modules/expo-manifests/ios"
+  EXNotifications:
+    :path: "../node_modules/.pnpm/expo-notifications@0.31.5_expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_rea_73050de89ebad291ee368da190ed91d7/node_modules/expo-notifications/ios"
   Expo:
     :path: "../node_modules/.pnpm/expo@53.0.27_@babel+core@7.29.0_@expo+metro-runtime@5.0.5_react-native@0.79.6_@babel+co_ef5f3a1004676d546b953b0338a30143/node_modules/expo"
   expo-dev-client:
@@ -2802,10 +2812,12 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
   DoubleConversion: cb417026b2400c8f53ae97020b2be961b59470cb
+  EXApplication: 1e06972201838375ca1ec1ba34d586a98a5dc718
   EXConstants: d3d551cb154718f5161c4247304e96aa59f6cca7
   EXImageLoader: 4d3d3284141f1a45006cc4d0844061c182daf7ee
   EXJSONUtils: 1d3e4590438c3ee593684186007028a14b3686cd
   EXManifests: 691a779b04e4f2c96da46fb9bef4f86174fefcb5
+  EXNotifications: 6770976336aacdc7dc7aed7b538dd8f7ad2c55e8
   Expo: 7e07803ccc34cdf144a0d51cc2684a60628b6593
   expo-dev-client: 9b1e78baf0dd87b005f035d180bbb07c05917fad
   expo-dev-launcher: 35dc0269b5fc1f628abc00e08e5a969e7809eff4

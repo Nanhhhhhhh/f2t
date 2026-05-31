@@ -70,7 +70,7 @@ export class DeliveryService {
         toAddress: address.streetAddress || address.addressLine1 || address.street || 'No address',
         toWardName: address.ward || '',
         toDistrictName: address.district || address.city || '',
-        toProvinceName: address.province || address.state || '',
+        toProvinceName: address.province || address.city || '',
         weight: Math.max(100, order.items.reduce((sum: number, i: { quantity: number }) => sum + i.quantity * 100, 0)),
         codAmount: order.paymentStatus === 'paid' ? 0 : order.total,
         content: `F2T - ${order.items.map(i => i.productName).join(', ')}`,

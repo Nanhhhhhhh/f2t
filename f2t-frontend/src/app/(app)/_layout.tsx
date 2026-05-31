@@ -4,7 +4,6 @@ import { useColorScheme } from 'react-native';
 import * as SafeAreaContext from 'react-native-safe-area-context';
 
 import { Pressable, Text, View } from '@/components/ui';
-import { NotificationBell } from '@/components/ui/notification-bell';
 import {
   Cart as CartIcon,
   Dashboard as DashboardIcon,
@@ -17,6 +16,7 @@ import {
 } from '@/components/ui/icons';
 import { useAuth, useDeveloperMode, useIsFirstTime } from '@/lib';
 import { useCartItemCount } from '@/lib/cart';
+import { usePushToken } from '@/lib/notifications/use-push-token';
 
 // Hook for managing app initialization
 const useAppInitialization = () => {
@@ -71,6 +71,7 @@ export default function TabLayout() {
   const user = useAuth.use.user();
   const isUserFarm = user?.role === 'farm';
   const cartItemCount = useCartItemCount();
+  usePushToken();
 
   const screenOptions = useMemo(
     () => ({
@@ -92,7 +93,6 @@ export default function TabLayout() {
         paddingVertical: 4,
         height: 52,
       },
-      headerRight: () => <NotificationBell />,
     }),
     [isDark, insets.bottom]
   );

@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { Pressable } from 'react-native';
 
+const formatVND = (amount: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+
 import { Button, Text, View } from '@/components/ui';
 import {
   useCartFarms,
@@ -44,7 +47,7 @@ const CartTotalsDisplay = ({
           {totals.itemCount} item{totals.itemCount !== 1 ? 's' : ''}
         </Text>
         <Text className="text-lg font-bold text-gray-900 dark:text-white">
-          {totals.total.toFixed(2)}
+          {formatVND(totals.total)}
         </Text>
       </View>
     );
@@ -58,7 +61,7 @@ const CartTotalsDisplay = ({
           Subtotal ({totals.itemCount} item{totals.itemCount !== 1 ? 's' : ''})
         </Text>
         <Text className="text-sm font-medium text-gray-900 dark:text-white">
-          ${totals.subtotal.toFixed(2)}
+          {formatVND(totals.subtotal)}
         </Text>
       </View>
 
@@ -68,7 +71,7 @@ const CartTotalsDisplay = ({
           Delivery ({totals.farmCount} farm{totals.farmCount !== 1 ? 's' : ''})
         </Text>
         <Text className="text-sm font-medium text-gray-900 dark:text-white">
-          ${totals.deliveryFee.toFixed(2)}
+          {formatVND(totals.deliveryFee)}
         </Text>
       </View>
 
@@ -76,7 +79,7 @@ const CartTotalsDisplay = ({
       <View className="flex-row items-center justify-between">
         <Text className="text-sm text-gray-600 dark:text-gray-400">Tax</Text>
         <Text className="text-sm font-medium text-gray-900 dark:text-white">
-          ${totals.tax.toFixed(2)}
+          {formatVND(totals.tax)}
         </Text>
       </View>
 
@@ -87,7 +90,7 @@ const CartTotalsDisplay = ({
             Total
           </Text>
           <Text className="text-lg font-bold text-gray-900 dark:text-white">
-            ${totals.total.toFixed(2)}
+            {formatVND(totals.total)}
           </Text>
         </View>
       </View>
@@ -115,7 +118,7 @@ const FarmBreakdown = ({
             Farm {group.farmId.slice(-4)}
           </Text>
           <Text className="text-sm font-medium text-gray-900 dark:text-white">
-            ${group.subtotal.toFixed(2)}
+            {formatVND(group.subtotal)}
           </Text>
         </View>
         <Text className="text-xs text-gray-500 dark:text-gray-400">
@@ -386,7 +389,7 @@ export const CartSummaryBadge = ({ onPress }: { onPress?: () => void }) => {
         {itemCount} item{itemCount !== 1 ? 's' : ''}
       </Text>
       <Text className="text-sm font-bold text-white">
-        ${totalPrice.toFixed(2)}
+        {formatVND(totalPrice)}
       </Text>
     </Pressable>
   );

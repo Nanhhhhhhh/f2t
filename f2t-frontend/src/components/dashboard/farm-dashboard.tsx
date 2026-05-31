@@ -8,10 +8,8 @@ import { useAuth } from '@/lib/auth';
 import type { Farm } from '@/types';
 
 import { DashboardHeader } from './dashboard-header';
-import { ProductManagement } from './product-management';
 import { QuickActions } from './quick-actions';
 import { QuickStats } from './quick-stats';
-import { RecentOrders } from './recent-orders';
 
 // Hook for dashboard data and handlers
 const useDashboardData = () => {
@@ -156,8 +154,6 @@ const DashboardContent = ({
         onViewAnalytics={handleViewAnalytics}
       />
       <QuickStats farmId={farm.id} />
-      <RecentOrders farmId={farm.id} />
-      <ProductManagement farmId={farm.id} />
       <View className="h-6" />
     </ScrollView>
   </View>

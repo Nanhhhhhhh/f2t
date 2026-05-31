@@ -82,7 +82,6 @@ export const LocationPicker = ({
             street:
               `${addressData.streetNumber || ''} ${addressData.street || ''}`.trim(),
             city: addressData.city || '',
-            state: addressData.region || '',
             zipCode: addressData.postalCode || '',
             country: addressData.country || '',
             formattedAddress: addressData.formattedAddress || undefined,
@@ -199,13 +198,6 @@ export const LocationPicker = ({
             className="flex-1"
           />
 
-          <Input
-            label="State"
-            placeholder="CA"
-            value={location?.address?.state || ''}
-            onChangeText={(value) => handleAddressChange('state', value)}
-            className="flex-1"
-          />
         </View>
 
         <View className="flex-row space-x-4">

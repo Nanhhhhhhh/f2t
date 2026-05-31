@@ -66,7 +66,7 @@ export const ProductFarmInfo = ({
               <Text className="mt-1 text-gray-600 dark:text-gray-400">
                 📍{' '}
                 {farm.location.address.formattedAddress ||
-                  `${farm.location.address.street}, ${farm.location.address.city}, ${farm.location.address.state}`}
+                  `${farm.location.address.street}, ${farm.location.address.city}`}
               </Text>
             )}
           </View>

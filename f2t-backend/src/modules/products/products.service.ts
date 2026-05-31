@@ -96,7 +96,7 @@ export class ProductsService {
       radius,
     } = query;
 
-    const filter: FilterQuery<ProductDocument> = {};
+    const filter: FilterQuery<ProductDocument> = { isActive: { $ne: false } };
 
     // 2. Search filter
     if (search && search.trim() !== '') {

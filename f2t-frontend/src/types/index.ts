@@ -34,12 +34,11 @@ export type Address = {
   street: string;
   streetNumber?: string;
   city: string;
-  state: string;
   zipCode: string;
   country: string;
-  district?: string; // For more detailed addressing
-  ward?: string; // Additional administrative division
-  formattedAddress?: string; // Full formatted address string
+  district?: string;
+  ward?: string;
+  formattedAddress?: string;
 };
 
 export type UserLocation = {

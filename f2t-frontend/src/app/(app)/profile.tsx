@@ -1,7 +1,5 @@
 import { useRouter } from 'expo-router';
 import {
-  Award,
-  Calendar,
   DollarSign,
   LogOut,
   Mail,
@@ -64,18 +62,15 @@ export default function ProfileScreen() {
   const consumerStats = {
     totalOrders: orderStatsData?.data?.totalOrders ?? 0,
     totalSpent: orderStatsData?.data?.totalSpent ?? 0,
-    favoriteProducts: 12, // Still mock or keep if no API
-    memberSince: orderStatsData?.data?.lastOrderDate
-      ? new Date(orderStatsData.data.lastOrderDate).getFullYear().toString()
-      : '2024',
   };
+
+  const formatVND = (amount: number) =>
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
   const farmStats = {
     totalProducts: farmAnalyticsData?.data?.totalProducts ?? 0,
     totalOrders: farmAnalyticsData?.data?.totalOrders ?? 0,
     totalRevenue: farmAnalyticsData?.data?.totalRevenue ?? 0,
-    rating: 4.8, // Still mock
-    reviews: 89, // Still mock
   };
 
   return (
@@ -172,7 +167,7 @@ export default function ProfileScreen() {
                   />
                   <Text className="ml-3 flex-1 text-gray-700 dark:text-gray-300">
                     {user.location.address.formattedAddress ||
-                      `${user.location.address.street}, ${user.location.address.city}, ${user.location.address.state}`}
+                      `${user.location.address.street}, ${user.location.address.city}`}
                   </Text>
                 </View>
               )}
@@ -257,7 +252,7 @@ export default function ProfileScreen() {
                     <View className="h-8 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
                   ) : (
                     <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-                      ${farmStats.totalRevenue.toFixed(0)}
+                      {formatVND(farmStats.totalRevenue)}
                     </Text>
                   )}
                   <Text className="text-sm text-gray-600 dark:text-gray-400">
@@ -265,18 +260,6 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
 
-                <View className="min-w-[45%] flex-1 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-                  <Award
-                    size={24}
-                    className="mb-2 text-purple-600 dark:text-purple-400"
-                  />
-                  <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {farmStats.rating} ⭐
-                  </Text>
-                  <Text className="text-sm text-gray-600 dark:text-gray-400">
-                    Rating ({farmStats.reviews})
-                  </Text>
-                </View>
               </View>
 
               {/* Quick Actions */}
@@ -361,7 +344,7 @@ export default function ProfileScreen() {
                     <View className="h-8 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
                   ) : (
                     <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-                      ${consumerStats.totalSpent.toFixed(0)}
+                      {formatVND(consumerStats.totalSpent)}
                     </Text>
                   )}
                   <Text className="text-sm text-gray-600 dark:text-gray-400">
@@ -369,31 +352,6 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
 
-                <View className="min-w-[45%] flex-1 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-                  <Award
-                    size={24}
-                    className="mb-2 text-purple-600 dark:text-purple-400"
-                  />
-                  <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {consumerStats.favoriteProducts}
-                  </Text>
-                  <Text className="text-sm text-gray-600 dark:text-gray-400">
-                    Favorites
-                  </Text>
-                </View>
-
-                <View className="min-w-[45%] flex-1 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
-                  <Calendar
-                    size={24}
-                    className="mb-2 text-orange-600 dark:text-orange-400"
-                  />
-                  <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {consumerStats.memberSince}
-                  </Text>
-                  <Text className="text-sm text-gray-600 dark:text-gray-400">
-                    Member Since
-                  </Text>
-                </View>
               </View>
 
               {/* Quick Actions */}

@@ -17,17 +17,7 @@ class LocationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  addressLine2?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   city?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  state?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

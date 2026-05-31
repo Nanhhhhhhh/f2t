@@ -50,10 +50,10 @@ export type OrderAddress = {
   firstName: string;
   lastName: string;
   company?: string;
-  addressLine1: string;
+  street?: string;
+  addressLine1?: string;
   addressLine2?: string;
   city: string;
-  state: string;
   postalCode: string;
   country: string;
   phoneNumber: string;
@@ -96,7 +96,7 @@ export type Order = {
   deliveryMethod: DeliveryMethod;
 
   // Addresses
-  shippingAddress: OrderAddress;
+  shippingAddress?: OrderAddress;
 
   // Delivery information
   deliveryDate?: string;
@@ -136,7 +136,7 @@ export type CreateOrderRequest = {
   }[];
   paymentMethod: PaymentMethod;
   deliveryMethod: DeliveryMethod;
-  shippingAddress: Omit<OrderAddress, 'id' | 'isDefault'>;
+  shippingAddress?: Omit<OrderAddress, 'id' | 'isDefault'>;
   deliveryDate?: string;
   deliveryTimeSlot?: string;
   deliveryInstructions?: string;

@@ -25,7 +25,6 @@ export default function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
   const [addressLine1, setAddressLine1] = useState(user?.location?.address?.street || '');
   const [city, setCity] = useState(user?.location?.address?.city || '');
-  const [state, setState] = useState(user?.location?.address?.state || '');
   const [postalCode, setPostalCode] = useState(user?.location?.address?.zipCode || '');
   const [country, setCountry] = useState(user?.location?.address?.country || 'VNM');
   const [isUploading, setIsUploading] = useState(false);
@@ -83,7 +82,6 @@ export default function EditProfileScreen() {
         location: {
           addressLine1,
           city,
-          state,
           postalCode,
           country
         }
@@ -160,14 +158,6 @@ export default function EditProfileScreen() {
                   value={city}
                   onChangeText={setCity}
                   placeholder="Hồ Chí Minh"
-                />
-              </View>
-              <View className="flex-1">
-                <Input
-                  label="State"
-                  value={state}
-                  onChangeText={setState}
-                  placeholder="HCM"
                 />
               </View>
             </View>

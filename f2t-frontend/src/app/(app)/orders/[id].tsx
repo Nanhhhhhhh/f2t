@@ -443,8 +443,7 @@ const OrderDetailContent = ({ insets }: OrderDetailContentProps) => {
                 </Text>
               )}
               <Text className="text-sm text-gray-600 dark:text-gray-400">
-                {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
-                {order.shippingAddress.postalCode}
+                {order.shippingAddress.city} {order.shippingAddress.postalCode}
               </Text>
               <Text className="mb-3 text-sm text-gray-600 dark:text-gray-400">
                 {order.shippingAddress.country}
@@ -452,7 +451,7 @@ const OrderDetailContent = ({ insets }: OrderDetailContentProps) => {
 
               {order.shippingAddress.phoneNumber && (
                 <TouchableOpacity
-                  onPress={() => handleCall(order.shippingAddress.phoneNumber!)}
+                  onPress={() => handleCall(order.shippingAddress!.phoneNumber!)}
                   className="flex-row items-center"
                 >
                   <Phone
