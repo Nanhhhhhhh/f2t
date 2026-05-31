@@ -20,6 +20,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { DeliveryModule } from './modules/delivery/delivery.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { RedisModule } from './common/redis/redis.module';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { ScheduleModule } from '@nestjs/schedule';
       {
         name: 'short',
         ttl: 60000,
-        limit: 10,
+        limit: 200,
       },
     ]),
     ConfigModule.forRoot({
@@ -56,6 +57,7 @@ import { ScheduleModule } from '@nestjs/schedule';
         PRICING_MODE: Joi.string().valid("shadow", "advisory").default("shadow"),
         PRICING_CRON_SCHEDULE: Joi.string().optional().default("0 * * * *"),
         PRICING_SUGGESTION_TTL_HOURS: Joi.number().optional().default(1),
+        REDIS_URL: Joi.string().optional().default('redis://localhost:6379'),
       }),
     }),
     MongooseModule.forRootAsync({
@@ -77,6 +79,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     DeliveryModule,
     AdminModule,
     DynamicPricingModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [

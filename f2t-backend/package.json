@@ -38,6 +38,7 @@
     "class-transformer": "0.5.1",
     "class-validator": "0.14.2",
     "cloudinary": "^2.10.0",
+    "ioredis": "^5.11.0",
     "joi": "17.13.3",
     "mongoose": "8.19.1",
     "multer": "^2.1.1",
