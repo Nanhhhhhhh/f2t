@@ -10,6 +10,7 @@ import { Product, ProductDocument } from "@modules/products/schemas/product.sche
 import { Farm, FarmDocument } from "@modules/farms/schemas/farm.schema";
 import { NotificationsService } from "@modules/notifications/notifications.service";
 import { NotificationType } from "@modules/notifications/enums/notification-type.enum";
+import { DemandForecastingService } from "@modules/demand-forecasting/demand-forecasting.service";
 
 interface SidecarOverride {
   targetPrice?: number;
@@ -38,6 +39,7 @@ export class DynamicPricingService {
     private notificationsService: NotificationsService,
     private configService: ConfigService,
     private httpService: HttpService,
+    private demandForecastingService: DemandForecastingService,
   ) {}
 
   private computeFreshnessTag(score: number): string {
@@ -63,6 +65,19 @@ export class DynamicPricingService {
     if (category === "herbs") return "herbs";
     if (category === "fruits") return "fruit";
     return "root";
+  }
+
+  private computeDaysToRestock(
+    schedule: { category: string; intervalDays: number }[],
+    category: string,
+    lastRestockedAt?: Date,
+  ): number {
+    const item = schedule.find((s) => s.category === category);
+    const intervalDays = item?.intervalDays ?? 5;
+    if (!lastRestockedAt) return intervalDays;
+    const daysSince = (Date.now() - lastRestockedAt.getTime()) / 86_400_000;
+    const remaining = intervalDays - (daysSince % intervalDays);
+    return Math.max(0, remaining);
   }
 
   private async getCompetitorRefPrice(
@@ -207,13 +222,55 @@ export class DynamicPricingService {
     const freshness = cache?.medianScore ?? this.computeWeibullFallback(product.category);
 
     const competitorRefPrice = await this.getCompetitorRefPrice(product.farmId, product.category, product.pricePerUnit);
+
+    const agentCat = this.mapProductCategoryToAgent(product.category);
+    const inventoryRatio = Math.min((product.availableQuantity ?? 0) / 100, 2.0);
+
+    // Farm restock schedule
+    const farmDoc = await this.farmModel.findById(product.farmId).select('restockSchedule').lean();
+    const schedule = (farmDoc?.restockSchedule as { category: string; intervalDays: number }[]) ?? [];
+
+    // Previous delta from last override
+    const lastOverride = await this.overrideModel
+      .findOne({ productId: product._id, status: { $in: ['accepted', 'shadow', 'pending_review'] } })
+      .sort({ computedAt: -1 })
+      .select('deltaPct')
+      .lean();
+    const prevDelta = lastOverride ? (lastOverride.deltaPct ?? 0) / 100 : 0.0;
+
+    // Resolve lastRestockedAt
+    const productFull = await this.productModel
+      .findById(product._id)
+      .select('lastRestockedAt')
+      .lean();
+    const daysToRestock = this.computeDaysToRestock(
+      schedule,
+      product.category,
+      productFull?.lastRestockedAt as Date | undefined,
+    );
+
+    // Demand forecast
+    const forecast = await this.demandForecastingService.getForecast(
+      product._id.toString(),
+      agentCat,
+      freshness,
+      inventoryRatio,
+      product.pricePerUnit,
+      competitorRefPrice,
+      daysToRestock,
+      prevDelta,
+    );
+
     const stateVector = {
       productId: product._id.toString(),
+      category: agentCat,
       freshness,
-      inventory_ratio: Math.min((product.availableQuantity ?? 0) / 100, 1.0),
+      inventory_ratio: inventoryRatio,
       base_price: product.pricePerUnit,
       competitor_ref_price: competitorRefPrice,
-      category: this.mapProductCategoryToAgent(product.category),
+      days_to_restock: daysToRestock,
+      prev_delta: prevDelta,
+      demand_7d: forecast.demand7d,
     };
 
     const sidecarUrl = this.configService.get<string>("PRICING_SIDECAR_URL", "http://localhost:8000");
@@ -383,18 +440,78 @@ export class DynamicPricingService {
         }
       }
 
-      const state_vectors = products.map((p) => {
-        const cache = cacheMap.get(p._id.toString());
-        const freshness = cache?.medianScore ?? this.computeWeibullFallback(p.category);
-        return {
-          productId: p._id.toString(),
-          freshness: freshness,
-          inventory_ratio: Math.min(p.availableQuantity / 100, 1.0),
-          base_price: p.pricePerUnit,
-          competitor_ref_price: competitorPairCache.get(`${p.farmId}:${p.category}`) ?? p.pricePerUnit * 0.95,
-          category: this.mapProductCategoryToAgent(p.category),
-        };
-      });
+      // Pre-fetch farms for restockSchedule
+      const farmIds = [...new Set(products.map((p) => p.farmId.toString()))];
+      const farms = await this.farmModel
+        .find({ _id: { $in: farmIds } })
+        .select('_id restockSchedule')
+        .lean();
+      const farmScheduleMap = new Map(
+        farms.map((f) => [
+          f._id.toString(),
+          (f.restockSchedule as { category: string; intervalDays: number }[]) ?? [],
+        ]),
+      );
+
+      // Pre-fetch last override per product for prev_delta
+      const lastOverrides = await this.overrideModel.aggregate<{ _id: Types.ObjectId; deltaPct: number }>([
+        { $match: { productId: { $in: productIds }, status: { $in: ['accepted', 'shadow', 'pending_review'] } } },
+        { $sort: { computedAt: -1 } },
+        { $group: { _id: '$productId', deltaPct: { $first: '$deltaPct' } } },
+      ]);
+      const prevDeltaMap = new Map(
+        lastOverrides.map((o) => [o._id.toString(), (o.deltaPct ?? 0) / 100]),
+      );
+
+      // Pre-fetch lastRestockedAt per product
+      const productsWithRestock = await this.productModel
+        .find({ _id: { $in: productIds } })
+        .select('_id lastRestockedAt')
+        .lean();
+      const lastRestockedMap = new Map(
+        productsWithRestock.map((p) => [p._id.toString(), p.lastRestockedAt as Date | undefined]),
+      );
+
+      const state_vectors = await Promise.all(
+        products.map(async (p) => {
+          const cache = cacheMap.get(p._id.toString());
+          const freshness = cache?.medianScore ?? this.computeWeibullFallback(p.category);
+          const agentCat = this.mapProductCategoryToAgent(p.category);
+          const compKey = `${p.farmId}:${p.category}`;
+          const competitorRefPrice = competitorPairCache.get(compKey) ?? p.pricePerUnit * 0.95;
+          const schedule = farmScheduleMap.get(p.farmId.toString()) ?? [];
+          const daysToRestock = this.computeDaysToRestock(
+            schedule,
+            p.category,
+            lastRestockedMap.get(p._id.toString()),
+          );
+          const prevDelta = prevDeltaMap.get(p._id.toString()) ?? 0.0;
+          const inventoryRatio = Math.min((p.availableQuantity ?? 0) / 100, 2.0);
+
+          const forecast = await this.demandForecastingService.getForecast(
+            p._id.toString(),
+            agentCat,
+            freshness,
+            inventoryRatio,
+            p.pricePerUnit,
+            competitorRefPrice,
+            daysToRestock,
+            prevDelta,
+          );
+
+          return {
+            productId: p._id.toString(),
+            category: agentCat,
+            freshness,
+            inventory_ratio: inventoryRatio,
+            base_price: p.pricePerUnit,
+            competitor_ref_price: competitorRefPrice,
+            days_to_restock: daysToRestock,
+            prev_delta: prevDelta,
+            demand_7d: forecast.demand7d,
+          };
+        }),
+      );
 
       const sidecarUrl = this.configService.get<string>("PRICING_SIDECAR_URL", "http://localhost:8000");
       let sidecarResponse;

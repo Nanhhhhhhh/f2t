@@ -10,6 +10,7 @@ import { FreshnessCache, FreshnessCacheSchema } from "./schemas/freshness-cache.
 import { DynamicPricingService } from "./dynamic-pricing.service";
 import { DynamicPricingController } from "./dynamic-pricing.controller";
 import { PricingTickCron } from "./pricing-tick.cron";
+import { DemandForecastingModule } from "@modules/demand-forecasting/demand-forecasting.module";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PricingTickCron } from "./pricing-tick.cron";
     HttpModule,
     NotificationsModule,
     FarmsModule,
+    DemandForecastingModule,
   ],
   controllers: [DynamicPricingController],
   providers: [DynamicPricingService, PricingTickCron],

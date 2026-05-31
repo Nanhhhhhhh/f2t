@@ -11,6 +11,7 @@ import { FreshnessCache, FreshnessCacheSchema } from "./schemas/freshness-cache.
 import { Product, ProductSchema } from "@modules/products/schemas/product.schema";
 import { Farm, FarmSchema } from "@modules/farms/schemas/farm.schema";
 import { NotificationsService } from "@modules/notifications/notifications.service";
+import { DemandForecastingService } from "@modules/demand-forecasting/demand-forecasting.service";
 import { ForbiddenException } from "@nestjs/common";
 
 describe("DynamicPricingService", () => {
@@ -39,6 +40,12 @@ describe("DynamicPricingService", () => {
           provide: NotificationsService,
           useValue: {
             createAndPush: jest.fn().mockResolvedValue({}),
+          },
+        },
+        {
+          provide: DemandForecastingService,
+          useValue: {
+            getForecast: jest.fn().mockResolvedValue({ productId: 'test', demand7d: 10, pWaste: 0.1, computedAt: new Date().toISOString() }),
           },
         },
         {
@@ -189,7 +196,7 @@ describe("DynamicPricingService", () => {
     const productModel = module.get("ProductModel");
     const overrideModel = module.get("PriceOverrideModel");
     const httpService = module.get(HttpService);
-    
+
     const farmId = new MongooseTypes.ObjectId();
     const product = await productModel.create({
       farmId,
@@ -213,12 +220,39 @@ describe("DynamicPricingService", () => {
         }]
       }
     };
-    
+
     (httpService.post as jest.Mock).mockReturnValue(of(mockResponse));
 
     await service.runPricingTick();
 
     const count = await overrideModel.countDocuments();
     expect(count).toBe(1);
+  });
+
+  describe('computeDaysToRestock', () => {
+    it('returns intervalDays when no lastRestockedAt', () => {
+      const days = (service as any).computeDaysToRestock(
+        [{ category: 'vegetables', intervalDays: 4 }],
+        'vegetables',
+        undefined,
+      );
+      expect(days).toBe(4);
+    });
+
+    it('returns default 5 when no schedule entry for category', () => {
+      const days = (service as any).computeDaysToRestock([], 'herbs', undefined);
+      expect(days).toBe(5);
+    });
+
+    it('returns remaining days when restocked recently', () => {
+      const recentDate = new Date(Date.now() - 1 * 24 * 3600 * 1000); // 1 day ago
+      const days = (service as any).computeDaysToRestock(
+        [{ category: 'vegetables', intervalDays: 4 }],
+        'vegetables',
+        recentDate,
+      );
+      // 1 day elapsed from 4-day interval → ~3 days remaining
+      expect(days).toBeCloseTo(3, 0);
+    });
   });
 });
