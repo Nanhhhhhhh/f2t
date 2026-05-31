@@ -269,6 +269,11 @@ const FarmOrderDetailContent = ({ insets }: FarmOrderDetailContentProps) => {
   const quickActions = getQuickActions();
   const canUpdateStatus = !['delivered', 'cancelled'].includes(order.status);
 
+  // Conditional payment button logic
+  const isCashOrder = order.paymentMethod === 'cash';
+  const isPaidByStripe =
+    order.paymentMethod === 'stripe' && order.paymentStatus === 'paid';
+
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
       <FocusAwareStatusBar />
@@ -335,16 +340,25 @@ const FarmOrderDetailContent = ({ insets }: FarmOrderDetailContentProps) => {
               </TouchableOpacity>
             </View>
           )}
-          <View className="flex-1">
-            <TouchableOpacity
-              onPress={() => paymentModal.present()}
-              className="flex-row items-center justify-center rounded-lg border border-gray-300 bg-white py-2.5 dark:border-gray-600 dark:bg-gray-800"
-            >
-              <Text className="font-semibold text-gray-900 dark:text-white">
-                Update Payment
+          {isCashOrder && (
+            <View className="flex-1">
+              <TouchableOpacity
+                onPress={() => paymentModal.present()}
+                className="flex-row items-center justify-center rounded-lg border border-gray-300 bg-white py-2.5 dark:border-gray-600 dark:bg-gray-800"
+              >
+                <Text className="font-semibold text-gray-900 dark:text-white">
+                  Update Payment
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {isPaidByStripe && (
+            <View className="flex-1 flex-row items-center justify-center rounded-lg bg-green-50 py-2.5 dark:bg-green-900/20">
+              <Text className="font-semibold text-green-700 dark:text-green-400">
+                ✓ Paid via Stripe
               </Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          )}
         </View>
       </View>
 
@@ -551,51 +565,52 @@ const FarmOrderDetailContent = ({ insets }: FarmOrderDetailContentProps) => {
         </View>
 
         {/* Shipping Address */}
-        <View className="mb-3 bg-white p-4 dark:bg-gray-800">
-          <View className="mb-3 flex-row items-center">
-            <MapPin
-              size={20}
-              className="mr-2 text-gray-700 dark:text-gray-300"
-            />
-            <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-              Shipping Address
-            </Text>
-          </View>
-
-          <Text className="mb-1 text-base text-gray-900 dark:text-white">
-            {order.shippingAddress.firstName} {order.shippingAddress.lastName}
-          </Text>
-          <Text className="text-sm text-gray-600 dark:text-gray-400">
-            {order.shippingAddress.addressLine1}
-          </Text>
-          {order.shippingAddress.addressLine2 && (
-            <Text className="text-sm text-gray-600 dark:text-gray-400">
-              {order.shippingAddress.addressLine2}
-            </Text>
-          )}
-          <Text className="text-sm text-gray-600 dark:text-gray-400">
-            {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
-            {order.shippingAddress.postalCode}
-          </Text>
-          <Text className="mb-3 text-sm text-gray-600 dark:text-gray-400">
-            {order.shippingAddress.country}
-          </Text>
-
-          {order.shippingAddress.phoneNumber && (
-            <TouchableOpacity
-              onPress={() => handleCall(order.shippingAddress.phoneNumber)}
-              className="flex-row items-center"
-            >
-              <Phone
-                size={16}
-                className="mr-2 text-blue-600 dark:text-blue-400"
+        {order.shippingAddress && (
+          <View className="mb-3 bg-white p-4 dark:bg-gray-800">
+            <View className="mb-3 flex-row items-center">
+              <MapPin
+                size={20}
+                className="mr-2 text-gray-700 dark:text-gray-300"
               />
-              <Text className="text-sm text-blue-600 dark:text-blue-400">
-                {order.shippingAddress.phoneNumber}
+              <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+                Shipping Address
               </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+            </View>
+
+            <Text className="mb-1 text-base text-gray-900 dark:text-white">
+              {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+            </Text>
+            <Text className="text-sm text-gray-600 dark:text-gray-400">
+              {order.shippingAddress.addressLine1}
+            </Text>
+            {order.shippingAddress.addressLine2 && (
+              <Text className="text-sm text-gray-600 dark:text-gray-400">
+                {order.shippingAddress.addressLine2}
+              </Text>
+            )}
+            <Text className="text-sm text-gray-600 dark:text-gray-400">
+              {order.shippingAddress.city} {order.shippingAddress.postalCode}
+            </Text>
+            <Text className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+              {order.shippingAddress.country}
+            </Text>
+
+            {order.shippingAddress.phoneNumber && (
+              <TouchableOpacity
+                onPress={() => handleCall(order.shippingAddress!.phoneNumber)}
+                className="flex-row items-center"
+              >
+                <Phone
+                  size={16}
+                  className="mr-2 text-blue-600 dark:text-blue-400"
+                />
+                <Text className="text-sm text-blue-600 dark:text-blue-400">
+                  {order.shippingAddress.phoneNumber}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <View className="h-6" />
       </ScrollView>
