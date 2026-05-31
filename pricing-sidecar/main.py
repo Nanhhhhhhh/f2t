@@ -15,12 +15,31 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 # ── Pull model definitions from dynamic-pricing-final ─────────────────
-_DP_ROOT = "/Users/macos/f2t/dynamic-pricing-final"
-sys.path.insert(0, _DP_ROOT)
+_DP_ROOT = os.environ.get(
+    "DP_ROOT",
+    os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dynamic-pricing-final")),
+)
 
-from src.rl.network import SharedMLPDuelingQNet
-from src.forecaster.model import ForecasterLSTM, ForecasterConfig
-from src.rl.reward import CANDIDATES, compute_mask
+# Import directly from files to avoid triggering src/rl/__init__.py which
+# transitively imports src.env.market_env (lives in thesis_v2, not here).
+import importlib.util as _ilu
+
+def _dp_import(rel: str, name: str):
+    spec = _ilu.spec_from_file_location(name, os.path.join(_DP_ROOT, rel))
+    mod = _ilu.module_from_spec(spec)  # type: ignore[arg-type]
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
+
+_net_mod    = _dp_import("src/rl/network.py",       "dp_network")
+_fcast_mod  = _dp_import("src/forecaster/model.py", "dp_forecaster")
+_reward_mod = _dp_import("src/rl/reward.py",        "dp_reward")
+
+SharedMLPDuelingQNet = _net_mod.SharedMLPDuelingQNet
+ForecasterLSTM       = _fcast_mod.ForecasterLSTM
+ForecasterConfig     = _fcast_mod.ForecasterConfig
+CANDIDATES           = _reward_mod.CANDIDATES
+compute_mask         = _reward_mod.compute_mask
 
 try:
     import coremltools as ct
@@ -43,7 +62,10 @@ logger = logging.getLogger(__name__)
 # ── Constants ────────────────────────────────────────────────────────
 DDQN_CKPT       = os.path.join(_DP_ROOT, "checkpoints", "rl_shared_best.pt")
 FORECASTER_CKPT = os.path.join(_DP_ROOT, "checkpoints", "forecaster_v4_best.pt")
-FRESHNESS_DIR   = os.path.join(os.path.dirname(__file__), "..", "freshnessmodels-1")
+FRESHNESS_DIR   = os.environ.get(
+    "FRESHNESS_DIR",
+    os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "freshnessmodels")),
+)
 
 CATEGORIES  = ["leafy", "root", "fruit", "herbs"]
 CAT_TO_IDX  = {c: i for i, c in enumerate(CATEGORIES)}
