@@ -1,4 +1,5 @@
 import { DynamicPricingModule } from "./modules/dynamic-pricing/dynamic-pricing.module";
+import { DemandForecastingModule } from './modules/demand-forecasting/demand-forecasting.module';
 import { Module } from '@nestjs/common';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -79,6 +80,7 @@ import { RedisModule } from './common/redis/redis.module';
     DeliveryModule,
     AdminModule,
     DynamicPricingModule,
+    DemandForecastingModule,
     RedisModule,
   ],
   controllers: [AppController],
