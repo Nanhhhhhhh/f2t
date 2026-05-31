@@ -105,7 +105,7 @@ export const useUpdateNotificationPreferences = createMutation({
 
 // Get unread notification count
 export const useUnreadNotificationCount = createQuery<
-  { count: number },
+  { success: boolean; data: { count: number }; message?: string },
   { userId: string },
   Error
 >({

@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 import * as SafeAreaContext from 'react-native-safe-area-context';
 
 import { Pressable, Text, View } from '@/components/ui';
+import { NotificationBell } from '@/components/ui/notification-bell';
 import {
   Cart as CartIcon,
   Dashboard as DashboardIcon,
@@ -91,6 +92,7 @@ export default function TabLayout() {
         paddingVertical: 4,
         height: 52,
       },
+      headerRight: () => <NotificationBell />,
     }),
     [isDark, insets.bottom]
   );
