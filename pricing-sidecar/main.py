@@ -104,15 +104,19 @@ def _run_forecaster(obs: np.ndarray, category: str) -> tuple[float, float]:
     global forecaster_net, forecaster_obs_dim
     if forecaster_net is None:
         return 0.0, 0.0
-    obs_padded = obs[:forecaster_obs_dim] if len(obs) >= forecaster_obs_dim else np.pad(obs, (0, forecaster_obs_dim - len(obs)))
-    window = np.tile(obs_padded, (OBS_WINDOW, 1))
-    feat = torch.tensor(window, dtype=torch.float32).unsqueeze(0)
-    cidx = torch.tensor([CAT_TO_IDX[category]], dtype=torch.long)
-    with torch.no_grad():
-        out = forecaster_net(feat, cidx)
-    d_hat   = float(max(0.0, out["demand"].item()))
-    p_waste = float(torch.sigmoid(out["waste_logit"]).item())
-    return d_hat, p_waste
+    try:
+        obs_padded = obs[:forecaster_obs_dim] if len(obs) >= forecaster_obs_dim else np.pad(obs, (0, forecaster_obs_dim - len(obs)))
+        window = np.tile(obs_padded, (OBS_WINDOW, 1))
+        feat = torch.tensor(window, dtype=torch.float32).unsqueeze(0)
+        cidx = torch.tensor([CAT_TO_IDX[category]], dtype=torch.long)
+        with torch.no_grad():
+            out = forecaster_net(feat, cidx)
+        d_hat   = float(max(0.0, out["demand"].item()))
+        p_waste = float(torch.sigmoid(out["waste_logit"]).item())
+        return d_hat, p_waste
+    except Exception as e:
+        logger.warning(f"Forecaster inference error: {e}")
+        return 0.0, 0.0
 
 
 @asynccontextmanager
@@ -246,6 +250,8 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest) -> PredictResponse:
+    if ddqn_net is None:
+        raise HTTPException(status_code=503, detail="DDQN model not loaded")
     results: list[PriceOverride] = []
     for sv in req.state_vectors:
         if sv.category not in CAT_TO_IDX:
