@@ -111,4 +111,21 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 
 ## Nhóm: Luồng nghiệp vụ / diagram
 
-> (Trống — Task 2 nạp khi dựng PlantUML.)
+### t0.7-backend-payload: Backend → sidecar gửi đủ 9 field; inventory_ratio = availableQuantity/100; demand_7d = tổng 7 ngày từ ForecasterLSTM; competitor_ref_price từ DB địa lý thật
+
+- **Evidence:**
+  - **File tích hợp chính:** `f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts` và `f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts`
+  - **Payload build `/predict`:** `dynamic-pricing.service.ts:265-275` (single) và `dynamic-pricing.service.ts:503-513` (batch tick) — 9 field tường minh, không có default sidecar
+  - **`inventory_ratio`:** `dynamic-pricing.service.ts:228` — `Math.min((product.availableQuantity ?? 0) / 100, 2.0)` — KHỚP env `market_env.py:148` `min(inv / 100.0, 2.0)` hoàn toàn
+  - **`demand_7d`:** `dynamic-pricing.service.ts:274` — `forecast.demand7d` từ `DemandForecastingService.getForecast()` → gọi `pricing-sidecar/main.py:259-270` `/forecast` endpoint → `_run_forecaster` → ForecasterLSTM output `out["demand"]`. Sidecar dùng `demand_7d / 7` để ra demand_ratio (`main.py:105`), so với env dùng `demand_yesterday/base_demand` (`market_env.py:152`). **Semantics: demand_7d là tổng 7 ngày dự báo; chia 7 = trung bình ngày = tương đương demand_yesterday của env.** Tuy nhiên giá trị bị ảnh hưởng bởi lệch kép forecaster (T0.4)
+  - **Bootstrap `/forecast`:** `demand-forecasting.service.ts:54` — `demand_7d: 0.0` (hard-coded) khi gọi `/forecast`. Vòng lặp: `/forecast` nhận `demand_7d=0` → output `demand7d=X` → backend gửi `X` vào `/predict`. Không iterative
+  - **`competitor_ref_price`:** `dynamic-pricing.service.ts:84-124` — MongoDB `$near` query bán kính 10km, trả trung bình `pricePerUnit` của competitor cùng category. Fallback: `ownPrice * 0.95`. Có thật từ DB, không hardcode. Env train dùng synthetic `ref_price × Uniform(0.85, 1.15)` — concept khớp, nguồn khác
+  - **`base_price`:** `dynamic-pricing.service.ts:270` — `product.pricePerUnit` (DB column trực tiếp)
+  - **`prev_delta`:** `dynamic-pricing.service.ts:240` — `(lastOverride.deltaPct ?? 0) / 100` từ MongoDB PriceOverride cuối cùng. Khớp env `self._prev_delta[cat]` (delta action cuối)
+  - **`days_to_restock`:** `dynamic-pricing.service.ts:71-82` — `computeDaysToRestock(schedule, category, lastRestockedAt)` từ `farm.restockSchedule` và `product.lastRestockedAt`. Khớp ngữ nghĩa
+  - **`freshness`:** `dynamic-pricing.service.ts:223` — `cache?.medianScore ?? computeWeibullFallback(category)` từ FreshnessCache (CoreML scan) hoặc Weibull fallback
+  - **Lệch chiều 7 (comp_ratio) VẪN TỒN TẠI:** `main.py:108` — sidecar tính `competitor_ref_price / base_price` (chia base_price cố định); env tính `comp_prices / max(current_price, 1e-6)` (chia current_price đã điều chỉnh). Đây là lệch nghiêm trọng đã ghi tại T0.3 — backend gửi đúng field nhưng sidecar xử lý sai
+- **Verified by:** implementer T0.7 — 2026-06-07
+- **Dùng ở:** kết luận Task 0; thesis section Luồng nghiệp vụ — backend→sidecar integration; thesis section Limitations — train↔serve gap
+
+> (Còn thiếu — T0.8–T0.10 sẽ nạp: integration test, kết luận cuối.)

@@ -662,7 +662,214 @@ Chỉ có 2 model tại `/Users/macos/f2t/freshnessmodels/`:
 - Mapping non-fruit → "root" là thiết kế cố ý, được xác nhận
 
 ## T0.7 ⭐ — Backend payload
-_(chưa bắt đầu)_
+
+**Ngày chạy:** 2026-06-07  
+**Phương pháp:** Đọc trực tiếp 3 file:
+- `f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts`
+- `f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts`
+- `pricing-sidecar/main.py`
+- `dynamic-pricing-final/src/env/market_env.py`
+
+---
+
+### 1. File tích hợp sidecar
+
+Có **2 điểm tích hợp** backend → sidecar:
+
+**Điểm 1 — `/predict`** (DDQN pricing):  
+`f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts`  
+- `generateSuggestionForProduct` (L280): gọi đơn lẻ 1 product  
+- `runPricingTick` (L520): gọi batch tất cả sản phẩm available
+
+**Điểm 2 — `/forecast`** (ForecasterLSTM):  
+`f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts` (L42-58): gọi trước `/predict` để lấy `demand7d`
+
+**Điểm 3 — `/freshness/classify`** (CoreML):  
+`f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts` (L147-151): gọi riêng từ endpoint scan ảnh
+
+---
+
+### 2. Đoạn code build payload `/predict` — `generateSuggestionForProduct`
+
+```typescript
+// dynamic-pricing.service.ts:265-275
+const stateVector = {
+  productId: product._id.toString(),
+  category: agentCat,
+  freshness,
+  inventory_ratio: inventoryRatio,
+  base_price: product.pricePerUnit,
+  competitor_ref_price: competitorRefPrice,
+  days_to_restock: daysToRestock,
+  prev_delta: prevDelta,
+  demand_7d: forecast.demand7d,
+};
+// L280: this.httpService.post(sidecarUrl + "/predict", { state_vectors: [stateVector] }, ...)
+```
+
+Đoạn code build payload `/forecast` (trong demand-forecasting.service.ts:44-55):
+```typescript
+state_vector: {
+  productId,
+  category,
+  freshness,
+  inventory_ratio: inventoryRatio,
+  base_price: basePrice,
+  competitor_ref_price: competitorRefPrice,
+  days_to_restock: daysToRestock,
+  prev_delta: prevDelta,
+  demand_7d: 0.0,   // LUÔN GỬI 0.0 (bootstrap — chưa có forecast)
+},
+```
+
+---
+
+### 3. Bảng 9 field `ProductStateVector`
+
+| Field | Backend gửi? | Nguồn dữ liệu | file:Lxx | Ngữ nghĩa khớp env? |
+|---|---|---|---|---|
+| `productId` | CÓ | `product._id.toString()` | `dynamic-pricing.service.ts:266` | N/A (ID, không vào obs) |
+| `category` | CÓ | `mapProductCategoryToAgent(product.category)` → {"leafy","root","fruit","herbs"} | `dynamic-pricing.service.ts:267, L63-68` | **KHỚP** — cùng 4 categories |
+| `freshness` | CÓ | `cache?.medianScore ?? computeWeibullFallback(category)` — từ FreshnessCache (scan CV) hoặc Weibull fallback | `dynamic-pricing.service.ts:223, L268` | **KHỚP** — cùng ý nghĩa freshness ∈ [0,1] |
+| `inventory_ratio` | CÓ | `Math.min((product.availableQuantity ?? 0) / 100, 2.0)` | `dynamic-pricing.service.ts:228, L269` | **KHỚP** — đúng công thức `inv/100` cap 2.0 (xem Q1) |
+| `base_price` | CÓ | `product.pricePerUnit` — cột DB trực tiếp | `dynamic-pricing.service.ts:270` | **KHỚP** — giá gốc sản phẩm |
+| `competitor_ref_price` | CÓ | `getCompetitorRefPrice()` — truy vấn DB địa lý thật (xem Q4) | `dynamic-pricing.service.ts:225, L84-124` | **KHỚP về concept**; nhưng env dùng `comp/current_price` còn sidecar dùng `comp/base_price` → vẫn là lệch chiều 7 đã ghi T0.3 |
+| `days_to_restock` | CÓ | `computeDaysToRestock(schedule, category, lastRestockedAt)` — từ `farm.restockSchedule` và `product.lastRestockedAt` | `dynamic-pricing.service.ts:247-251, L71-82` | **KHỚP** — cùng ý nghĩa "ngày còn lại đến restock" |
+| `prev_delta` | CÓ | `(lastOverride.deltaPct ?? 0) / 100` — từ MongoDB PriceOverride cuối cùng | `dynamic-pricing.service.ts:240, L273` | **KHỚP** — deltaPct lưu ở %, chia 100 → tỉ lệ |
+| `demand_7d` | CÓ | Từ `DemandForecastingService.getForecast()` → `forecast.demand7d` (kết quả ForecasterLSTM) | `dynamic-pricing.service.ts:254-263, L274` | **LỆCH TIỀM ẨN — xem Q2 & Q5** |
+
+**Kết luận bảng:** Backend gửi ĐẦY ĐỦ 9 field, không có field nào để default phía sidecar. Tất cả 9 field đều được backend tính toán và gửi tường minh.
+
+**Ngoại lệ duy nhất:** Khi `/forecast` gọi sidecar lần đầu (bootstrap), nó gửi `demand_7d: 0.0` (hard-coded, `demand-forecasting.service.ts:54`). Đây là circular bootstrap: forecaster cần `demand_7d` để tính `demand7d`, nhưng chưa có `demand7d`.
+
+---
+
+### 4. Trả lời 5 câu hỏi ngữ nghĩa
+
+#### Q1: `inventory_ratio` = (số tồn kho / 100)?
+
+**TRẢ LỜI: ĐÚNG — khớp hoàn toàn.**
+
+Backend (`dynamic-pricing.service.ts:228`):
+```typescript
+const inventoryRatio = Math.min((product.availableQuantity ?? 0) / 100, 2.0);
+```
+
+Env train (`market_env.py:148`):
+```python
+min(inv / 100.0, 2.0),   # [1] inv_ratio
+```
+
+`inventory_ratio = availableQuantity / 100`, cap tại 2.0. Nếu kho có 50 đơn vị → `inventory_ratio = 0.5`. Công thức và cap hoàn toàn khớp.
+
+---
+
+#### Q2: `demand_7d` mang nghĩa gì — tổng demand 7 ngày, hay trung bình ngày?
+
+**TRẢ LỜI: `demand_7d` là KẾT QUẢ DỰ BÁO từ ForecasterLSTM — ngữ nghĩa là TỔNG demand 7 ngày tương lai (đơn vị: units), nhưng sidecar tính demand_ratio bằng cách chia cho 7 và BASE_DEMAND.**
+
+Luồng:
+1. `DemandForecastingService.getForecast()` gọi sidecar `/forecast` (`demand-forecasting.service.ts:42`)
+2. Sidecar `/forecast` endpoint (`main.py:259-270`) chạy `_run_forecaster(obs, category)` 
+3. `_run_forecaster` trả `d_hat = float(max(0.0, out["demand"].item()))` (`main.py:136`) — đây là output của `demand_head`, được train với target là `demand_yesterday` × 7 (từ parquet) → **tổng 7 ngày**
+4. Backend nhận `forecast.demand7d` và đặt vào `demand_7d` field
+
+Sidecar `_build_obs` (`main.py:105`):
+```python
+demand_ratio = (demand_7d / 7.0) / BASE_DEMAND[category] if demand_7d > 0 else 1.0
+```
+
+Tức `demand_7d / 7` = trung bình ngày → so sánh với `BASE_DEMAND` (base demand per day).
+
+Env train (`market_env.py:152`):
+```python
+float(np.clip(self._demand_yesterday[cat] / p["base_demand"], 0.0, 3.0)),   # [5] demand_ratio
+```
+
+`demand_yesterday` = đơn vị bán hôm qua (1 ngày). `demand_7d / 7` tương đương `demand_yesterday` nếu demand ổn định. **Về mặt ngữ nghĩa: `demand_7d` là dự báo tổng 7 ngày; sidecar đúng khi chia cho 7 để ra trung bình ngày.**
+
+**NHƯNG có vấn đề bootstrap:** Khi `/forecast` gọi, nó truyền `demand_7d: 0.0` → sidecar dùng fallback `demand_ratio = 1.0` → forecaster output `demand7d` X → backend gửi X vào `/predict`. Chỉ có 1 vòng lặp, không iterative.
+
+---
+
+#### Q5: `inv_coverage` (obs[9]) — khớp không?
+
+Env (`market_env.py:144`):
+```python
+coverage_7d = inv / max(self._demand_yesterday[cat] * 7, 1.0)
+```
+→ mẫu số = `demand_yesterday × 7` (projection 7 ngày của demand hôm qua)
+
+Sidecar (`main.py:107`):
+```python
+inv_coverage = inv_units / max(demand_7d, 1.0) if demand_7d > 0 else inv_units / max(BASE_DEMAND[category] * 7, 1.0)
+```
+Với `inv_units = inventory_ratio * 100.0`.
+
+Nếu `demand_7d > 0`: mẫu số = `demand_7d` (tổng 7 ngày dự báo).  
+Env mẫu số = `demand_yesterday * 7` (projection 7 ngày của demand hôm qua).
+
+Hai cách tiếp cận này **tương đương về mặt ý nghĩa** nếu `demand_7d` là dự báo 7 ngày hợp lý, vì cả hai đều là "demand dự kiến 7 ngày tới". Tuy nhiên env dùng actual demand hôm qua nhân 7, còn sidecar dùng ML forecast. **Không lệch nghiêm trọng về ngữ nghĩa.**
+
+Fallback của sidecar khi `demand_7d=0`: dùng `BASE_DEMAND[cat] * 7` — khớp với cách env fallback (base_demand từ params).
+
+**Kết luận Q5: KHỚP về ngữ nghĩa** — cả hai đều ước tính coverage = tồn kho / demand 7 ngày, chỉ khác nguồn (actual vs forecast).
+
+---
+
+#### Q4: `competitor_ref_price` lấy từ đâu?
+
+**TRẢ LỜI: Lấy từ DB thật qua truy vấn địa lý MongoDB — CÓ THẬT, không hardcode.**
+
+Code `getCompetitorRefPrice()` (`dynamic-pricing.service.ts:84-124`):
+```typescript
+// 1. Lấy tọa độ farm hiện tại (L90-91)
+const farm = await this.farmModel.findById(farmId).select("location").lean();
+
+// 2. Tìm các farm lân cận trong bán kính 10km (L93-105)
+const nearbyFarms = await this.farmModel.find({
+  _id: { $ne: new Types.ObjectId(farmId.toString()) },
+  location: { $near: { $geometry: { type: "Point", coordinates: farm.location.coordinates }, $maxDistance: 10000 } },
+}).select("_id").limit(2).lean();
+
+// 3. Lấy giá sản phẩm cùng category của farm lân cận (L107-116)
+const competitorProducts = await this.productModel.find({
+  farmId: { $in: nearbyFarms.map((f) => f._id) },
+  category, status: "available",
+}).select("pricePerUnit").lean();
+
+// 4. Trả về trung bình (L118-120)
+return competitorProducts.reduce((sum, p) => sum + p.pricePerUnit, 0) / competitorProducts.length;
+```
+
+**Fallback nếu không có farm lân cận hoặc lỗi:** `ownPrice * 0.95` (giả định competitor rẻ hơn 5%).
+
+Env train: `comp_prices[cat] = params[cat]["ref_price"] * rng.uniform(0.85, 1.15)` — **synthetic, random**. Backend dùng giá thật từ DB. Đây là **cải tiến so với env train**, không phải lệch.
+
+---
+
+#### Tổng hợp lệch ngữ nghĩa
+
+| Field | Ngữ nghĩa env train | Ngữ nghĩa backend gửi | Lệch? |
+|---|---|---|---|
+| `inventory_ratio` | `inv/100`, cap 2.0 | `availableQuantity/100`, cap 2.0 | **KHÔNG LỆCH** |
+| `demand_7d` | Không có field này (env dùng demand_yesterday trực tiếp) | Tổng demand 7 ngày dự báo từ ForecasterLSTM | **TIỀM ẨN** — forecast bị lệch kép (T0.4), nên demand_7d không đáng tin |
+| `competitor_ref_price` | Synthetic: ref_price × Uniform(0.85, 1.15) | Trung bình pricePerUnit của competitor thật trong 10km | **CONCEPT KHỚP**, nguồn dữ liệu khác (thật vs synthetic) |
+| `base_price` | `params[cat]["ref_price"]` — giá tham chiếu cố định | `product.pricePerUnit` — giá cột DB | **KHỚP** |
+| `prev_delta` | delta từ action CANDIDATES cuối | `lastOverride.deltaPct / 100` | **KHỚP** về ý nghĩa |
+| `days_to_restock` | `RESTOCK_EVERY[cat] - (t % RESTOCK_EVERY[cat])` — giá trị cố định theo cat | `computeDaysToRestock(schedule, cat, lastRestockedAt)` — tính thực | **KHỚP về ý nghĩa** |
+
+---
+
+### 5. Kết luận T0.7
+
+**Backend GỬI ĐỦ 9 field**, không có field nào để sidecar default.  
+**Lưu ý:** `demand_7d` gửi vào `/predict` được bootstrap từ `/forecast` với `demand_7d=0.0` → forecast có sai số do lệch kép T0.4 → `demand_7d` trong payload `/predict` không chính xác.
+
+**Trạng thái: DONE_WITH_CONCERNS**
+- `inventory_ratio` và `competitor_ref_price`: khớp ngữ nghĩa
+- `demand_7d`: có giá trị thật từ ForecasterLSTM nhưng forecast bị lệch kép (T0.4) → không đáng tin
+- Vấn đề chiều 7 (comp_ratio denominator) của sidecar vẫn là lệch nghiêm trọng nhất (ghi nhận từ T0.3)
 
 ## T0.8 — Integration test
 _(chưa bắt đầu)_
