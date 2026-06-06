@@ -5,7 +5,7 @@ Trạng thái: `pending` | `in_progress` | `done` | `blocked`. ⭐ = rủi ro ca
 ## TASK 0 — Verify ML integration (phiên hiện tại)
 | ID | Việc | Model | Dep | Status |
 |----|------|-------|-----|--------|
-| T0.1 | Diff dynamic-pricing-v3 ↔ dynamic-pricing-final | sonnet | — | pending |
+| T0.1 | Diff dynamic-pricing-v3 ↔ dynamic-pricing-final | sonnet | — | done |
 | T0.2 | Verify định nghĩa model khớp hằng số sidecar | sonnet | T0.1 | pending |
 | T0.3 ⭐ | Obs parity: _build_obs ↔ market_env | sonnet | T0.2 | pending |
 | T0.4 ⭐ | Forecaster parity: tile 21× ↔ cách train | sonnet | T0.2 | pending |
