@@ -3,7 +3,17 @@
 > Cập nhật mục "Việc tiếp theo" + commit TRƯỚC khi kết thúc mỗi phiên.
 
 ## Phase hiện tại
-**Task 0 HOÀN TẤT ✅ (T0.1–T0.10). Sẵn sàng Task 1.**
+**Task 0 addendum đang chạy: RETRAIN forecaster obs_dim=10 (T0.11–T0.13).** User reopened — yêu cầu fix forecaster nếu được.
+- Quyết định: retrain forecaster trên env-10 hiện tại (fix layout 11≠10 + version skew). Tiling-21× VẪN còn (cần backend history → document). Freshness leafy/herbs + dow KHÔNG fix được (thiếu data / vô nghĩa).
+- Backup an toàn: `dynamic-pricing-final/_backup_obs11/` (checkpoint + parquet obs11) — KHÔNG commit, để revert.
+- T0.11 regen data: ĐANG CHẠY (scripts/generate_data.py, venv sidecar, cwd=dynamic-pricing-final, log $CLAUDE_JOB_DIR/tmp/gendata.log).
+- T0.12 retrain: chờ data. `scripts/retrain.py` (obs_dim=OBS_DIM=10, max_epochs=100 patience=8, MPS).
+- T0.13: validate + sidecar auto-load obs_dim=10 (hết pad lệch) + re-run integration.
+
+(Task 0 core T0.1–T0.10 đã xong trước đó — xem dưới.)
+
+## Phase trước (đã xong)
+**Task 0 core HOÀN TẤT ✅ (T0.1–T0.10).**
 
 - Spec: approved ✅ (`docs/superpowers/specs/2026-06-07-f2t-ml-verify-thesis-framework-design.md`)
 - Plan Task 0: ✅ (`docs/superpowers/plans/2026-06-07-task0-ml-integration-verify.md`)
