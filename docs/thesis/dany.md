@@ -18,17 +18,15 @@
 
 - MT1: Xây dựng app mobile đa nền tảng (React Native + Expo) kết nối 3 vai trò: Consumer, Farm, Admin
 
-- MT2: Backend NestJS + MongoDB với 14 module nghiệp vụ, tích hợp Stripe và GHN
+- MT2: Backend NestJS + MongoDB với 13 module nghiệp vụ, tích hợp Stripe và GHN [ref: f2t-backend/src/modules/ — 13 thư mục: admin, auth, delivery, demand-forecasting, dynamic-pricing, farms, notifications, orders, payments, posts, products, uploads, users]
 
-- MT3: Hệ thống gợi ý sản phẩm (ItemItemCF + Content-Based Filtering)
+- MT3: Dự báo nhu cầu bằng ForecasterLSTM (LSTM 2 lớp, window=21, output demand + waste_logit) [ref: dynamic-pricing-final/src/forecaster/model.py:18-49; ledger t1.4-forecaster-not-holt, t0.2-forecaster-arch]
 
-- MT4: Dự báo nhu cầu (Holt EWMA + DoW seasonality)
+- MT4: Định giá động (DDQN đa-category SharedMLPDuelingQNet, Safety Layer 5 quy tắc, chế độ advisory) [ref: dynamic-pricing-final/src/rl/network.py:51-57; pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules]
 
-- MT5: Định giá động (DDQN + Safety Layer, chế độ advisory)
+- MT5: Phân loại độ tươi sản phẩm từ ảnh bằng 2 model CoreML (fruit/root), nhị phân fresh/rotten, phục vụ qua pricing-sidecar [ref: pricing-sidecar/main.py:316-318; freshnessmodels/MyFreshnessClassifier-fruit.mlmodel; ledger t1.4-freshness-coreml, t0.6]
 
-- MT6: Phân loại độ tươi rau từ ảnh (MobileNetV2 qua API)
-
-- MT7: Kiểm thử đạt ≥95% unit test pass
+- MT6: Kiểm thử đạt ≥95% unit test pass (thực tế: 54/54 test case trong 21 file spec) [ref: ledger t1.15-numbers]
 
 **1.3. Phạm vi nghiên cứu (~0.5 trang)**
 
@@ -48,17 +46,17 @@
 
 **1.5. Đóng góp của khóa luận (~1.5 trang)**
 
-- ★ ĐG1: Kiến trúc Monolith+Sidecar → tách AI Python ra khỏi Node.js, graceful degradation
+- ★ ĐG1: Kiến trúc Monolith + 1 Sidecar (pricing-sidecar) — tách AI Python ra khỏi Node.js thành 1 FastAPI sidecar duy nhất (port 8000, 3 endpoint: /predict, /forecast, /freshness/classify), graceful degradation khi sidecar không phản hồi [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:9; ledger t1.4-one-sidecar]
 
-- ★ ĐG2: Hệ thống gợi ý đa tầng (ItemItemCF + Content-Based + cold-start handling)
+- ★ ĐG2: Tích hợp giá AI tự động qua DynamicPricingInterceptor — NestJS APP_INTERCEPTOR chặn /products response và nhúng dynamicPrice + freshnessScore + priceTag mà không cần sửa controller [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:16-18; ledger t1.4-interceptor-cron]
 
-- ★ ĐG3: Dự báo nhu cầu (Holt EWMA + DoW seasonality + confidence interval)
+- ★ ĐG3: Dự báo nhu cầu bằng ForecasterLSTM — LSTM 2 lớp, window=21, output demand + waste_logit, phục vụ qua pricing-sidecar /forecast [ref: dynamic-pricing-final/src/forecaster/model.py:18-49; ledger t1.4-forecaster-not-holt, t0.2-forecaster-arch]
 
-- ★ ĐG4: Định giá động (DDQN + Safety Layer 5 quy tắc + advisory mode)
+- ★ ĐG4: Định giá động (DDQN SharedMLPDuelingQNet đa-category + Safety Layer 5 quy tắc + advisory mode) — obs 10 chiều, 11 hành động CANDIDATES ∈ [-0.30, +0.20] [ref: dynamic-pricing-final/src/rl/network.py:51-57; pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules, t1.4-ddqn-dims]
 
-- ★ ĐG5: Phân loại độ tươi (MobileNetV2 API + dataset rau VN tự thu thập)
+- ★ ĐG5: Phân loại độ tươi bằng 2 model CoreML (fruit/root), nhị phân fresh/rotten, phục vụ qua pricing-sidecar /freshness/classify; non-fruit category fallback về root model [ref: pricing-sidecar/main.py:316-318; freshnessmodels/MyFreshnessClassifier-fruit.mlmodel; ledger t1.4-freshness-coreml, t0.6]
 
-- ★ ĐG6: Tích hợp end-to-end (Interceptor giá AI, Dijkstra fallback, Embedded Snapshot)
+- ★ ĐG6: Tích hợp end-to-end (Dijkstra fallback giao hàng khi GHN không khả dụng, Embedded Snapshot giá vào orders chống sai giá lịch sử) [ref: f2t-backend/src/modules/delivery/delivery.service.ts; f2t-backend/src/modules/orders/schemas/order.schema.ts:105; ledger t1.4-interceptor-cron]
 
 - Kèm: Bản đồ đóng góp (contribution map) — sơ đồ 1 trang thể hiện 6 đóng góp nằm ở đâu trong hệ thống
 
