@@ -94,3 +94,48 @@
 
 ### Claim mới phát sinh (nếu có)
 Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry trong ledger Task 0 / Task 1 (t0.2, t0.6, t1.4-*, t1.15-numbers).
+
+## T1.6+T1.7 — Viết lại §2.4 "Nền tảng lý thuyết AI/ML" ✅
+
+### Tóm tắt thay đổi
+
+**XÓA (không tồn tại trong codebase):**
+- *2.4.1 Lọc cộng tác (Collaborative Filtering)* — Cosine Similarity, ItemItemCF, temporal decay λ=0.02 → XÓA hoàn toàn (ledger t1.4-no-recommender)
+- *2.4.2 Gợi ý dựa trên nội dung (Content-Based Filtering)* — TF-IDF, hybrid system → XÓA hoàn toàn (ledger t1.4-no-recommender)
+- *2.4.4 Mùa vụ theo ngày trong tuần (DoW Seasonality)* — Holt EWMA, hệ số DoW, điều kiện ≥14 ngày → XÓA (ledger t1.4-forecaster-not-holt)
+
+**SỬA CĂN BẢN:**
+- *2.4.3 Dự báo chuỗi thời gian* (stub trống + Holt) → **2.4.1 Dự báo chuỗi thời gian với LSTM**: lý thuyết LSTM + kiến trúc ForecasterLSTM thật (obs_dim=11, window=21, hidden=128, 2 lớp, dual-head demand/waste_logit)
+- *2.4.5 Học tăng cường và DDQN* (state 5-dim, 5 action [-20%..+20%]) → **2.4.2**: giữ lý thuyết RL/Q-Learning/Double-DQN/Dueling; sửa số liệu thật: state 10 chiều, 11 action CANDIDATES linspace(-0.30,0.20,11), SharedMLPDuelingQNet + category embedding
+- *2.4.6 Phân loại ảnh với MobileNetV2 (4 class)* → **2.4.3 Phân loại ảnh và CoreML**: giữ lý thuyết transfer learning + CNN; sửa model thật là 2 CoreML nhị phân (fruit/root), XÓA "4 class" + "MobileNetV2 14MB"
+
+**Đánh số lại mục con:** 2.4.1→2.4.2→2.4.3 (liền mạch, từ 6 mục → 3 mục)
+
+### Danh sách citation
+
+| Citation | File + dòng | Ledger |
+|---|---|---|
+| ForecasterLSTM window=21, obs_dim=11 | dynamic-pricing-final/src/forecaster/model.py:L9-10 | t0.2-forecaster-arch, t0.4-forecaster-parity |
+| LSTM nn.LSTM(input_size, hidden=128, num_layers=2, dropout=0.2) | dynamic-pricing-final/src/forecaster/model.py:L23-29 | t0.2-forecaster-arch |
+| cat_embed + dual-head (demand + waste_logit) | dynamic-pricing-final/src/forecaster/model.py:L22-31, L46-49 | t0.2-forecaster-arch |
+| waste_head Sequential (L→ReLU→Dropout→L) | dynamic-pricing-final/src/forecaster/model.py:L32-37 | t0.2-forecaster-arch |
+| Dueling QNet MLPDuelingQNet (v_stream + a_stream) | dynamic-pricing-final/src/rl/network.py:L7-39 | t0.2-ddqn-arch |
+| SharedMLPDuelingQNet signature (obs_dim=10, n_cats=4, embed=8, hidden=128, n_actions=11) | dynamic-pricing-final/src/rl/network.py:L51-81 | t0.2-ddqn-arch |
+| CANDIDATES = linspace(-0.30, 0.20, 11) | dynamic-pricing-final/src/rl/reward.py:L6-7 | t0.2-action-space |
+| Obs 10 chiều (_build_obs) | pricing-sidecar/main.py:L114-125 | t0.3-obs-parity, t1.4-ddqn-dims |
+| CoreML predict + output keys (target, targetProbability) | pricing-sidecar/main.py:L318-333 | t0.6-coreml-freshness |
+| CoreML model mapping (fruit→fruit, else→root) | pricing-sidecar/main.py:L318 | t0.6-coreml-freshness, t1.4-freshness-coreml |
+
+### Verify checklist
+- [x] Không còn lý thuyết Collaborative Filtering / ItemItemCF / TF-IDF / temporal decay λ trong §2.4
+- [x] Không còn Holt EWMA / DoW Seasonality factor / điều kiện ≥14 ngày trong §2.4
+- [x] Không còn "MobileNetV2" / "4 class Tươi/Hơi héo/Héo/Hỏng" trong §2.4
+- [x] Lý thuyết LSTM có: cell state, 3 gate, vanishing gradient; ForecasterLSTM thật: obs_dim=11, window=21, hidden=128, 2 lớp, dual-head
+- [x] Lý thuyết DDQN có: Q-Learning→DQN→Double DQN→Dueling; số liệu thật: obs 10 chiều, 11 action, SharedMLPDuelingQNet + embedding
+- [x] Lý thuyết CoreML có: transfer learning, CNN, on-device inference; model thật: 2 CoreML nhị phân, fruit/root, output fresh/rotten
+- [x] Mục con đánh số liền mạch 2.4.1→2.4.2→2.4.3 (không có gap)
+- [x] §2.4 tiêu đề cấp trên giữ nguyên (**2.4. Nền tảng lý thuyết AI/ML (~4 trang)**)
+- [x] §2.5 không bị đụng
+- [x] Mọi bullet kỹ thuật có [ref: ...] inline
+- [x] Không sửa ngoài §2.4 (§2.1, §2.2, §2.3, §2.5, §2.6 không đổi)
+- [x] Không sửa file source code (dynamic-pricing-final/, pricing-sidecar/)

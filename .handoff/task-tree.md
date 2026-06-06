@@ -25,8 +25,7 @@ Plan: `docs/superpowers/plans/2026-06-07-task1-dany-md-convert-fix.md`. Audit: `
 | T1.3 | Trích outline dany.md → dany.outline.md | haiku | T1.1 | done |
 | T1.4 | Audit claim sai → dany.audit.md + nở task | sonnet | T1.3 | done (25 BỊA/VIẾT LẠI, 12 SỬA, 10 GIỮ) |
 | T1.5 ⭐ | Viết lại §1.2 Mục tiêu + §1.5 Đóng góp (xóa recommender, sửa LSTM/CoreML/13module/1sidecar) | sonnet | T1.4 | done (verify PASS, citation resolve) |
-| T1.6 ⭐ | Viết lại §2.4.1–2.4.2 (xóa lý thuyết recommender; thêm lý thuyết LSTM+DDQN/Dueling) | sonnet | T1.5 | pending |
-| T1.7 ⭐ | Viết lại §2.4.3–2.4.4 (Holt EWMA → ForecasterLSTM) | sonnet | T1.4 | pending |
+| T1.6+T1.7 ⭐ | Viết lại TOÀN BỘ §2.4 (xóa lý thuyết recommender+Holt; thêm LSTM/DDQN-Dueling/CoreML) | sonnet | T1.5 | done (verify PASS, fix BGR nuance) |
 | T1.8 ⭐ | Viết lại §2.4.5 + §3.3.7(c) DDQN đúng tham số + Safety 5 rule (resolve hyperparam tại nguồn) | sonnet | T1.4 | pending |
 | T1.9 ⭐ | Viết lại §2.4.6 + §3.3.7(d) (MobileNetV2 → CoreML 2-model nhị phân) | sonnet | T1.4 | pending |
 | T1.10 ⭐ | Viết lại §3.3.1 + §3.3.3 + diagram (1 sidecar; xóa UC-ML-01/SD-ML-01/02; sửa SD-ML-04) | sonnet | T1.5 | pending |

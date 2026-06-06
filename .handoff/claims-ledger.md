@@ -219,6 +219,15 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Verified by:** subagent T1.4 (đề xuất GIỮ); controller resolve lại ở T1.12 — 2026-06-07
 - **Dùng ở:** dany.md ĐG6, §4.2.2
 
+### t1.6-section-2.4-rewrite: §2.4 viết lại — xóa 2 mục recommender, thay Holt→LSTM, sửa DDQN dims, sửa CoreML nhị phân
+- **Evidence:**
+  - XÓA 2.4.1 CF + 2.4.2 CBF: không có implementation → `grep -rliE 'recommend|itemitem|collaborative|content-based|cosine' f2t-backend/src` = 0 file (ledger t1.4-no-recommender)
+  - 2.4.1 LSTM: `dynamic-pricing-final/src/forecaster/model.py:L9-15` (ForecasterConfig obs_dim=11, window=21, n_cats=4, cat_embed_dim=8, lstm_hidden=128, lstm_layers=2); `model.py:L23-29` (nn.LSTM); `model.py:L22, L30-37, L46-49` (cat_embed, dual-head demand+waste_logit); ledger t0.2-forecaster-arch, t0.4-forecaster-parity
+  - 2.4.2 DDQN: `dynamic-pricing-final/src/rl/network.py:L7-39` (MLPDuelingQNet Dueling logic); `network.py:L51-81` (SharedMLPDuelingQNet: obs_dim=10, n_cats=4, embed=8, hidden=128, n_actions=11, V+A heads); `dynamic-pricing-final/src/rl/reward.py:L6-7` (CANDIDATES=linspace(-0.30,0.20,11)); `pricing-sidecar/main.py:L114-125` (obs 10 chiều); ledger t0.2-ddqn-arch, t0.2-action-space, t0.3-obs-parity, t1.4-ddqn-dims
+  - 2.4.3 CoreML: `pricing-sidecar/main.py:L318` (model_key="fruit" if fruit else "root"); `main.py:L324-330` (predict output target+targetProbability); ledger t0.6-coreml-freshness, t1.4-freshness-coreml
+- **Verified by:** implementer T1.6+T1.7 — 2026-06-07
+- **Dùng ở:** dany.md §2.4 (3 mục con mới: 2.4.1 LSTM, 2.4.2 DDQN, 2.4.3 CoreML)
+
 ### t1.4-unverified → RESOLVED ở t1.15
 - (xem entry `t1.15-numbers` bên dưới)
 

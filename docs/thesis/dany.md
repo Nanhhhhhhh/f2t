@@ -136,49 +136,39 @@
 
 **2.4. Nền tảng lý thuyết AI/ML (~4 trang)**
 
-*2.4.1. Lọc cộng tác (Collaborative Filtering)*
+*2.4.1. Dự báo chuỗi thời gian với LSTM*
 
-- Khái niệm: "người giống bạn cũng mua X"
+- Bài toán chuỗi thời gian: dự báo nhu cầu ngắn hạn (7 ngày) từ cửa sổ lịch sử 21 bước [ref: dynamic-pricing-final/src/forecaster/model.py:L9-10]
 
-- Công thức Cosine Similarity (viết công thức + ví dụ số)
+- LSTM (Long Short-Term Memory): kiến trúc RNN có cell state + 3 gate (input, forget, output) — khắc phục vanishing gradient của RNN thường [ref: dynamic-pricing-final/src/forecaster/model.py:L23-29]
 
-- ItemItemCF: so sánh sản phẩm, không so sánh người dùng
+- Kiến trúc ForecasterLSTM: input_size=obs_dim, hidden=128, 2 lớp LSTM chồng, dropout=0.2 giữa các lớp; category embedding (n_cats=4, embed_dim=8) nối với output LSTM trước khi vào head [ref: dynamic-pricing-final/src/forecaster/model.py:L22-31]
 
-- Temporal decay: đơn hàng cũ giảm trọng số, λ=0.02
+- Hai đầu ra (dual-head): `demand_head` (Linear → demand dự báo) và `waste_head` (Linear→ReLU→Dropout→Linear → logit xác suất hỏng) — hai mục tiêu song song từ cùng biểu diễn ẩn [ref: dynamic-pricing-final/src/forecaster/model.py:L31-37, L46-49]
 
-*2.4.2. Gợi ý dựa trên nội dung (Content-Based Filtering)*
+- Window=21 bước; obs_dim=11 (checkpoint v4); mỗi bước = vector đặc trưng tổng hợp của sản phẩm trong môi trường giả lập [ref: dynamic-pricing-final/src/forecaster/model.py:L9-15, ledger t0.4-forecaster-parity]
 
-- TF-IDF trên tags sản phẩm
+*2.4.2. Học tăng cường và DDQN*
 
-- Cosine Similarity giữa sản phẩm đang xem và tất cả sản phẩm khác
+- RL cơ bản: Agent, State, Action, Reward; Q-function Q(s,a) = phần thưởng kỳ vọng tích lũy [ref: ledger t0.2-ddqn-arch]
 
-- Kết hợp với ItemItemCF → hệ thống hybrid
+- Q-Learning → DQN (xấp xỉ Q bằng mạng neuron, Experience Replay) → Double DQN: tách chọn hành động (online net) và đánh giá giá trị (target net) — giảm overestimation bias [ref: dynamic-pricing-final/src/rl/network.py:L7-39]
 
-*2.4.3. Dự báo chuỗi thời gian:*
+- Dueling DQN: tách nhánh Value V(s) và Advantage A(s,a); Q = V + A − mean(A) — ổn định hơn khi nhiều action tương đương [ref: dynamic-pricing-final/src/rl/network.py:L61-78]
 
-*2.4.4. Mùa vụ theo ngày trong tuần (DoW Seasonality)*
+- Áp dụng cho định giá: state = 10 chiều [freshness, inv_ratio, sin_dow, cos_dow, days_to_restock, demand_ratio, prev_delta, comp_ratio, days_to_waste, inv_coverage]; 11 hành động CANDIDATES = linspace(−0.30, 0.20, 11) bước 0.05 [ref: dynamic-pricing-final/src/rl/reward.py:L6-7, pricing-sidecar/main.py:L114-125, ledger t0.2-action-space, t1.4-ddqn-dims]
 
-- Hệ số mùa vụ = trung bình doanh số ngày X / trung bình chung
+- Mạng SharedMLPDuelingQNet: dùng chung cho 4 category qua category embedding (n_cats=4, embed_dim=8); shared MLP Linear(obs_dim+8, 128) + ReLU; V-head và A-head mỗi cái 128→64→1/n_actions; action masking theo freshness/category [ref: dynamic-pricing-final/src/rl/network.py:L51-81, ledger t0.2-ddqn-arch]
 
-- Nhân hệ số vào dự báo Holt
+*2.4.3. Phân loại ảnh và CoreML*
 
-- Điều kiện: cần ≥14 ngày dữ liệu
+- Transfer Learning: dùng lại mạng CNN pretrained (ImageNet) làm feature extractor — tiết kiệm dữ liệu và thời gian huấn luyện; chỉ thay lớp phân loại cuối cho bài toán mới [ref: ledger t1.4-freshness-coreml]
 
-*2.4.5. Học tăng cường và DDQN*
+- CNN và kiến trúc nhẹ cho thiết bị di động: mạng tích chập trích đặc trưng không gian (spatial features) từ ảnh; các biến thể nhẹ (MobileNet, SqueezeNet) phù hợp inference trên thiết bị edge [ref: ledger t0.6-coreml-freshness]
 
-- RL cơ bản: Agent, State, Action, Reward
+- Apple CoreML (Create ML): framework on-device inference cho iOS/macOS; model đóng gói dạng .mlmodel, predict qua API `model.predict({"image": img})`; ảnh resize 299×299. Lưu ý: model khai báo colorSpace=BGR nhưng sidecar feed RGB (`.convert("RGB")`) — đã xác minh đây là cách feed đúng (coremltools không hoán kênh) [ref: pricing-sidecar/main.py:L324, ledger t0.9-fixes, t0.6-coreml-freshness]
 
-- Q-Learning → DQN → Double DQN (2 mạng giảm overestimate)
-
-- Áp dụng cho định giá: state = \[tồn kho, độ tươi, giờ, giá, nhu cầu\], 5 hành động \[-20%, -10%, 0%, +10%, +20%\]
-
-*2.4.6. Phân loại ảnh với MobileNetV2*
-
-- Transfer Learning: pretrained ImageNet, thay lớp cuối
-
-- MobileNetV2: 14MB, Inverted Residual, Depthwise Separable Conv
-
-- 4 class: Tươi, Hơi héo, Héo, Hỏng
+- Áp dụng trong F2T: 2 model CoreML nhị phân (fresh/rotten) — `MyFreshnessClassifier-fruit.mlmodel` (cho category fruit) và `MyFreshnessClassifier-root.mlmodel` (cho root/leafy/herbs); output gồm `target` (string "fresh"/"rotten") + `targetProbability` (dict xác suất); score = fresh probability [ref: pricing-sidecar/main.py:L318-333, ledger t0.6-coreml-freshness, t1.4-freshness-coreml]
 
 **2.5. Các hệ thống tương tự (~1 trang)**
 
