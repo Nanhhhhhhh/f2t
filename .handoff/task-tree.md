@@ -10,7 +10,7 @@ Trạng thái: `pending` | `in_progress` | `done` | `blocked`. ⭐ = rủi ro ca
 | T0.3 ⭐ | Obs parity: _build_obs ↔ market_env | sonnet | T0.2 | done (LỆCH→T0.9) |
 | T0.4 ⭐ | Forecaster parity: tile 21× ↔ cách train | sonnet | T0.2 | done (LỆCH NẶNG→T0.9) |
 | T0.5 | Smoke-load checkpoint + inference | sonnet | T0.2 | done |
-| T0.6 | CoreML freshness load + predict | sonnet | — | pending |
+| T0.6 | CoreML freshness load + predict | sonnet | — | done (BGR flag→T0.9) |
 | T0.7 ⭐ | Backend output đủ 9 field ProductStateVector | sonnet | — | pending |
 | T0.8 | Integration test: boot sidecar + gọi endpoint | sonnet | T0.3–T0.7 | pending |
 | T0.9 | Fix gaps phát hiện + re-verify | sonnet | T0.8 | pending |

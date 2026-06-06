@@ -577,7 +577,89 @@ tests/test_smoke_load.py::test_forecaster_loads_and_infers PASSED        [100%]
 Cả 2 checkpoint load và inference thành công. Không có missing/unexpected key. q.shape đúng. Output forecaster đúng.
 
 ## T0.6 — CoreML freshness
-_(chưa bắt đầu)_
+
+**Ngày chạy:** 2026-06-07  
+**Test file:** `/Users/macos/f2t/pricing-sidecar/tests/test_coreml_freshness.py`  
+**Lệnh chạy:**
+```
+cd /Users/macos/f2t/pricing-sidecar && .venv/bin/python -m pytest tests/test_coreml_freshness.py -v -s
+```
+
+### Trạng thái coremltools
+
+coremltools 9.0 CÓ SẴN trong venv (không cần cài thêm):
+```
+$ .venv/bin/python -c "import coremltools; import PIL; print('ok', coremltools.__version__)"
+ok 9.0
+```
+(Cảnh báo về Torch 2.12.0 chưa được test với coremltools là bình thường, không ảnh hưởng CoreML inference.)
+
+### Tên input thật của model
+
+Cả 2 model đều có:
+- **Input:** `name=image`, type `imageType { width: 299, height: 299, colorSpace: BGR }`
+- **Output:** `name=target` (string), `name=targetProbability` (dict string→float)
+
+Lệnh kiểm tra:
+```python
+import coremltools as ct
+m = ct.models.MLModel('/Users/macos/f2t/freshnessmodels/MyFreshnessClassifier-fruit.mlmodel')
+spec = m.get_spec().description
+# INPUTS: name=image, type=imageType { width: 299, height: 299, colorSpace: BGR }
+# OUTPUTS: name=target (stringType), name=targetProbability (dictionaryType)
+```
+
+### Output pytest đầy đủ (với -s print)
+
+```
+============================= test session starts ==============================
+platform darwin -- Python 3.13.9, pytest-9.0.3, pluggy-1.6.0 -- /Users/macos/f2t/pricing-sidecar/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/macos/f2t/pricing-sidecar
+plugins: anyio-4.13.0
+collecting ... collected 2 items
+
+tests/test_coreml_freshness.py::test_coreml_predict[MyFreshnessClassifier-fruit.mlmodel] MyFreshnessClassifier-fruit.mlmodel -> {'target': 'fresh', 'targetProbability': {'fresh': 0.9261168413538724, 'rotten': 0.07388315864612756}}
+PASSED
+tests/test_coreml_freshness.py::test_coreml_predict[MyFreshnessClassifier-root.mlmodel] MyFreshnessClassifier-root.mlmodel -> {'target': 'rotten', 'targetProbability': {'fresh': 0.4769286231512916, 'rotten': 0.5230713768487084}}
+PASSED
+
+============================== 2 passed in 2.65s ===============================
+```
+
+### Output predict chi tiết
+
+| Model | `target` | `targetProbability["fresh"]` | `targetProbability["rotten"]` |
+|---|---|---|---|
+| `MyFreshnessClassifier-fruit.mlmodel` | `"fresh"` | `0.9261` | `0.0739` |
+| `MyFreshnessClassifier-root.mlmodel` | `"rotten"` | `0.4769` | `0.5231` |
+
+Input test: `Image.new("RGB", (299, 299), (120, 180, 90))` — ảnh xanh lá 299×299 (PIL tự convert màu nếu cần).
+
+### Xác nhận mapping fallback "root"
+
+Từ `main.py:314`:
+```python
+model_key = "fruit" if req.category in ("fruit", "fruits") else "root"
+```
+
+- `"fruit"` / `"fruits"` → model **fruit**
+- `"leafy"`, `"herbs"`, `"root"`, và mọi giá trị khác → model **root**
+
+Chỉ có 2 model tại `/Users/macos/f2t/freshnessmodels/`:
+- `MyFreshnessClassifier-fruit.mlmodel`
+- `MyFreshnessClassifier-root.mlmodel`
+
+**Đây là thiết kế đã biết và cố ý:** không có model riêng cho leafy/herbs. Root model được dùng làm fallback cho tất cả category không phải fruit. Điều này hợp lý vì rau củ (root, leafy, herbs) có đặc điểm texture tươi/hỏng tương đồng hơn so với trái cây.
+
+### Kết luận
+
+**Trạng thái: DONE**
+- coremltools 9.0 CÓ SẴN — không phải blocker môi trường
+- 2 model load và predict thành công (2 PASSED)
+- Input key = `"image"` (299×299, BGR) — khớp với sidecar `main.py:321` (`model.predict({"image": img})`)
+- Output keys = `"target"` (string label) + `"targetProbability"` (dict) — khớp với `main.py:324-326`
+- Mapping non-fruit → "root" là thiết kế cố ý, được xác nhận
 
 ## T0.7 ⭐ — Backend payload
 _(chưa bắt đầu)_

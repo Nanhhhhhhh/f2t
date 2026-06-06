@@ -80,7 +80,30 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Verified by:** implementer T0.5 — 2026-06-07
 - **Dùng ở:** kết luận Task 0; thesis section AI/ML — checkpoint integrity
 
-> (Còn thiếu — T0.6–T0.10 sẽ nạp: CoreML, luồng backend→sidecar, kết luận cuối.)
+### t0.6-coreml-freshness: 2 model CoreML (fruit/root) load + predict OK; non-fruit→root là thiết kế cố ý
+
+- **Evidence:** pytest thật — `cd /Users/macos/f2t/pricing-sidecar && .venv/bin/python -m pytest tests/test_coreml_freshness.py -v -s`
+  ```
+  platform darwin -- Python 3.13.9, pytest-9.0.3, pluggy-1.6.0
+  tests/test_coreml_freshness.py::test_coreml_predict[MyFreshnessClassifier-fruit.mlmodel] MyFreshnessClassifier-fruit.mlmodel -> {'target': 'fresh', 'targetProbability': {'fresh': 0.9261168413538724, 'rotten': 0.07388315864612756}}
+  PASSED
+  tests/test_coreml_freshness.py::test_coreml_predict[MyFreshnessClassifier-root.mlmodel] MyFreshnessClassifier-root.mlmodel -> {'target': 'rotten', 'targetProbability': {'fresh': 0.4769286231512916, 'rotten': 0.5230713768487084}}
+  PASSED
+  2 passed in 2.65s
+  ```
+  - **Model files:** `/Users/macos/f2t/freshnessmodels/MyFreshnessClassifier-fruit.mlmodel` và `MyFreshnessClassifier-root.mlmodel` (2 model, không có leafy/herbs riêng)
+  - **Input shape:** `name=image`, `imageType { width: 299, height: 299, colorSpace: BGR }` — khớp với sidecar `main.py:321` (`model.predict({"image": img})`)
+  - **Output keys:** `target` (string: "fresh"/"rotten") + `targetProbability` (dict string→float) — khớp với `main.py:324-326`
+  - **Predict mẫu (ảnh xanh lá 299×299 RGB):**
+    - fruit model: `target="fresh"`, `fresh=0.9261`, `rotten=0.0739`
+    - root model: `target="rotten"`, `fresh=0.4769`, `rotten=0.5231`
+  - **Mapping fallback:** `main.py:314` — `model_key = "fruit" if req.category in ("fruit","fruits") else "root"` → leafy/herbs/root đều dùng model root. Thiết kế cố ý (2 model, không phải 4).
+  - **coremltools:** version 9.0, có sẵn trong venv (không cần cài thêm)
+  - **Test file:** `/Users/macos/f2t/pricing-sidecar/tests/test_coreml_freshness.py`
+- **Verified by:** implementer T0.6 — 2026-06-07
+- **Dùng ở:** kết luận Task 0; thesis section AI/ML — freshness classification sidecar
+
+> (Còn thiếu — T0.7–T0.10 sẽ nạp: luồng backend→sidecar, integration test, kết luận cuối.)
 
 ## Nhóm: Thiết kế CSDL
 
