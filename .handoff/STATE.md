@@ -17,6 +17,11 @@ Bắt đầu **T0.1** (diff `/Users/macos/dynamic-pricing-v3` ↔ `f2t/dynamic-p
 - Task 0: chưa bắt đầu leaf-task nào (T0.1–T0.10 = pending).
 - Task 1, 2: chưa tới (phiên sau).
 
+## T0.9 fix-backlog (lỗi phát hiện, sửa ở T0.9)
+1. **[obs dim7 comp_ratio] NGHIÊM TRỌNG** — sidecar chia `base_price`, env chia giá hiện hành. Fix: `competitor_ref_price / (base_price * (1 + prev_delta))` (main.py:108). Evidence: market_env.py:134 vs main.py:108.
+2. **[obs dim2/3 dow] lệch pha** — sidecar `datetime.now().weekday()` vs env `self._t % 7`. Cần quyết: bỏ tín hiệu dow ở serve, hay map lại pha. Evidence: market_env.py:132 vs main.py:98.
+3. **[obs dim1/5/9] phụ thuộc backend** — ngữ nghĩa `inventory_ratio` (=inv/100?), `demand_7d` (tổng 7 ngày hay TB ngày?) phải khớp env (`inv/100`, `demand_yesterday`, `demand_yesterday*7`). Chốt sau T0.7 rồi sửa nếu lệch.
+
 ## Blocker
 Không có.
 

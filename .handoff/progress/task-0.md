@@ -244,7 +244,117 @@ delta = float(CANDIDATES[action_idx])
 **Trạng thái: DONE — không có lệch nào.**
 
 ## T0.3 ⭐ — Obs parity
-_(chưa bắt đầu)_
+
+**Ngày chạy:** 2026-06-07
+**Phương pháp:** Đọc trực tiếp `dynamic-pricing-final/src/env/market_env.py` (hàm `_build_obs`) và `pricing-sidecar/main.py` (hàm `_build_obs`), đối chiếu từng chiều 0..9 + hằng số.
+
+---
+
+### 1. Đoạn code env dựng obs — `market_env.py:125-158`
+
+```python
+def _build_obs(self) -> dict[str, np.ndarray]:          # market_env.py:125
+    obs = {}
+    params = self._demand_model._params
+    for cat in CATEGORIES:
+        p = params[cat]
+        f   = self._freshness[cat]
+        inv = self._inventory[cat]
+        dow = self._t % 7
+        days_to_next = RESTOCK_EVERY[cat] - (self._t % RESTOCK_EVERY[cat])
+        comp_ratio = self._comp_prices[cat] / max(self._prices[cat], 1e-6)  # L134
+
+        # days_to_waste_threshold
+        decay_rate = DAILY_DECAY[cat]
+        if f <= WASTE_THRESHOLD or decay_rate >= 1.0:   # L138
+            days_to_waste = 0.0
+        else:
+            days_to_waste = math.log(WASTE_THRESHOLD / f) / math.log(decay_rate)  # L141
+
+        # inv_coverage_7d
+        coverage_7d = inv / max(self._demand_yesterday[cat] * 7, 1.0)  # L144
+
+        obs[cat] = np.array([
+            f,                                                                         # [0] freshness         L147
+            min(inv / 100.0, 2.0),                                                     # [1] inv_ratio         L148
+            math.sin(2 * math.pi * dow / 7),                                           # [2] sin_dow           L149
+            math.cos(2 * math.pi * dow / 7),                                           # [3] cos_dow           L150
+            min(days_to_next / 30.0, 1.0),                                             # [4] days_to_restock   L151
+            float(np.clip(self._demand_yesterday[cat] / p["base_demand"], 0.0, 3.0)), # [5] demand_ratio      L152
+            self._prev_delta[cat],                                                     # [6] prev_delta        L153
+            float(np.clip(comp_ratio, 0.5, 2.0)),                                     # [7] competitor_ratio  L154
+            float(np.clip(days_to_waste, 0.0, 14.0)) / 14.0,                         # [8] days_to_waste     L155
+            float(np.clip(coverage_7d, 0.0, 3.0)) / 3.0,                             # [9] inv_coverage_7d   L156
+        ], dtype=np.float32)
+    return obs
+```
+
+Hằng số env đến từ `freshness.py` (import tại market_env.py:4-6):
+- `DAILY_DECAY` — đọc từ `freshness.py:7-12`
+- `WASTE_THRESHOLD` — đọc từ `freshness.py:4`
+- `base_demand` — đọc từ `data/params/demand_params.json` qua `CrossDemandModel`
+
+---
+
+### 2. Bảng đối chiếu 10 chiều
+
+| # | Sidecar (`main.py:110-120`) | Env (`market_env.py:146-157`) | KHỚP/LỆCH | Ghi chú |
+|---|---|---|---|---|
+| 0 | `clip(freshness, 0, 1)` | `f` (raw, no clip) | **LỆCH nhẹ** | Env không clip; sidecar clip [0,1]. Thực tế freshness luôn trong [0,1] nên không ảnh hưởng trong điều kiện bình thường |
+| 1 | `min(inventory_ratio, 2.0)` | `min(inv/100.0, 2.0)` | **KHỚP** | Cùng công thức nếu caller truyền `inventory_ratio = inv/100` |
+| 2 | `sin(2π·dow/7)` với `dow=datetime.now().weekday()` | `sin(2π·dow/7)` với `dow=self._t%7` | **LỆCH TIỀM ẨN** | Sidecar dùng wall-clock weekday; env dùng timestep mod 7. Nếu episode không bắt đầu đúng thứ Hai, offset có thể lệch — không đảm bảo cùng pha |
+| 3 | `cos(2π·dow/7)` với `dow=datetime.now().weekday()` | `cos(2π·dow/7)` với `dow=self._t%7` | **LỆCH TIỀM ẨN** | Cùng lý do chiều 2 |
+| 4 | `min(days_to_restock/30, 1)` | `min(days_to_next/30.0, 1.0)` | **KHỚP** | Cùng công thức nếu caller tính đúng days_to_restock |
+| 5 | `clip((demand_7d/7)/BASE_DEMAND[cat], 0, 3)` | `clip(demand_yesterday/base_demand, 0, 3)` | **KHỚP** | `demand_7d/7` = demand trung bình ngày = tương đương `demand_yesterday` trong env. `BASE_DEMAND` sidecar = `base_demand` JSON (giá trị xác minh bên dưới) |
+| 6 | `clip(prev_delta, -0.30, 0.20)` | `self._prev_delta[cat]` (không clip) | **LỆCH THIẾT KẾ** | Env không clip; sidecar clip [-0.30, 0.20]. Trong thực tế env, prev_delta luôn là CANDIDATES value ∈ [-0.30,0.20], nên clip sidecar vô hiệu. Không ảnh hưởng runtime nếu input đúng |
+| 7 | `clip(comp_ratio, 0.5, 2.0)` với `comp_ratio = competitor_ref_price / base_price` | `clip(comp_ratio, 0.5, 2.0)` với `comp_ratio = comp_prices[cat] / max(prices[cat], 1e-6)` | **LỆCH NGHIÊM TRỌNG** | **Env chia cho `current_price` (đã điều chỉnh theo delta); sidecar chia cho `base_price` (ref_price cố định).** Khi delta≠0, hai giá trị khác nhau. VD: delta=+0.20 → current_price = base_price×1.20 → comp_ratio env = comp/1.20×base, còn sidecar = comp/base → lệch 20% |
+| 8 | `clip(days_to_waste, 0, 14)/14` với `days_to_waste = log(0.5/freshness)/log(DAILY_DECAY[cat])` | `clip(days_to_waste, 0, 14)/14` với `days_to_waste = log(WASTE_THRESHOLD/f)/log(decay_rate)` | **KHỚP** | Cùng công thức. `WASTE_THRESHOLD=0.50` khớp hằng số sidecar |
+| 9 | `clip(inv_coverage, 0, 3)/3` với `inv_coverage = (inventory_ratio×100) / max(demand_7d, 1.0)` | `clip(coverage_7d, 0, 3)/3` với `coverage_7d = inv / max(demand_yesterday×7, 1.0)` | **LỆCH TIỀM ẨN** | Env: mẫu số = `demand_yesterday × 7` (7-day projection). Sidecar: mẫu số = `demand_7d` (7-day total từ caller). Nếu `demand_7d` = tổng 7 ngày thực tế thì tương đương; nếu `demand_7d` = trung bình ngày thì mẫu số lệch 7×. Không tự minh chứng từ code sidecar |
+
+---
+
+### 3. Bảng so sánh hằng số
+
+| Hằng số | Sidecar (`main.py:77-79`) | Env — nguồn | Giá trị env | KHỚP/LỆCH |
+|---|---|---|---|---|
+| `DAILY_DECAY["leafy"]` | `0.850` | `freshness.py:9` | `0.850` | **KHỚP** |
+| `DAILY_DECAY["root"]` | `0.950` | `freshness.py:10` | `0.950` | **KHỚP** |
+| `DAILY_DECAY["fruit"]` | `0.880` | `freshness.py:11` | `0.880` | **KHỚP** |
+| `DAILY_DECAY["herbs"]` | `0.800` | `freshness.py:12` | `0.800` | **KHỚP** |
+| `WASTE_THRESHOLD` | `0.50` | `freshness.py:4` | `0.50` | **KHỚP** |
+| `BASE_DEMAND["leafy"]` | `7.463` | `demand_params.json` → `params["leafy"]["base_demand"]` | `7.463` | **KHỚP** |
+| `BASE_DEMAND["root"]` | `5.631` | `demand_params.json` → `params["root"]["base_demand"]` | `5.631` | **KHỚP** |
+| `BASE_DEMAND["fruit"]` | `2.050` | `demand_params.json` → `params["fruit"]["base_demand"]` | `2.05` | **KHỚP** |
+| `BASE_DEMAND["herbs"]` | `4.575` | `demand_params.json` → `params["herbs"]["base_demand"]` | `4.575` | **KHỚP** |
+
+Tất cả 9 hằng số KHỚP hoàn toàn.
+
+---
+
+### 4. Kết luận T0.3
+
+**Hằng số (DAILY_DECAY, BASE_DEMAND, WASTE_THRESHOLD): KHỚP 100% — không có lệch.**
+
+**Chiều lệch nghiêm trọng:**
+
+- **Chiều 7 (comp_ratio) — LỆCH NGHIÊM TRỌNG (`market_env.py:134` vs `main.py:108`):**
+  - Env: `comp_prices[cat] / max(prices[cat], 1e-6)` → chia cho **current_price** (ref_price đã điều chỉnh delta, clipped)
+  - Sidecar: `competitor_ref_price / base_price` → chia cho **base_price** (ref_price cố định, không có delta)
+  - Khi delta≠0, hai giá trị này khác nhau. VD: delta=+0.20 → env denominator lớn hơn 20% → comp_ratio env nhỏ hơn → model nhận tín hiệu cạnh tranh khác với lúc train
+
+**Chiều lệch tiềm ẩn (cần xác minh caller):**
+
+- **Chiều 2 & 3 (sin/cos dow):** Sidecar dùng wall-clock `datetime.now().weekday()`; env dùng `self._t % 7`. Nếu episode train không bắt đầu đúng thứ Hai (rất có thể), offset thời gian tuần hoàn có thể lệch hằng kỳ.
+- **Chiều 9 (inv_coverage):** Env mẫu số = `demand_yesterday * 7`; sidecar mẫu số = `demand_7d` (field từ caller). Nếu backend truyền `demand_7d` là tổng 7 ngày → tương đương; nếu truyền trung bình ngày → lệch 7×. Cần xác minh luồng backend (T0.7).
+
+**Chiều lệch thiết kế (không ảnh hưởng runtime):**
+
+- **Chiều 0 (freshness):** Env không clip; sidecar clip [0,1]. Freshness luôn ∈ [0,1] → không ảnh hưởng.
+- **Chiều 6 (prev_delta):** Env không clip; sidecar clip [-0.30,0.20]. delta luôn ∈ CANDIDATES ⊂ [-0.30,0.20] → không ảnh hưởng.
+
+**Trạng thái: DONE_WITH_CONCERNS**
+- 1 lệch NGHIÊM TRỌNG: chiều 7 (comp_ratio denominator: current_price vs base_price)
+- 2 lệch TIỀM ẨN cần xác minh: chiều 2&3 (dow offset), chiều 9 (demand_7d semantics)
 
 ## T0.4 ⭐ — Forecaster parity
 _(chưa bắt đầu)_
