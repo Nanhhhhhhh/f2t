@@ -1063,3 +1063,24 @@ Cả 2 ca: trả JSON hợp lệ, không crash. Kết quả hợp lý (leafy tư
 
 ### Đóng Task 0
 T0.1–T0.10 hoàn tất. Fix đã áp: comp_ratio (1 commit). Ledger nhóm "Kiến trúc ML" + "Luồng nghiệp vụ" đã nạp đủ fact verified cho thesis. Việc tiếp theo: **Task 1** (convert dany.docx → dany.md).
+
+---
+
+## ADDENDUM — T0.11–T0.13: Retrain forecaster obs_dim=10 (user reopened)
+
+**Ngày:** 2026-06-07. User yêu cầu fix forecaster nếu được → retrain trên env-10 hiện tại.
+
+- **T0.11 regen data:** `scripts/generate_data.py` → parquet mới `(21,10)`, train 705,600 / val 151,200 / test 151,200 rows. (Output gendata.log.)
+- **T0.12 retrain:** `scripts/retrain.py` (MPS, ForecasterConfig(obs_dim=10), max_epochs=100 patience=8) → **best epoch 41, val_loss=3.1141**, early-stop ở epoch 49. Checkpoint `checkpoints/forecaster_v4_best.pt` GHI ĐÈ (obs_dim=10, lstm ih_l0=(512,10)).
+- **T0.13 validate:** smoke test 2/2 PASS với checkpoint mới; boot sidecar → `/health` forecaster_loaded=true; `/forecast` leafy → demand7d=21.78, pWaste=0.52 (obs 10 chiều, `main.py:130` pad/slice nay là **no-op** vì forecaster_obs_dim=10=obs sidecar → **layout mismatch ĐÃ HẾT**); `/predict` fruit critical → -25% clipped (vẫn đúng).
+
+### Cập nhật trạng thái forecaster (QUAN TRỌNG cho thesis Task 1/2)
+- ✅ **ĐÃ FIX:** layout 11≠10 + version skew. Forecaster nay train & serve cùng obs_dim=10, features căn chỉnh đúng, không pad.
+- ⚠️ **CÒN LẠI (document):** tile-21× ở serve (`main.py:131`) — backend chưa cung cấp chuỗi 21 ngày thật → vẫn là xấp xỉ steady-state. KHÔNG fix được phiên này (cần backend lưu history).
+- ❌ **KHÔNG fix:** freshness leafy/herbs (thiếu data ảnh), dow (env không neo lịch, vô hại).
+
+### ⚠️ CẢNH BÁO cho session Task 1 (đang chạy song song)
+Entry ledger `t0.4-forecaster-parity` và `t0.10-thesis-limitations` mô tả forecaster ở trạng thái CŨ ("obs layout mismatch + tile-21×"). Sau retrain, **layout mismatch KHÔNG còn** — chỉ còn tile-21×. Khi viết §2.4.3/§3.3.7/§5.2 (T1.7, T1.14), thesis PHẢI phản ánh: forecaster trained obs_dim=10 khớp env, giới hạn DUY NHẤT ở serve là tiling steady-state. ĐỪNG ghi "layout 11≠10" như một giới hạn (đã sửa).
+
+### Backup
+`dynamic-pricing-final/_backup_obs11/` giữ checkpoint + parquet obs11 (gitignored — KHÔNG commit, chỉ revert local). Checkpoint mới CŨNG gitignored → không vào git (xem cảnh báo cross-account dưới).
