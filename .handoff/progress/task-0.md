@@ -356,8 +356,174 @@ Tất cả 9 hằng số KHỚP hoàn toàn.
 - 1 lệch NGHIÊM TRỌNG: chiều 7 (comp_ratio denominator: current_price vs base_price)
 - 2 lệch TIỀM ẨN cần xác minh: chiều 2&3 (dow offset), chiều 9 (demand_7d semantics)
 
-## T0.4 ⭐ — Forecaster parity
-_(chưa bắt đầu)_
+## T0.4 ⭐ — Forecaster parity tile 21×
+
+**Ngày chạy:** 2026-06-07  
+**Phương pháp:** (1) Load checkpoint thật → in model_cfg; (2) Đọc data.py / train.py / market_env.py; (3) Kiểm tra parquet train thật; (4) Đọc sidecar `_run_forecaster`.
+
+---
+
+### 1. Output lệnh — checkpoint model_cfg thật
+
+```
+$ cd /Users/macos/f2t/pricing-sidecar && .venv/bin/python -c \
+  "import torch; ck=torch.load('/Users/macos/f2t/dynamic-pricing-final/checkpoints/forecaster_v4_best.pt', \
+   map_location='cpu', weights_only=False); print('model_cfg =', ck['model_cfg'])"
+
+model_cfg = {'obs_dim': 11, 'window': 21, 'n_categories': 4, 'cat_embed_dim': 8, 'lstm_hidden': 128, 'lstm_layers': 2, 'lstm_dropout': 0.2}
+keys = ['model_state', 'model_cfg', 'epoch', 'val_loss']
+```
+
+**Kết luận:** `obs_dim=11`, `window=21`. Checkpoint thật được train với **11 chiều** input.
+
+---
+
+### 2. Xác nhận qua weight LSTM
+
+```python
+import torch
+ck = torch.load('checkpoints/forecaster_v4_best.pt', map_location='cpu', weights_only=False)
+state = ck['model_state']
+print(state['lstm.weight_ih_l0'].shape)
+# => torch.Size([512, 11])
+# 512 = 4 × hidden(128); 11 = input_size = obs_dim
+```
+
+`lstm.weight_ih_l0` shape `(512, 11)` → LSTM đã được train trực tiếp với `input_size=11`. Không thể nhầm lẫn.
+
+---
+
+### 3. Input forecaster lúc train — phân tích data.py + parquet thật
+
+**`data.py:39`** (current code):
+```python
+current_obs = {c: env.obs_window(c) for c in CATEGORIES}  # data.py:39
+```
+
+`env.obs_window(c)` trả `(OBS_WINDOW, OBS_DIM)` = `(21, 10)` — **10 chiều**, xây dựng bởi `_build_obs` (`market_env.py:125-158`).
+
+**Tuy nhiên**, parquet thật (`data/processed/train.parquet`) có feature shape **`(21, 11)`**:
+
+```python
+import pandas as pd, numpy as np
+df = pd.read_parquet('data/processed/train.parquet')
+feat0 = np.stack(df.iloc[0]['features'])
+print(feat0.shape)  # => (21, 11)
+```
+
+**→ Parquet được generate bởi một phiên bản cũ hơn của `market_env._build_obs` với `OBS_DIM=11`.**  
+Current code (`market_env.py:9`): `OBS_DIM = 10`. Parquet cũ: 11 chiều. **Code và data đã drift.**
+
+**Ý nghĩa chiều 11 (index 10 trong current 10-dim, thực ra là chiều bị xóa ở index 2 trong parquet cũ):**
+
+Phân tích alignment element-by-element:
+
+| Index parquet cũ (11-dim) | Giá trị mẫu | Tương đương current |
+|---|---|---|
+| 0 | freshness | [0] fresh |
+| 1 | inv_ratio | [1] inv |
+| **2** | **0.57–1.12 (EXTRA)** | **KHÔNG CÓ trong current** |
+| 3 | sin_dow | [2] sin_dow |
+| 4 | cos_dow | [3] cos_dow |
+| 5 | days_to_restock | [4] restock |
+| 6 | demand_ratio | [5] d_ratio |
+| 7 | prev_delta (range -0.29..0.18) | [6] prev_delta |
+| 8 | comp_ratio (range 0.75..1.47) | [7] comp_ratio |
+| 9 | days_to_waste | [8] waste |
+| 10 | inv_coverage (range 0..1) | [9] inv_cov |
+
+Chiều bổ sung ở **index 2** có range `0.57..1.12` — khả năng cao là `price_ratio` = `current_price / ref_price` (biểu thị mức điều chỉnh giá hiện tại so với tham chiếu). Feature này đã bị **xóa** khi `OBS_DIM` giảm từ 11 xuống 10 trong phiên bản mới của env.
+
+**Mỗi trong 21 timestep là một obs thực sự KHÁC NHAU:**
+
+```python
+# Kiểm chứng generate_dataset 1 episode:
+records = generate_dataset(n_episodes=1, seed=42)
+r0 = records[0]
+print('are all rows identical?', all(
+    (r0['features'][i] == r0['features'][i+1]).all() for i in range(20)
+))
+# => False  — 21 hàng KHÁC NHAU
+```
+
+Train data = 21 ngày lịch sử thực sự biến thiên (chuỗi thời gian thật từ env simulation).
+
+---
+
+### 4. Sidecar `_run_forecaster` — phân tích hai vấn đề
+
+**Code sidecar** (`pricing-sidecar/main.py:124-141`):
+```python
+def _run_forecaster(obs: np.ndarray, category: str) -> tuple[float, float]:
+    global forecaster_net, forecaster_obs_dim
+    if forecaster_net is None:
+        return 0.0, 0.0
+    try:
+        obs_padded = obs[:forecaster_obs_dim] if len(obs) >= forecaster_obs_dim \
+                     else np.pad(obs, (0, forecaster_obs_dim - len(obs)))   # main.py:130
+        window = np.tile(obs_padded, (OBS_WINDOW, 1))                       # main.py:131
+        feat = torch.tensor(window, dtype=torch.float32).unsqueeze(0)
+        cidx = torch.tensor([CAT_TO_IDX[category]], dtype=torch.long)
+        with torch.no_grad():
+            out = forecaster_net(feat, cidx)
+        d_hat   = float(max(0.0, out["demand"].item()))
+        p_waste = float(torch.sigmoid(out["waste_logit"]).item())
+        return d_hat, p_waste
+    except Exception as e:
+        logger.warning(f"Forecaster inference error: {e}")
+        return 0.0, 0.0
+```
+
+**`forecaster_obs_dim` được gán** từ checkpoint (`main.py:167`):
+```python
+cfg = ForecasterConfig(**fckpt["model_cfg"])
+forecaster_obs_dim = cfg.obs_dim   # => 11 (từ checkpoint thật)
+```
+
+**Vấn đề A — Pad-zero chiều 11:**
+
+Sidecar build obs 10 chiều (từ `_build_obs`, `main.py:88-121`). Khi `forecaster_obs_dim=11` và `len(obs)=10`:
+```python
+obs_padded = np.pad(obs, (0, 11 - 10))  # thêm 0.0 ở cuối → chiều 11 = 0 mãi mãi
+```
+
+Checkpoint được train với parquet có **11 chiều thực sự khác nhau**. Chiều thứ 11 lúc train (vị trí index 10 trong parquet cũ = inv_coverage) có giá trị thực sự (range 0..1). Sidecar luôn đưa `0.0` vào đây. Sai.
+
+**QUAN TRỌNG HƠN:** Phân tích layout cho thấy chiều bị mất ở **index 2** (price_ratio), không phải cuối. Tức là khi sidecar truyền `[d0..d9, 0]` (10 chiều thật + pad 0), LSTM thực ra nhận:
+- `d0..d1` đúng (fresh, inv)
+- `d2..d9` bị lệch vị trí so với lúc train (vì parquet cũ có extra feature ở index 2)
+- `d10 = 0` thay cho `inv_coverage` thật
+
+Sidecar đưa obs 10-dim đúng với **current env** nhưng **không khớp với layout parquet cũ** mà checkpoint đã học.
+
+**Vấn đề B — Tile-21× (21 hàng giống hệt):**
+
+```python
+window = np.tile(obs_padded, (OBS_WINDOW, 1))  # (21, 11) — 21 hàng IDENTICAL
+```
+
+Lúc train: mỗi hàng trong chuỗi 21 ngày là một obs **khác nhau** (inventory decay, freshness thay đổi, DOW quay vòng). LSTM học patterns thay đổi qua thời gian trong chuỗi.
+
+Khi inference với 21 hàng identical:
+- **Hidden state LSTM sau timestep đầu bằng chính xác hidden state sau bất kỳ timestep nào** (vì input không đổi). LSTM không "học" được gì từ chuỗi — nó chỉ "xử lý" cùng một thông tin 21 lần.
+- **Không có gradient temporal** trong chuỗi — tất cả time-step features (sin/cos DOW, days_to_waste, demand_ratio) đều cố định.
+- Đầu ra vẫn là con số hợp lệ (LSTM không crash), nhưng là kết quả của việc "chiếu" một obs đơn qua LSTM 21 lần — một xấp xỉ rất thô.
+- **Ý nghĩa ngữ nghĩa:** Model vốn học từ "freshness đang giảm trong 21 ngày" → đề xuất giảm giá; nhưng inference thấy freshness không đổi trong 21 ngày → đề xuất giá khác. Đây là **sai lệch hệ thống**.
+
+---
+
+### 5. Kết luận T0.4
+
+| Câu hỏi | Câu trả lời |
+|---|---|
+| (a) `obs_dim` checkpoint thật | **11** (`lstm.weight_ih_l0` shape `[512, 11]`; `model_cfg['obs_dim']=11`) |
+| (b) Chiều 11 là gì? | Parquet 11-dim có extra feature ở **index 2** (không ở cuối) — khả năng là `price_ratio = current_price/ref_price`, bị xóa khi OBS_DIM giảm 11→10. Sidecar pad `0.0` ở **cuối** → sai cả vị trí lẫn giá trị |
+| (c) Tile-21× lệch mức nào? | **Lệch nghiêm trọng về mặt ngữ nghĩa**: LSTM học từ chuỗi biến thiên 21 ngày; inference với 21 hàng identical = chỉ "chiếu" 1 điểm qua LSTM. Temporal gradient bị loại bỏ hoàn toàn. Output vẫn ra số nhưng mất toàn bộ thông tin dynamics. |
+| (d) Tổng: forecaster serve đúng hay lệch? | **LỆCH KÉP — rất nghiêm trọng:** (1) Layout 11-dim: checkpoint train với obs layout cũ (extra price_ratio ở index 2) nhưng sidecar truyền obs layout mới 10-dim + pad 0 ở cuối → toàn bộ feature từ index 2 trở đi bị lệch vị trí; (2) Tile-21×: không có temporal dynamics. Forecaster output tại sidecar hiện tại **không thể tin cậy** — nó chạy mà không crash nhưng cho kết quả sai về ngữ nghĩa. |
+
+**Trạng thái: DONE_WITH_CONCERNS**
+- Lệch 1 (NGHIÊM TRỌNG): obs layout mismatch — checkpoint obs_dim=11 với layout cũ, sidecar truyền 10-dim layout mới + pad 0 ở cuối sai vị trí
+- Lệch 2 (NGHIÊM TRỌNG): tile-21× — loại bỏ hoàn toàn temporal dynamics mà LSTM được train để khai thác
 
 ## T0.5 — Smoke-load checkpoint
 _(chưa bắt đầu)_

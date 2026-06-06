@@ -47,7 +47,24 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Verified by:** implementer T0.3 — 2026-06-07
 - **Dùng ở:** kết luận Task 0; thesis section AI/ML — train↔serve parity
 
-> (Còn thiếu — T0.4–T0.10 sẽ nạp: forecaster parity, CoreML 2 loại, luồng backend→sidecar.)
+### t0.4-forecaster-parity: Forecaster serve lệch kép — obs layout mismatch + tile-21×
+
+- **Evidence:**
+  - **Checkpoint thật** (`dynamic-pricing-final/checkpoints/forecaster_v4_best.pt`):
+    ```
+    model_cfg = {'obs_dim': 11, 'window': 21, 'n_categories': 4, 'cat_embed_dim': 8, 'lstm_hidden': 128, 'lstm_layers': 2, 'lstm_dropout': 0.2}
+    ```
+    Lệnh thật: `cd /Users/macos/f2t/pricing-sidecar && .venv/bin/python -c "import torch; ck=torch.load('...forecaster_v4_best.pt', map_location='cpu', weights_only=False); print('model_cfg =', ck['model_cfg'])"`
+  - **LSTM weight xác nhận input_size=11:** `state['lstm.weight_ih_l0'].shape = torch.Size([512, 11])` → `4×128=512` hidden gates, `input_size=11`
+  - **Current env OBS_DIM=10:** `dynamic-pricing-final/src/env/market_env.py:9` — `OBS_DIM = 10`; `obs_window()` trả `(21, 10)` (xác minh chạy: `obs_window shape = (21, 10)`)
+  - **Parquet train thật có 11 chiều:** `np.stack(df.iloc[0]['features']).shape = (21, 11)` — parquet được save bởi phiên bản cũ của env với `OBS_DIM=11`. Feature bổ sung nằm ở **index 2** (không phải cuối): range 0.57..1.12, có thể là `price_ratio = current_price/ref_price`.
+  - **Sidecar pad sai vị trí:** `pricing-sidecar/main.py:130` — `obs_padded = np.pad(obs, (0, forecaster_obs_dim - len(obs)))` → pad `0.0` ở **cuối** (index 10), nhưng chiều bị mất lúc train nằm ở **index 2**. Từ index 2 trở đi, tất cả features bị lệch vị trí 1.
+  - **Tile-21×:** `main.py:131` — `window = np.tile(obs_padded, (OBS_WINDOW, 1))` → 21 hàng identical. Train data: 21 timestep thực sự khác nhau (xác minh: `generate_dataset` → `are all rows identical? False`). LSTM không còn thấy temporal dynamics.
+  - **Training data path:** `data.py:68` — `"features": hist[i]["obs_window"].astype(np.float32)` với `obs_window()` → `(OBS_WINDOW, OBS_DIM)` chuỗi thật; `train.py:38` — `np.stack(r["features"])` để restore shape `(window, obs_dim)`.
+- **Verified by:** implementer T0.4 — 2026-06-07
+- **Dùng ở:** kết luận Task 0; thesis section AI/ML — train↔serve parity (forecaster); mục limitations
+
+> (Còn thiếu — T0.5–T0.10 sẽ nạp: CoreML, luồng backend→sidecar, kết luận cuối.)
 
 ## Nhóm: Thiết kế CSDL
 

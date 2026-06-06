@@ -22,8 +22,10 @@ Bắt đầu **T0.1** (diff `/Users/macos/dynamic-pricing-v3` ↔ `f2t/dynamic-p
 2. **[obs dim2/3 dow] lệch pha** — sidecar `datetime.now().weekday()` vs env `self._t % 7`. Cần quyết: bỏ tín hiệu dow ở serve, hay map lại pha. Evidence: market_env.py:132 vs main.py:98.
 3. **[obs dim1/5/9] phụ thuộc backend** — ngữ nghĩa `inventory_ratio` (=inv/100?), `demand_7d` (tổng 7 ngày hay TB ngày?) phải khớp env (`inv/100`, `demand_yesterday`, `demand_yesterday*7`). Chốt sau T0.7 rồi sửa nếu lệch.
 
+4. **[forecaster] LỆCH NẶNG (xác nhận parquet + checkpoint)** — checkpoint `forecaster_v4_best.pt` obs_dim=**11** (lstm ih_l0=[512,11]), train trên layout env CŨ: env-10 + 1 chiều thừa (price-ratio, range 0.47-1.48) chèn ở **index 2**. Sidecar build obs-10 layout MỚI rồi pad 0 ở CUỐI (main.py:130) → lệch vị trí từ index2, index10=0. Cộng tile-21× (main.py:131) xoá temporal. → `/forecast` không tin cậy. Giảm nhẹ: forecaster KHÔNG ảnh hưởng `/predict`. Fix khả thi: (a) reconstruct chiều index2 + cung cấp chuỗi 21 ngày thật (cần backend lưu lịch sử) — KHÔNG retrain; hoặc (b) retrain forecaster trên env-10 hiện tại (VƯỢT scope, cần user duyệt); hoặc (c) chấp nhận `/forecast` là xấp xỉ + ghi rõ giới hạn trong thesis. → CẦN USER QUYẾT ở T0.9/kết luận.
+
 ## Blocker
-Không có.
+Không có (nhưng forecaster fix hướng (b) cần user quyết).
 
 ## Ghi chú nhanh
 - sidecar venv: `/Users/macos/f2t/pricing-sidecar/.venv/bin/python` (3.13)
