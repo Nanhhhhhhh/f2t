@@ -139,3 +139,77 @@ Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry 
 - [x] Mọi bullet kỹ thuật có [ref: ...] inline
 - [x] Không sửa ngoài §2.4 (§2.1, §2.2, §2.3, §2.5, §2.6 không đổi)
 - [x] Không sửa file source code (dynamic-pricing-final/, pricing-sidecar/)
+
+## T1.8 — Viết lại §3.3.7 "Thuật toán chi tiết các module AI/ML" ✅
+
+### Tóm tắt thay đổi
+
+**XÓA hoàn toàn:**
+- **(a) HỆ THỐNG GỢI Ý** (ItemItemCF + Content-Based + Hybrid + cold-start + giả mã) → XÓA (ledger t1.4-no-recommender; `grep -rliE 'recommend|itemitem|collaborative|content-based|cosine' f2t-backend/src` = 0 file)
+
+**Re-letter sau khi xóa (a):** cũ (b)→(a), cũ (c)→(b), cũ (d)→(c)
+
+**VIẾT LẠI toàn bộ 3 mục còn lại:**
+
+**(a) DỰ BÁO NHU CẦU** — thay "Holt EWMA + DoW" bằng ForecasterLSTM thật:
+- LSTM 2 lớp, hidden=128, dropout=0.2, input_size=11, window=21 [model.py:L9-15, L23-29]
+- Category embedding n_cats=4, cat_embed_dim=8 [model.py:L22]
+- Dual-head: demand_head + waste_head → `{demand, waste_logit}` [model.py:L31-49]
+- Luồng serve: `/demand-forecasting/forecast` → sidecar `/forecast` → `_run_forecaster` [main.py:L128-137, L263-274]
+- ⚠️ GIỚI HẠN: pad-cuối 10→11 thay vì index 2 + tile-21× thay chuỗi thật → xấp xỉ thấp [ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
+
+**(b) ĐỊNH GIÁ ĐỘNG** — thay "state 5-dim/5-action/MLP-5→64→32→5/buffer-10000/batch-32" bằng đúng:
+- State 10 chiều (danh sách đầy đủ) [main.py:L114-125, ledger t0.3-obs-parity]
+- 11 hành động CANDIDATES=linspace(-0.30,0.20,11) [reward.py:L6-7, ledger t0.2-action-space]
+- SharedMLPDuelingQNet Linear(18,128)→ReLU×2 → V-stream + A-stream (Dueling) [network.py:L51-81]
+- **Hyperparameter thật** (đọc trực tiếp từ nguồn):
+  - buffer_capacity = 50 000 [dynamic-pricing-final/src/rl/agent.py:L35]
+  - batch_size = 256 [agent.py:L33]
+  - warmup = 1 000 [agent.py:L31]
+  - ε_start = 1.0, ε_end = 0.05, decay qua 2 000 episode [train.py:L12-14]
+  - target_sync = 500 step [train.py:L15]
+  - lr = 1e-4, γ = 0.99
+- Safety Layer 5 quy tắc — thứ tự áp 3→4→1→2→5:
+  - Rule 3: clip [base×0.70, base×1.20] [safety.py:L6]
+  - Rule 4: freshness<0.4 → price≤base×0.75 [safety.py:L8-10]
+  - Rule 1: price≥base×0.55 [safety.py:L12-13]
+  - Rule 2: price≤base×2.0 [safety.py:L15-16]
+  - Rule 5: price≥1 000 VND [safety.py:L18-19]
+- Chế độ shadow → advisory [ledger t1.4-safety-5-rules]
+
+**(c) PHÂN LOẠI ĐỘ TƯƠI** — thay "MobileNetV2 4-class" bằng CoreML nhị phân:
+- 2 model .mlmodel: fruit + root (non-fruit→root) [main.py:L318, ledger t1.4-freshness-coreml]
+- Input 299×299 RGB (model khai báo BGR nhưng feed RGB — đúng) [main.py:L324, ledger t0.9-fixes]
+- Predict → `{target, targetProbability}` → score = P(fresh) → input DDQN [main.py:L325-330]
+- Endpoint POST `/freshness/classify` [main.py:L316-333]
+- ⚠️ GIỚI HẠN: chỉ 2/4 category có model riêng; không có dataset tự thu thập [ledger t0.10-thesis-limitations]
+
+### Bảng hyperparam thật — DDQN (đọc từ agent.py + train.py)
+
+| Tham số | Giá trị thật | File:Dòng |
+|---|---|---|
+| buffer_capacity | 50 000 | dynamic-pricing-final/src/rl/agent.py:L35 |
+| batch_size | 256 | agent.py:L33 |
+| warmup | 1 000 | agent.py:L31 |
+| ε_start | 1.0 | dynamic-pricing-final/src/rl/train.py:L12 |
+| ε_end | 0.05 | train.py:L13 |
+| ε_decay_episodes | 2 000 | train.py:L14 |
+| target_sync | 500 step | train.py:L15 |
+| lr | 1e-4 | agent.py: MultiCatDDQNAgent.__init__ |
+| γ (gamma) | 0.99 | agent.py:L40 |
+| hidden | 128 | agent.py:L29, network.py:L55 |
+| obs_dim | 10 | agent.py:L14 |
+| n_actions | 11 | agent.py:L16 |
+
+### Verify checklist
+- [x] Mục (a) recommender ĐÃ XÓA — không còn ItemItemCF/Content-Based/Hybrid/cold-start/giả-mã
+- [x] Re-letter: (a)=DỰ BÁO, (b)=ĐỊNH GIÁ, (c)=ĐỘ TƯƠI — không còn (d)
+- [x] (a) LSTM: obs_dim=11, window=21, hidden=128, 2 lớp, dual-head, giới hạn train↔serve nêu rõ
+- [x] (b) DDQN: state 10 chiều đầy đủ, 11 action, SharedMLPDuelingQNet Dueling
+- [x] (b) Hyperparam: buffer=50k, batch=256, ε 1.0→0.05, target=500 — ĐỌC TỪ NGUỒN (không bịa)
+- [x] (b) Safety 5 rule: thứ tự 3→4→1→2→5, giá trị chính xác theo safety.py
+- [x] (c) CoreML: 2 model nhị phân, fruit/root, 299×299 RGB, không có training script
+- [x] Mọi claim có [ref: path:Lxx] hoặc ledger-id
+- [x] Cấu trúc outline §3.3.7 giữ nguyên (tiêu đề in-nghiêng, mục con in-đậm, cấp bullet)
+- [x] §3.4 (sau §3.3.7) không bị đụng
+- [x] Không sửa file source code

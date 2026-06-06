@@ -340,105 +340,65 @@ AI/ML:
 
 *3.3.7. Thuật toán chi tiết các module AI/ML (~4 trang)*
 
-**(a) HỆ THỐNG GỢI Ý (~1.5 trang)**
+**(a) DỰ BÁO NHU CẦU (~1 trang)**
 
-ItemItemCF — SV tự cài đặt:
+ForecasterLSTM — kiến trúc thật:
 
-- B1: Thu thập lịch sử mua → ma trận user×product (csr_matrix)
+- LSTM 2 lớp, hidden=128, dropout=0.2; input_size=11 (obs_dim train), window=21 bước [ref: dynamic-pricing-final/src/forecaster/model.py:L9-15, L23-29]
 
-- B2: Tính trọng số co-occurrence có temporal decay: w = count × exp(-λ × days_ago), λ=0.02
+- Category embedding: nn.Embedding(n_categories=4, cat_embed_dim=8) ghép vào hidden state [ref: model.py:L22]
 
-- B3: Cosine Similarity giữa các cặp sản phẩm
+- Dual-head output: demand_head (Linear z→1) + waste_head (Linear→ReLU→Dropout→Linear z→1) → trả `{demand, waste_logit}` [ref: model.py:L31-49]
 
-- B4: Với mỗi user, lấy Top-K=6 sản phẩm tương tự chưa mua
+- Luồng serve: backend `/demand-forecasting/forecast` → DemandForecastingService → sidecar `/forecast` (port 8000) → `_run_forecaster` → ForecasterLSTM [ref: pricing-sidecar/main.py:L128-137, L263-274]
 
-- Giả mã: 15-20 dòng
+- ⚠️ **GIỚI HẠN TRAIN↔SERVE:** checkpoint train với obs_dim=11 layout cũ + chuỗi 21 bước thật; khi serve, sidecar pad-cuối 10→11 (`main.py:L134`) thay vì chèn đúng vị trí index 2, rồi tile-21× (`main.py:L135`) thay vì chuỗi thật — LSTM không thấy temporal dynamics. Serve `/forecast` là **xấp xỉ thấp**; kết quả tin cậy cần chạy offline eval `dynamic-pricing-final/src/forecaster/eval.py` [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
 
-Content-Based Filtering — SV tự cài đặt:
+**(b) ĐỊNH GIÁ ĐỘNG (~1.5 trang)**
 
-- B1: Mỗi sản phẩm có tags ("rau lá", "vitamin A", "xào", "luộc"...)
+DDQN (Double DQN) — kiến trúc thật:
 
-- B2: TF-IDF vectorize tags → ma trận sản phẩm×features
+- **State 10 chiều:** [freshness, inv_ratio, sin(2π×dow/7), cos(2π×dow/7), days_to_restock/30, demand_ratio, prev_delta, comp_ratio, days_to_waste/14, inv_coverage/3] [ref: pricing-sidecar/main.py:L114-125, ledger t0.3-obs-parity]
 
-- B3: Cosine Similarity giữa sản phẩm đang xem và tất cả sản phẩm khác
+- **11 hành động:** CANDIDATES = np.linspace(-0.30, 0.20, 11), bước 0.05; CANDIDATES[6]=0.0 [ref: dynamic-pricing-final/src/rl/reward.py:L6-7, ledger t0.2-action-space]
 
-- B4: Trả Top-6 tương tự nhất
+- **Mạng SharedMLPDuelingQNet:** Linear(obs_dim+cat_embed_dim=10+8, hidden=128)→ReLU→Linear(128,128)→ReLU → Dueling: V-stream Linear(128,64)→ReLU→Linear(64,1); A-stream Linear(128,64)→ReLU→Linear(64,11); Q = V + A − mean(A) [ref: dynamic-pricing-final/src/rl/network.py:L51-81, ledger t0.2-ddqn-arch]
 
-- Dùng cho: trang chi tiết ("Sản phẩm tương tự")
+- Category embedding: nn.Embedding(n_cats=4, cat_embed_dim=8) ghép vào obs trước shared layers [ref: network.py:L60-64]
 
-Hybrid — SV tự thiết kế:
+- **Hyperparameter thật (đọc từ nguồn):** buffer_capacity=50 000 [agent.py:L35], batch_size=256 [agent.py:L33], warmup=1 000 [agent.py:L34], ε_start=1.0 → ε_end=0.05 decay qua 2 000 episode [train.py:L12-14], target_sync=500 step [train.py:L15], lr=1e-4 [agent.py:L31], γ=0.99 [agent.py:L32]
 
-- Có ≥5 đơn → dùng ItemItemCF (For-You)
+Safety Layer — 5 quy tắc theo thứ tự áp dụng 3→4→1→2→5:
 
-- User mới (cold-start) → Content-Based + sản phẩm bán chạy nhất
+- Rule 3 (tick-clip): price ∈ [base×0.70, base×1.20] — giới hạn bước tối đa −30%/+20% [ref: pricing-sidecar/safety.py:L6]
 
-- Giỏ hàng: co-occurrence đơn giản (ai mua A thường mua B)
+- Rule 4 (freshness mandate): freshness < 0.4 → price ≤ base×0.75 [ref: safety.py:L8-10]
 
-- ★ SV tự thiết kế logic kết hợp + xử lý cold-start, không dùng thư viện recommendation
+- Rule 1 (sàn chi phí): price ≥ base×0.55 [ref: safety.py:L12-13]
 
-**(b) DỰ BÁO NHU CẦU (~1 trang)**
+- Rule 2 (trần tuyệt đối): price ≤ base×2.0 [ref: safety.py:L15-16]
 
-Holt EWMA + DoW — SV tự cài đặt:
+- Rule 5 (giá tối thiểu): price ≥ 1 000 VND [ref: safety.py:L18-19]
 
-- Level: L_t = 0.3×y_t + 0.7×(L\_{t-1} + T\_{t-1})
+- Chế độ vận hành: shadow → advisory; farm chấp nhận/từ chối đề xuất [ref: ledger t1.4-safety-5-rules]
 
-- Trend: T_t = 0.1×(L_t - L\_{t-1}) + 0.9×T\_{t-1}
+- ★ Safety Layer 5 quy tắc = đóng góp thực tiễn quan trọng nhất; Rule 3 clip ±tick, Rule 1/2 bảo vệ sàn/trần tuyệt đối độc lập với tick
 
-- Forecast h bước: F\_{t+h} = L_t + h×T_t
+**(c) PHÂN LOẠI ĐỘ TƯƠI (~0.5 trang)**
 
-- CI 80%: F ± 1.28×σ (σ từ MAE lịch sử)
+CoreML (Apple Create ML) — 2 model nhị phân:
 
-- DoW: đủ 14 ngày → tính hệ số ngày trong tuần → nhân vào forecast
+- 2 model `.mlmodel`: `MyFreshnessClassifier-fruit.mlmodel` (danh mục fruit/fruits) và `MyFreshnessClassifier-root.mlmodel` (tất cả danh mục còn lại: leafy, herbs, root) [ref: pricing-sidecar/main.py:L318, ledger t1.4-freshness-coreml]
 
-- Cold-start: \<7 ngày → median cùng danh mục, confidence=0.2
+- Input: ảnh 299×299 (model khai báo colorSpace=BGR nhưng sidecar feed PIL.convert("RGB") — đúng, coremltools không swap channel) [ref: pricing-sidecar/main.py:L324, ledger t0.9-fixes]
 
-- ★ SV tự thêm DoW seasonality + cold-start fallback, không dùng statsmodels/Prophet
+- Predict: `model.predict({"image": img})` → output `{target: "fresh"/"rotten", targetProbability: {fresh: float, rotten: float}}` [ref: main.py:L325-330, ledger t0.6-coreml-freshness]
 
-**(c) ĐỊNH GIÁ ĐỘNG (~1 trang)**
+- Freshness score = `targetProbability["fresh"]` → input freshness cho DDQN state [ref: main.py:L330]
 
-DDQN — SV tự cài đặt:
+- Endpoint: FastAPI POST `/freshness/classify`, nhận ảnh base64 → trả `{score, tag, label, confidence}` [ref: main.py:L316-333]
 
-- State 5 chiều: \[tồn_kho_pct, độ_tươi, giờ_trong_ngày, giá_hiện_tại, nhu_cầu_dự_báo\]
-
-- 5 hành động: \[-20%, -10%, 0%, +10%, +20%\]
-
-- Reward = units_sold × price × freshness_bonus — waste_penalty
-
-- Mạng Q: MLP (5→64→32→5), ReLU, target network cập nhật mỗi 100 step
-
-- Experience Replay: buffer 10000, batch 32, ε-greedy 0.1→0.01
-
-Safety Layer — SV tự thiết kế:
-
-- QT1: Giá không giảm quá 30% so với giá gốc
-
-- QT2: Giá không tăng quá 20% so với giá gốc
-
-- QT3: Sàn giá = 55% giá gốc (bảo vệ nông dân)
-
-- QT4: Độ tươi \<0.4 → bắt buộc giảm ≥20%
-
-- QT5: Giá tối thiểu 1000 VND
-
-- Chế độ: shadow → advisory (farm chấp nhận/từ chối)
-
-- ★ Safety Layer 5 quy tắc = đóng góp thực tiễn quan trọng nhất
-
-**(d) PHÂN LOẠI ĐỘ TƯƠI (~0.5 trang)**
-
-MobileNetV2 qua API — SV tự train:
-
-- Dataset: tự chụp 5-10 loại rau × 4 mức × 100 ảnh = 2000 ảnh + augmentation
-
-- Model: MobileNetV2 pretrained, thay lớp cuối → 4 class
-
-- Train: freeze base 10 epoch → fine-tune 30 lớp cuối 20 epoch
-
-- Deploy: FastAPI POST /freshness/classify, nhận ảnh base64 → trả score 0-1
-
-- Freshness score = confidence class "Tươi" → input cho DDQN
-
-- ★ SV tự thu thập ảnh rau VN, tự train, tự deploy API
+- ⚠️ **GIỚI HẠN:** chỉ 2/4 danh mục có model riêng (fruit, root); leafy và herbs dùng chung model root; không có training script hay dataset tự thu thập [ref: ledger t0.10-thesis-limitations]
 
 **3.4. Phân tích, thiết kế cơ sở dữ liệu (~3 trang)**
 

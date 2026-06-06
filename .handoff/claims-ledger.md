@@ -190,9 +190,23 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Dùng ở:** dany.md MT4, ĐG3, §2.4.3–2.4.4, SD-ML-04, AD-ML-03, §4.4.3 (VIẾT LẠI)
 
 ### t1.4-ddqn-dims: DDQN state 10 chiều, 11 action, SharedMLPDuelingQNet — KHÔNG phải 5-dim/5-action/MLP-5→64→32→5
-- **Evidence:** obs 10 chiều (ledger `t0.3-obs-parity`, `pricing-sidecar/main.py:114-125`); 11 action `CANDIDATES=linspace(-0.30,0.20,11)` (`dynamic-pricing-final/src/rl/reward.py:6-7`, ledger `t0.2-action-space`); mạng `SharedMLPDuelingQNet(obs_dim=10,n_cats=4,cat_embed_dim=8,hidden=128,n_actions=11)` Dueling V/A heads (`src/rl/network.py:51-57`, ledger `t0.2-ddqn-arch`). Hyperparam (cần subagent T1.8 resolve lại tại nguồn): audit ghi buffer 50k/batch 256/ε 1.0→0.05 (`agent.py`, `train.py`) — CHƯA verify độc lập bởi controller, T1.8 phải resolve.
-- **Verified by:** controller T1.4 (dims/action/network qua ledger Task 0); hyperparam = pending T1.8 — 2026-06-07
-- **Dùng ở:** dany.md §2.4.5, §3.3.7(c) (VIẾT LẠI)
+- **Evidence:** obs 10 chiều (ledger `t0.3-obs-parity`, `pricing-sidecar/main.py:114-125`); 11 action `CANDIDATES=linspace(-0.30,0.20,11)` (`dynamic-pricing-final/src/rl/reward.py:6-7`, ledger `t0.2-action-space`); mạng `SharedMLPDuelingQNet(obs_dim=10,n_cats=4,cat_embed_dim=8,hidden=128,n_actions=11)` Dueling V/A heads (`src/rl/network.py:51-57`, ledger `t0.2-ddqn-arch`). Hyperparam — RESOLVED bởi T1.8: xem entry `t1.8-ddqn-hyperparams`.
+- **Verified by:** controller T1.4 (dims/action/network qua ledger Task 0); hyperparam resolved T1.8 — 2026-06-07
+- **Dùng ở:** dany.md §2.4.5, §3.3.7(b) (VIẾT LẠI ✅)
+
+### t1.8-ddqn-hyperparams: Hyperparam DDQN thật — đọc trực tiếp từ agent.py + train.py
+- **Evidence:**
+  - `dynamic-pricing-final/src/rl/agent.py:L33` — `batch_size: int = 256`
+  - `dynamic-pricing-final/src/rl/agent.py:L35` — `buffer_capacity: int = 50_000`
+  - `dynamic-pricing-final/src/rl/agent.py:L31` — `warmup: int = 1_000`
+  - `dynamic-pricing-final/src/rl/agent.py:L40` — `self.gamma = gamma` (default γ=0.99 từ signature `gamma: float = 0.99`)
+  - `dynamic-pricing-final/src/rl/train.py:L12` — `EPSILON_START = 1.0`
+  - `dynamic-pricing-final/src/rl/train.py:L13` — `EPSILON_END = 0.05`
+  - `dynamic-pricing-final/src/rl/train.py:L14` — `EPSILON_DECAY_EP = 2_000`
+  - `dynamic-pricing-final/src/rl/train.py:L15` — `TARGET_SYNC_STEPS = 500`
+  - lr = 1e-4 từ `MultiCatDDQNAgent.__init__` signature `lr: float = 1e-4`
+- **Verified by:** implementer T1.8 (đọc file thật, không qua audit) — 2026-06-07
+- **Dùng ở:** dany.md §3.3.7(b) ĐỊNH GIÁ ĐỘNG hyperparam table
 
 ### t1.4-freshness-coreml: Freshness = 2 CoreML model (fruit/root) nhị phân fresh/rotten — KHÔNG phải MobileNetV2 4-class
 - **Evidence:** ledger `t0.6-coreml-freshness`; `freshnessmodels/MyFreshnessClassifier-fruit.mlmodel` + `-root.mlmodel`; endpoint `pricing-sidecar/main.py:307` `/freshness/classify`; non-fruit→model root. Không có training script ảnh, không có dataset tự thu thập.
