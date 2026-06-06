@@ -872,7 +872,28 @@ Env train: `comp_prices[cat] = params[cat]["ref_price"] * rng.uniform(0.85, 1.15
 - Vấn đề chiều 7 (comp_ratio denominator) của sidecar vẫn là lệch nghiêm trọng nhất (ghi nhận từ T0.3)
 
 ## T0.8 — Integration test
-_(chưa bắt đầu)_
+
+**Ngày:** 2026-06-07. Boot sidecar thật (`uvicorn main:app --port 8137`, venv 3.13), controller chạy trực tiếp.
+
+### Log boot (citation runtime)
+```
+INFO:main:DDQN loaded from .../checkpoints/rl_shared_best.pt
+INFO:main:Forecaster loaded from .../checkpoints/forecaster_v4_best.pt (obs_dim=11)
+INFO:main:CoreML 'fruit' loaded
+INFO:main:CoreML 'root' loaded
+INFO:     Application startup complete.
+```
+→ Xác nhận runtime forecaster obs_dim=**11** (khớp T0.4).
+
+### Response thật từng endpoint
+- **GET /health** → `{status:ok, ddqn_loaded:true, forecaster_loaded:true, coreml_loaded:["fruit","root"]}`. (Ghi chú: chuỗi model ghi "obs_dim=10" là label cứng main.py:252, hơi gây hiểu nhầm vì forecaster=11; DDQN=10 đúng.)
+- **POST /predict** (leafy, freshness 0.9) → `targetPrice:10000, delta_pct:0.0, safety_clipped:false, tag:fresh`. Hợp lý: leafy là HOLD_CAT, tươi → giữ giá.
+- **POST /predict** (fruit, freshness 0.3 critical) → `targetPrice:15000, delta_pct:-25.0, safety_clipped:true, tag:critical`. Hợp lý: tươi thấp → giảm mạnh, bị clip bởi cost floor.
+- **POST /forecast** (leafy) → `demand7d:24.68, pWaste:0.55`. Số hữu hạn (NHƯNG không tin cậy về ngữ nghĩa — xem T0.4).
+- **POST /freshness/classify** (fruit, ảnh 299×299) → `score:0.927, tag:fresh`. (leafy → fallback model root → `score:0.505, tag:aging`). Xác nhận fallback non-fruit→root chạy đúng.
+
+### Kết luận gate kỹ thuật
+4/4 endpoint trả 2xx + payload hợp lệ. Sidecar phục vụ kiến trúc dynamic-pricing-final ở RUNTIME: DDQN masked-argmax pricing + safety clip OK; CoreML freshness OK; forecaster CHẠY nhưng output không đáng tin do lệch T0.4. Background task exit 144 = do controller pkill (SIGTERM), không phải crash.
 
 ## T0.9 — Fix gaps
 _(chưa bắt đầu)_

@@ -12,7 +12,7 @@ Trạng thái: `pending` | `in_progress` | `done` | `blocked`. ⭐ = rủi ro ca
 | T0.5 | Smoke-load checkpoint + inference | sonnet | T0.2 | done |
 | T0.6 | CoreML freshness load + predict | sonnet | — | done (BGR flag→T0.9) |
 | T0.7 ⭐ | Backend output đủ 9 field ProductStateVector | sonnet | — | done (gửi đủ 9) |
-| T0.8 | Integration test: boot sidecar + gọi endpoint | sonnet | T0.3–T0.7 | pending |
+| T0.8 | Integration test: boot sidecar + gọi endpoint | controller | T0.3–T0.7 | done (4/4 endpoint OK) |
 | T0.9 | Fix gaps phát hiện + re-verify | sonnet | T0.8 | pending |
 | T0.10 | Kết luận + nạp ledger cho thesis | sonnet | T0.9 | pending |
 
