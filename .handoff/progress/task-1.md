@@ -17,3 +17,7 @@
 - Lệnh: `pandoc "/Users/macos/Downloads/thesis_A46489.docx" -f docx -t gfm --wrap=none --extract-media=...`.
 - Kết quả: `docs/thesis/thesis_old.md` 1864 dòng, 85 heading `#`, 92 dòng in-đậm, 1 media dir. Đã thêm banner ⚠️ THAM KHẢO đầu file.
 - Lưu ý: file landed ở repo root do cwd, đã `mv` về `docs/thesis/`. Đây là bản thesis CŨ đầy đủ prose — chỉ tham khảo, KHÔNG tin, KHÔNG sửa.
+
+## T1.3 — trích outline dany.md ✅
+- `docs/thesis/dany.outline.md`: 5 chương, ~80 mục. Cấu trúc = dòng in-đậm (chương/2-số) + in-nghiêng (3-số). Đánh dấu ★ các mục có claim AI/ML cần fact-check.
+- Outline này là HỢP ĐỒNG bảo toàn: T1.5…N sửa nội dung nhưng GIỮ nguyên thứ tự + cấp mục.
