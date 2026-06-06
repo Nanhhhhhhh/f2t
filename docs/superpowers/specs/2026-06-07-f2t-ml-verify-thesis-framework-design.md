@@ -84,6 +84,18 @@ Thứ tự đọc bắt buộc: `ONBOARDING.md` → `STATE.md` → `rules.md` �
 2. Mọi claim thesis phải vào `claims-ledger.md`.
 3. Cập nhật `STATE.md` trước khi kết thúc phiên.
 
+### 2.9 Enforcement protocol (cưỡng chế fact-check — cốt lõi cho Tiêu chí #1)
+
+`rules.md` chỉ là điều kiện cần. Vì subagent khởi động "lạnh", độ chân thực phải được **cưỡng chế bằng cấu trúc**, không dựa vào việc agent tự nhớ. 5 cơ chế bắt buộc:
+
+1. **Prompt template bắt buộc.** Main agent nhúng nguyên giao thức fact-check vào *từng* prompt dispatch (không trông chờ subagent đọc `rules.md`). Template tối thiểu gồm: đường dẫn tuyệt đối, file/symbol cần đọc, định nghĩa "done" gắn bằng chứng, và 3 luật vàng. Template lưu trong `rules.md` để tái dùng.
+2. **Ledger-first (evidence trước, prose sau).** Bắt buộc thu thập bằng chứng (codegraph node / `file:Lxx` + lệnh+output) ghi vào `claims-ledger.md` TRƯỚC, rồi mới viết prose trích từ ledger. Cấm viết-rồi-bịa-nguồn.
+3. **Citation máy kiểm được, inline.** Mỗi câu kỹ thuật mang marker `[ref: path:Lxx]` hoặc codegraph node-id mà verify pass *mở ra resolve được*. **Câu kỹ thuật không citation = auto-reject.** (Pass cuối có thể chuyển marker inline → footnote/endnote cho prose sạch, không mất truy vết.)
+4. **Verify agent đối kháng trên MỌI content task.** Agent verify *khác* agent viết, có codebase trong tay, được lệnh "giả định mọi claim sai cho tới khi resolve được citation", chạy theo checklist reject. Không phải tự-review. Có quyền REJECT → trả task về cần sửa.
+5. **Done-gate gắn artifact.** Orchestrator chỉ đánh `done` khi thấy đủ: ledger entries + verify PASS report. Thiếu = không done, không commit.
+
+Áp dụng cho mọi content kỹ thuật của Task 1 & 2; phần **CSDL / AI-ML / diagram** bắt buộc đủ cả 5. Task 0 dùng biến thể: "citation" = log/response runtime, "verify đối kháng" = chạy lại gate kỹ thuật độc lập.
+
 ---
 
 ## 3. Cây task nhỏ
