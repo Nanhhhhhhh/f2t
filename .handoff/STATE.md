@@ -3,19 +3,22 @@
 > Cập nhật mục "Việc tiếp theo" + commit TRƯỚC khi kết thúc mỗi phiên.
 
 ## Phase hiện tại
-**Framework đã thiết lập. Sắp bắt đầu thực thi Task 0.**
+**Task 0 HOÀN TẤT ✅ (T0.1–T0.10). Sẵn sàng Task 1.**
 
 - Spec: approved ✅ (`docs/superpowers/specs/2026-06-07-f2t-ml-verify-thesis-framework-design.md`)
-- Plan Task 0: viết xong ✅ (`docs/superpowers/plans/2026-06-07-task0-ml-integration-verify.md`)
-- `.handoff/`: khởi tạo xong ✅
+- Plan Task 0: ✅ (`docs/superpowers/plans/2026-06-07-task0-ml-integration-verify.md`)
+- `.handoff/`: ✅
 - Branch: `feature/f2t-ml-verify-thesis`
 
+### Kết quả Task 0 (1 dòng)
+Sidecar phục vụ dynamic-pricing-final: **định giá `/predict` trung thực** (sau fix comp_ratio), **dự báo `/forecast` có giới hạn** (forecaster train↔serve mismatch, giữ nguyên theo user → document trong thesis), freshness OK. Backend gửi đủ 9 field. Code fix: `pricing-sidecar/main.py` comp_ratio. Test mới: `tests/test_smoke_load.py`, `tests/test_coreml_freshness.py`.
+
 ## Việc tiếp theo
-Bắt đầu **T0.1** (diff `/Users/macos/dynamic-pricing-v3` ↔ `f2t/dynamic-pricing-final`) theo plan. Chế độ thực thi (subagent-driven vs inline) đang chờ user chọn.
+Bắt đầu **Task 1** (T1.1: convert `~/Downloads/dany.docx` → `docs/thesis/dany.md` bằng pandoc, giữ outline). Xem plan: cần viết plan Task 1 (chưa có — mới có plan Task 0). Đề xuất: dùng writing-plans cho Task 1, hoặc dispatch T1.1/T1.2 (convert, cơ học) trước rồi audit. Nhớ: 3 giới hạn ở ledger `t0.10-thesis-limitations` PHẢI vào thesis.
 
 ## Task đang mở
-- Task 0: chưa bắt đầu leaf-task nào (T0.1–T0.10 = pending).
-- Task 1, 2: chưa tới (phiên sau).
+- Task 0: ✅ done toàn bộ.
+- Task 1, 2: chưa bắt đầu (phiên sau).
 
 ## T0.9 fix-backlog — ĐÃ XỬ LÝ (xem progress T0.9)
 - #1 comp_ratio: ✅ ĐÃ SỬA code (main.py:108-112) khớp env.

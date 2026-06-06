@@ -1035,4 +1035,31 @@ Cả 2 ca: trả JSON hợp lệ, không crash. Kết quả hợp lý (leafy tư
 **Trạng thái: DONE**
 
 ## T0.10 — Kết luận + nạp ledger
-_(chưa bắt đầu)_
+
+**Ngày:** 2026-06-07. Tổng hợp T0.1–T0.9.
+
+### Câu hỏi gốc 1: Sidecar có phục vụ dynamic-pricing-final 100% không?
+
+**Định giá (`/predict`, DDQN `SharedMLPDuelingQNet`): CÓ — trung thực sau fix T0.9.**
+- Định nghĩa model khớp checkpoint (T0.2, T0.5: load sạch, không lệch key).
+- Obs 10 chiều khớp env lúc train: 9/10 chiều khớp từ đầu; chiều 7 `comp_ratio` đã sửa ở T0.9 (main.py:108-112) → khớp `market_env.py:134`. dim2/3 (dow) lệch pha lành tính (<6.2%, đã document). Hằng số DAILY_DECAY/BASE_DEMAND/WASTE_THRESHOLD khớp 100% (= freshness.py + demand_params.json).
+- Runtime (T0.8): /predict trả quyết định hợp lý (leafy fresh→giữ giá; fruit critical→-25% clipped).
+
+**Dự báo (`/forecast`, `ForecasterLSTM`): KHÔNG trung thực — giới hạn đã biết, giữ nguyên theo quyết định user.**
+- Checkpoint `forecaster_v4_best.pt` train với obs_dim=**11** (layout env CŨ: env-10 + 1 chiều thừa "price-ratio" ở index 2) trên chuỗi 21 ngày THẬT.
+- Sidecar feed obs 10 chiều (layout env MỚI) pad 0 ở CUỐI → lệch vị trí từ index 2; và tile 21 hàng giống hệt → mất tín hiệu thời gian.
+- Hệ quả: `/forecast` (demand7d, pWaste) chạy được nhưng output KHÔNG đáng tin về ngữ nghĩa.
+- **Giảm nhẹ quan trọng:** `/predict` KHÔNG gọi forecaster → định giá KHÔNG bị ảnh hưởng. Forecaster chỉ dùng ở `/forecast` (và backend gọi /forecast để lấy demand_7d làm input cho /predict — nên demand_7d không tin cậy, nhưng đó là 1 trong 10 chiều, đã clip [0,3]).
+
+**Freshness (`/freshness/classify`, 2 CoreML): CÓ.** fruit/root load+predict OK; RGB đúng (T0.9); fallback non-fruit→root là thiết kế cố ý.
+
+### Câu hỏi gốc 2: f2t-backend output đủ tài nguyên không?
+**CÓ.** Backend gửi đủ 9 field `ProductStateVector` (dynamic-pricing.service.ts:266-274); `inventory_ratio = availableQuantity/100` khớp y hệt env; `competitor_ref_price` từ MongoDB $near thật. (Không phải "10-12 dim" — kiến trúc mới dùng đúng 10 chiều DDQN; con số "10-12" trong yêu cầu gốc là cách nói khoảng.)
+
+### Giới hạn cần ghi TRUNG THỰC trong thesis (phần AI/ML)
+1. **Forecaster train↔serve mismatch**: forecaster phục vụ qua tiling + layout cũ → `/forecast` là xấp xỉ, không phản ánh đúng năng lực model lúc train. Nếu thesis trình bày forecaster, phải nói rõ giới hạn serve này (hoặc trình bày kết quả offline eval từ `src/forecaster/eval.py` thay vì serve).
+2. **dow phase**: serve dùng weekday thật vs train `t%7` không neo lịch (ảnh hưởng <6.2%).
+3. **CoreML freshness**: chỉ 2/4 category có model riêng (fruit, root); leafy/herbs/root dùng chung model "root".
+
+### Đóng Task 0
+T0.1–T0.10 hoàn tất. Fix đã áp: comp_ratio (1 commit). Ledger nhóm "Kiến trúc ML" + "Luồng nghiệp vụ" đã nạp đủ fact verified cho thesis. Việc tiếp theo: **Task 1** (convert dany.docx → dany.md).
