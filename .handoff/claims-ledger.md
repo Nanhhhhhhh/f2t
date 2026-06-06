@@ -245,6 +245,24 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 ### t1.4-unverified → RESOLVED ở t1.15
 - (xem entry `t1.15-numbers` bên dưới)
 
+### t1.11-schema-detail: §3.4 viết lại — 10 collection thật + field/index chính xác từ schema file
+
+- **Evidence:** Đọc trực tiếp 10 schema file:
+  - `f2t-backend/src/modules/users/schemas/user.schema.ts:L20-97` — location embedded 1 địa chỉ (không có addresses[])
+  - `f2t-backend/src/modules/farms/schemas/farm.schema.ts:L50-108, L113, L116` — 2dsphere index L113
+  - `f2t-backend/src/modules/products/schemas/product.schema.ts:L37-142, L147-151` — 5 index riêng lẻ
+  - `f2t-backend/src/modules/orders/schemas/order.schema.ts:L7-34 (OrderItem), L239-241` — 3 index riêng lẻ (không có compound 3-field)
+  - `f2t-backend/src/modules/posts/schemas/post.schema.ts:L75-111, L115-119` — 5 index
+  - `f2t-backend/src/modules/notifications/schemas/notification.schema.ts:L52` — compound userId+createdAt
+  - `f2t-backend/src/modules/notifications/schemas/notification-preferences.schema.ts:L19-37` — userId unique
+  - `f2t-backend/src/modules/dynamic-pricing/schemas/freshness-cache.schema.ts:L6-40, L44-45` — readings[{score,scannedAt}]+medianScore; TTL+unique index
+  - `f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:L17-63, L67-68` — status enum[shadow/pending_review/accepted/rejected/expired]; compound productId+status; TTL
+  - `f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:L8-26, L31-32` — TTL+compound
+  - recommendation_caches: `grep -rn 'recommendation_caches' f2t-backend/src` = 0 (ledger t1.4-collections)
+  - forecast_caches: `grep -rn 'forecast_caches\|ForecastCache' f2t-backend/src` = 0 (ledger t1.4-collections)
+- **Verified by:** implementer T1.11 (đọc 10 file trực tiếp) — 2026-06-07
+- **Dùng ở:** dany.md §3.4.1, §3.4.2, §3.4.3
+
 ### t1.15-numbers: Con số kiểm thử/endpoint/màn hình/camera — đã resolve bằng lệnh đếm thật
 - **Evidence:** (controller chạy trực tiếp trong `f2t-backend`/`f2t-frontend`):
   - **"54/54 test" ĐÚNG**: `find src -name "*.spec.ts" | wc -l` = 21 file; `grep -rhoE "\b(it|test)\(" src --include="*.spec.ts" | wc -l` = **54** block. → GIỮ "54/54", nói rõ "54 test case trong 21 file spec".

@@ -396,45 +396,83 @@ CoreML (Apple Create ML) — 2 model nhị phân:
 
 *3.4.1. Sơ đồ quan hệ thực thể (ERD)*
 
-- User ↔ Farm (1-N), Farm ↔ Product (1-N), User ↔ Order (1-N)
+Quan hệ giữa 10 collection thật:
+
+- **User → Farm (1-N):** Farm.ownerId tham chiếu User._id — mỗi farm thuộc 1 user có role "farm" [ref: f2t-backend/src/modules/farms/schemas/farm.schema.ts:L51-52]
+
+- **Farm → Product (1-N):** Product.farmId tham chiếu Farm._id — mỗi sản phẩm thuộc 1 farm [ref: f2t-backend/src/modules/products/schemas/product.schema.ts:L38-39]
+
+- **User → Order (1-N):** Order.customerId tham chiếu User._id — mỗi đơn hàng thuộc 1 khách [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L99-100]
+
+- **Order → items (embedded, 1-N):** Mảng OrderItem nhúng trực tiếp trong Order — snapshot giá tại thời điểm mua, không phụ thuộc Product sau này [ref: order.schema.ts:L7-34, L105-106]
+
+- **Product → FreshnessCache (1-1):** FreshnessCache.productId tham chiếu Product._id (unique index) — cache kết quả scan CoreML [ref: f2t-backend/src/modules/dynamic-pricing/schemas/freshness-cache.schema.ts:L26-27, L44]
+
+- **Product → PriceOverride (1-N):** PriceOverride.productId tham chiếu Product._id — đề xuất giá từ DDQN; PriceOverride.farmId tham chiếu Farm._id [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:L19-22]
+
+- **User → Notification (1-N):** Notification.userId tham chiếu User._id [ref: f2t-backend/src/modules/notifications/schemas/notification.schema.ts:L20-21]
+
+- **User → NotificationPreferences (1-1):** NotificationPreferences.userId unique — 1 bộ tùy chọn per user [ref: f2t-backend/src/modules/notifications/schemas/notification-preferences.schema.ts:L20-23]
+
+- **User → Post (1-N):** Post.authorId tham chiếu User._id; Post.farmId (optional) tham chiếu Farm._id [ref: f2t-backend/src/modules/posts/schemas/post.schema.ts:L76-77, L82-83]
+
+- **User → VerificationToken (1-N):** VerificationToken.userId tham chiếu User._id — token xác minh email/phone [ref: f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:L9-10]
 
 *3.4.2. Chi tiết 10 collections*
 
-7 collection e-commerce:
+**8 collection nghiệp vụ chính:**
 
-- users: \_id, name, email, password(bcrypt), role, phone, addresses\[\], location{Point}
+- **users:** _id, email(unique, lowercase), password(bcrypt, select:false), firstName, lastName, phoneNumber, avatarUrl, role enum\[consumer/farm/admin\], status enum\[active/suspended/pending\], location{coordinates{latitude, longitude}, address{street, city, zipCode, country}} (1 địa chỉ embedded — KHÔNG có mảng addresses\[\]), refreshToken, pushToken, emailVerified, phoneVerified, isBanned [ref: f2t-backend/src/modules/users/schemas/user.schema.ts:L20-97]
 
-- farms: \_id, ownerId, name, description, location{Point}, certificates\[\], isVerified
+- **farms:** _id, ownerId(ref:User), name, description, location{type:"Point", coordinates:\[lng, lat\]} (GeoJSON Point), address{street, city, zipCode, country}, contactEmail, contactPhone, deliveryMethods\[\], deliveryZones\[\], businessHours, restockSchedule\[{category, intervalDays}\], isActive, verificationStatus enum\[pending/verified/rejected\] [ref: f2t-backend/src/modules/farms/schemas/farm.schema.ts:L50-108]
 
-- products: \_id, farmId, name, price, stock, images\[\], category, tags\[\], createdAt
+- **products:** _id, farmId(ref:Farm), name, description, category enum\[leafy/root/fruit/herbs/mushrooms/grains/dairy/eggs/honey/other\], pricePerUnit, unit enum\[kg/g/piece/bunch/box/bag/liter\], availableQuantity, minimumOrder, status enum\[available/sold_out/unavailable/seasonal\], images\[\], isOrganic, tags\[\], nutritionalInfo{calories, protein, carbs, fat, fiber, vitamins\[\]}, estimatedShelfLife, lastRestockedAt [ref: f2t-backend/src/modules/products/schemas/product.schema.ts:L37-142]
 
-- orders: \_id, userId, items\[{productSnapshot, qty, price}\], totalAmount, status, stripeSessionId
+- **orders:** _id, orderNumber(unique), customerId(ref:User), farmId(ref:Farm), items\[{productId, productName, productImage, quantity, pricePerUnit, unit, totalPrice, farmId, farmName}\] (embedded snapshot — chống sai giá lịch sử), subtotal, deliveryFee, tax, total, status enum\[pending/confirmed/preparing/ready_for_pickup/shipped/delivered/cancelled\], paymentStatus enum\[pending/paid/failed/refunded\], paymentMethod enum\[cash/stripe\], stripeSessionId, timeline\[\], trackingSteps\[\] [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L7-34, L95-235]
 
-- posts: \_id, userId, content, images\[\], likes\[\], comments\[\]
+- **posts:** _id, authorId(ref:User), authorRole enum\[consumer/farm\], farmId(optional, ref:Farm), title, body, media\[{url, type enum\[image/video\], thumbnailUrl}\], tags\[{id, type, name}\], hashtags\[\], comments\[{authorId, authorName, authorAvatarUrl, content}\], likesCount, commentsCount [ref: f2t-backend/src/modules/posts/schemas/post.schema.ts:L75-111]
 
-- notifications: \_id, userId, title, body, type, isRead, data{}
+- **notifications:** _id, userId(ref:User), type(enum NotificationType), title, message, isRead, referenceId, referenceType, data{}, pushSent [ref: f2t-backend/src/modules/notifications/schemas/notification.schema.ts:L19-49]
 
-- price_overrides: \_id, productId, suggestedPrice, delta_pct, status(pending/accepted/rejected), expiresAt
+- **notification_preferences:** _id, userId(ref:User, unique), emailNotifications, smsNotifications, pushNotifications, orderUpdates, promotions, newsletter [ref: f2t-backend/src/modules/notifications/schemas/notification-preferences.schema.ts:L19-37]
 
-3 collection cache AI:
+- **verification_tokens:** _id, userId(ref:User), token, type enum\[email/phone\], expiresAt, used [ref: f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:L8-26]
 
-- freshness_cache: productId(unique), scores\[5\], label, expiresAt(TTL 6h)
+**2 collection dynamic-pricing AI:**
 
-- recommendation_caches: userId, type(for-you/cart), productIds\[\], expiresAt(TTL 1h)
+- **freshness_cache:** _id, productId(ref:Product, unique index), readings\[{score: Number, scannedAt: Date}\] (lịch sử các lần scan CoreML), medianScore (điểm trung vị), updatedAt, expiresAt (TTL tự xóa) [ref: f2t-backend/src/modules/dynamic-pricing/schemas/freshness-cache.schema.ts:L6-40] ⚠️ KHÔNG có field scores\[5\] fixed array hay label
 
-- forecast_caches: productId, predictions\[7\], confidence, expiresAt(TTL 6h)
+- **price_overrides:** _id, productId(ref:Product), farmId(ref:Farm), basePrice, targetPrice, deltaPct, freshnessScore, freshnessTag enum\[fresh/aging/critical\], safetyClipped, mode enum\[shadow/advisory\], status enum\[shadow/pending_review/accepted/rejected/expired\] (5 trạng thái — khởi đầu là shadow), reviewedAt, reviewedBy, computedAt, expiresAt [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:L17-63]
 
 *3.4.3. Chỉ mục và tối ưu*
 
-- 2dsphere: farms.location
+Các chỉ mục thật (đọc từ schema file):
 
-- TTL: freshness_cache 6h, recommendation_caches 1h
+- **2dsphere — farms.location:** `FarmSchema.index({ location: '2dsphere' })` — hỗ trợ truy vấn địa lý $near (tìm competitor cùng khu vực cho comp_ratio) [ref: f2t-backend/src/modules/farms/schemas/farm.schema.ts:L113]
 
-- Unique: freshness_cache.productId
+- **TTL — freshness_cache.expiresAt:** `FreshnessCacheSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })` — MongoDB tự xóa document khi hết hạn [ref: f2t-backend/src/modules/dynamic-pricing/schemas/freshness-cache.schema.ts:L45]
 
-- Compound: orders(userId + status + createdAt)
+- **TTL — price_overrides.expiresAt:** `PriceOverrideSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })` — tự xóa đề xuất giá hết hạn [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:L68]
 
-- ★ Embedded Snapshot trong Orders chống sai giá lịch sử, TTL tự dọn cache AI
+- **TTL — verification_tokens.expiresAt:** `VerificationTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })` — tự xóa token xác minh hết hạn [ref: f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:L31]
+
+- **Unique — freshness_cache.productId:** `FreshnessCacheSchema.index({ productId: 1 }, { unique: true })` — đảm bảo 1 cache per sản phẩm [ref: f2t-backend/src/modules/dynamic-pricing/schemas/freshness-cache.schema.ts:L44]
+
+- **Compound — price_overrides(productId, status):** `PriceOverrideSchema.index({ productId: 1, status: 1 })` — tra đề xuất đang hoạt động theo sản phẩm + trạng thái [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:L67]
+
+- **Compound — notifications(userId, createdAt):** `NotificationSchema.index({ userId: 1, createdAt: -1 })` — lấy thông báo mới nhất của user [ref: f2t-backend/src/modules/notifications/schemas/notification.schema.ts:L52]
+
+- **Compound — verification_tokens(userId, type):** `VerificationTokenSchema.index({ userId: 1, type: 1 })` — tra token email/phone của user [ref: f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:L32]
+
+- **Đơn — orders:** 3 index riêng lẻ: customerId, farmId, status — KHÔNG có compound 3-field orders(userId+status+createdAt) [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L239-241]
+
+- **Text — farms:** `FarmSchema.index({ name: 'text', description: 'text' })` — tìm kiếm farm theo tên/mô tả [ref: farm.schema.ts:L116]
+
+- **Text — products:** `ProductSchema.index({ name: 'text', description: 'text', tags: 'text' })` [ref: product.schema.ts:L147]
+
+- **Text — posts:** `PostSchema.index({ title: 'text', body: 'text', hashtags: 'text' })` [ref: post.schema.ts:L116]
+
+- ★ Embedded Snapshot trong OrderItem chống sai giá lịch sử (productName, pricePerUnit, farmName lưu ngay tại thời điểm đặt hàng); 3 TTL index tự dọn cache/token hết hạn — không cần cronjob thủ công
 
 **3.5. Phân tích, thiết kế giao diện chức năng (~2 trang)**
 

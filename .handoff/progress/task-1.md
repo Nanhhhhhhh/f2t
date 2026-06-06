@@ -271,3 +271,75 @@ Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry 
 - [x] Outline (tiêu đề, thứ tự chương, phong cách dàn ý bullet) giữ nguyên
 - [x] KHÔNG sửa ngoài 5 mục được chỉ định
 - [x] KHÔNG vẽ PlantUML đầy đủ
+
+## T1.11 — Viết lại §3.4 "Phân tích, thiết kế cơ sở dữ liệu" ✅
+
+### Bảng 10 collection thật + field chính + citation
+
+| # | Collection | Field chính | Index | Schema file:Dòng |
+|---|---|---|---|---|
+| 1 | **users** | email(unique), password(bcrypt,select:false), firstName, lastName, phoneNumber, avatarUrl, role enum[consumer/farm/admin], status enum[active/suspended/pending], location{coordinates{latitude,longitude}, address{street,city,zipCode,country}}, refreshToken, pushToken, emailVerified, phoneVerified, isBanned | email unique (tự động từ @Prop unique) | user.schema.ts:L20-97 |
+| 2 | **farms** | ownerId(ref:User), name, description, location{type:"Point",coordinates:[lng,lat]}, address{street,city,zipCode,country}, contactEmail, contactPhone, deliveryMethods[], restockSchedule[{category,intervalDays}], isActive, verificationStatus enum[pending/verified/rejected] | 2dsphere location (L113); text name+description (L116) | farm.schema.ts:L50-108, L113, L116 |
+| 3 | **products** | farmId(ref:Farm), name, description, category enum[leafy/root/fruit/herbs/mushrooms/grains/dairy/eggs/honey/other], pricePerUnit, unit, availableQuantity, minimumOrder, status enum[available/sold_out/unavailable/seasonal], images[], isOrganic, tags[], nutritionalInfo{...}, estimatedShelfLife, lastRestockedAt | text name+desc+tags (L147); farmId (L148); category (L149); status (L150); pricePerUnit (L151) | product.schema.ts:L37-142, L147-151 |
+| 4 | **orders** | orderNumber(unique), customerId(ref:User), farmId(ref:Farm), items[{productId,productName,productImage,quantity,pricePerUnit,unit,totalPrice,farmId,farmName}] embedded snapshot, subtotal, deliveryFee, tax, total, status enum[pending/confirmed/preparing/ready_for_pickup/shipped/delivered/cancelled], paymentStatus, paymentMethod enum[cash/stripe], stripeSessionId, timeline[], trackingSteps[] | customerId (L239); farmId (L240); status (L241) — KHÔNG có compound 3-field | order.schema.ts:L7-34 (OrderItem), L95-235 (Order), L239-241 (indexes) |
+| 5 | **posts** | authorId(ref:User), authorRole enum[consumer/farm], farmId(optional,ref:Farm), title, body, media[{url,type,thumbnailUrl}], tags[{id,type,name}], hashtags[], comments[{authorId,authorName,authorAvatarUrl,content}], likesCount, commentsCount | createdAt (L115); text title+body+hashtags (L116); authorId (L117); farmId (L118); hashtags (L119) | post.schema.ts:L75-111, L115-119 |
+| 6 | **notifications** | userId(ref:User), type(enum NotificationType), title, message, isRead, referenceId, referenceType, data{}, pushSent | compound userId+createdAt (L52) | notification.schema.ts:L19-49, L52 |
+| 7 | **notification_preferences** | userId(ref:User, unique), emailNotifications, smsNotifications, pushNotifications, orderUpdates, promotions, newsletter | userId unique (qua @Prop unique) | notification-preferences.schema.ts:L19-37 |
+| 8 | **verification_tokens** | userId(ref:User), token, type enum[email/phone], expiresAt, used | TTL expiresAt (L31); compound userId+type (L32) | verification-token.schema.ts:L8-26, L31-32 |
+| 9 | **freshness_cache** | productId(ref:Product), readings[{score:Number, scannedAt:Date}], medianScore, updatedAt, expiresAt — KHÔNG có scores[5] fixed array hay label | unique productId (L44); TTL expiresAt (L45) | freshness-cache.schema.ts:L6-40, L44-45 |
+| 10 | **price_overrides** | productId(ref:Product), farmId(ref:Farm), basePrice, targetPrice, deltaPct, freshnessScore, freshnessTag enum[fresh/aging/critical], safetyClipped, mode enum[shadow/advisory], status enum[shadow/pending_review/accepted/rejected/expired], reviewedAt, reviewedBy, computedAt, expiresAt | compound productId+status (L67); TTL expiresAt (L68) | price-override.schema.ts:L17-63, L67-68 |
+
+### Bảng index thật đã verify
+
+| Index | Collection | Khai báo tại | Loại |
+|---|---|---|---|
+| 2dsphere location | farms | farm.schema.ts:L113 | Geospatial |
+| text name+description | farms | farm.schema.ts:L116 | Text search |
+| text name+description+tags | products | product.schema.ts:L147 | Text search |
+| farmId | products | product.schema.ts:L148 | Đơn |
+| category | products | product.schema.ts:L149 | Đơn |
+| status | products | product.schema.ts:L150 | Đơn |
+| pricePerUnit | products | product.schema.ts:L151 | Đơn |
+| customerId | orders | order.schema.ts:L239 | Đơn |
+| farmId | orders | order.schema.ts:L240 | Đơn |
+| status | orders | order.schema.ts:L241 | Đơn |
+| createdAt | posts | post.schema.ts:L115 | Đơn (desc) |
+| text title+body+hashtags | posts | post.schema.ts:L116 | Text search |
+| authorId | posts | post.schema.ts:L117 | Đơn |
+| farmId | posts | post.schema.ts:L118 | Đơn |
+| hashtags | posts | post.schema.ts:L119 | Đơn |
+| userId+createdAt | notifications | notification.schema.ts:L52 | Compound |
+| productId (unique) | freshness_cache | freshness-cache.schema.ts:L44 | Unique |
+| expiresAt (TTL) | freshness_cache | freshness-cache.schema.ts:L45 | TTL |
+| productId+status | price_overrides | price-override.schema.ts:L67 | Compound |
+| expiresAt (TTL) | price_overrides | price-override.schema.ts:L68 | TTL |
+| expiresAt (TTL) | verification_tokens | verification-token.schema.ts:L31 | TTL |
+| userId+type | verification_tokens | verification-token.schema.ts:L32 | Compound |
+
+### Thay đổi chính so với §3.4 cũ
+
+1. **XÓA** `recommendation_caches` — không tồn tại (grep=0) [ledger t1.4-no-recommender]
+2. **XÓA** `forecast_caches` — không tồn tại (grep=0) [ledger t1.4-collections]
+3. **THÊM** `notification_preferences` và `verification_tokens` — 2 collection thật còn thiếu
+4. **SỬA** `freshness_cache`: `readings[{score, scannedAt}]` + `medianScore` + `updatedAt` (không có `scores[5]`/`label`) [ref: freshness-cache.schema.ts:L6-40]
+5. **SỬA** `users`: location embedded 1 địa chỉ `{coordinates{lat,lng}, address{street,city,zipCode,country}}` — KHÔNG có `addresses[]` [ref: user.schema.ts:L52-78]
+6. **SỬA** `orders.items`: field thật `{productId, productName, productImage, quantity, pricePerUnit, unit, totalPrice, farmId, farmName}` [ref: order.schema.ts:L7-34]
+7. **SỬA** `price_overrides.status`: 5 trạng thái `[shadow, pending_review, accepted, rejected, expired]` (không phải `pending/accepted/rejected`) [ref: price-override.schema.ts:L45-50]
+8. **SỬA** index orders: 3 index riêng lẻ (customerId/farmId/status) — KHÔNG có compound 3-field [ref: order.schema.ts:L239-241]
+9. **SỬA** TTL `recommendation_caches 1h` → XÓA (không tồn tại); giữ đúng 3 TTL thật: freshness_cache + price_overrides + verification_tokens
+10. **SỬA** ERD: bổ sung 7 quan hệ thật (không chỉ 3 quan hệ cũ); xóa thực thể recommender
+
+### Verify checklist
+
+- [x] Đúng 10 collection thật — không còn recommendation_caches/forecast_caches
+- [x] freshness_cache: readings[{score,scannedAt}] + medianScore (không có scores[5]/label)
+- [x] users: location embedded single-address (không có addresses[])
+- [x] orders.items: 9 field thật với tên chính xác
+- [x] price_overrides.status: 5 enum thật [shadow/pending_review/accepted/rejected/expired]
+- [x] orders index: 3 riêng lẻ (không có compound 3-field)
+- [x] TTL: 3 TTL thật (freshness_cache, price_overrides, verification_tokens) — không còn "recommendation_caches TTL 1h"
+- [x] ERD: 10 quan hệ thật có citation
+- [x] Mọi field/index có [ref: schema-file:Lxx]
+- [x] Outline §3.4.1/3.4.2/3.4.3 giữ nguyên tiêu đề in-nghiêng
+- [x] Không sửa ngoài §3.4
+- [x] Không sửa file source code

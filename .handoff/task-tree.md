@@ -29,7 +29,7 @@ Plan: `docs/superpowers/plans/2026-06-07-task1-dany-md-convert-fix.md`. Audit: `
 | T1.8 ⭐ | Viết lại TOÀN BỘ §3.3.7 (xóa (a) recommender; (b)LSTM+giới hạn; (c)DDQN+Safety; (d)CoreML) — hyperparam resolve tại nguồn | sonnet | T1.4 | done (verify PASS, hyperparam khớp agent.py/train.py) |
 | T1.9 ⭐ | (đã gộp vào T1.6+T1.7 cho §2.4.6 lý thuyết, và T1.8 cho §3.3.7d) | — | — | done (gộp) |
 | T1.10 ⭐ | Viết lại §1.3 + §3.3.1/3.3.3/3.3.5/3.3.6 (1 sidecar; xóa UC/SD/AD-ML recommender; Holt→LSTM) | sonnet | T1.5 | done (verify PASS, endpoint+cron citation khớp) |
-| T1.11 ⭐ | Viết lại §3.4.2 + §3.4.3 CSDL (10 collection thật, schema/index đúng) | sonnet | T1.4 | pending |
+| T1.11 ⭐ | Viết lại §3.4 CSDL (ERD + 10 collection thật + 12 index) | sonnet | T1.4 | done (verify PASS, schema/index khớp 10 file) |
 | T1.12 | Sửa §4.2 + §4.4.1 số liệu (13 module, 1 sidecar, endpoint, interceptor/cron resolve nguồn) | sonnet | T1.5 | pending |
 | T1.13 ⭐ | Viết lại §4.4.2/4.4.3/4.4.5 thực nghiệm (xóa eval recommender; LSTM eval; CoreML nhị phân) | sonnet | T1.7,T1.9 | pending |
 | T1.14 ⭐ | Thêm §5.2 Limitations thật (3 giới hạn ledger t0.10) + sửa §5.1 số liệu | sonnet | T1.4 | pending |
