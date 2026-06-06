@@ -30,7 +30,7 @@
 
 **1.3. Phạm vi nghiên cứu (~0.5 trang)**
 
-- Bao gồm: app mobile (iOS/Android), backend REST API, 3 sidecar FastAPI
+- Bao gồm: app mobile (iOS/Android), backend REST API, 1 sidecar FastAPI (pricing-sidecar) phục vụ 3 endpoint /predict /forecast /freshness/classify [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]
 
 - Không bao gồm: xác thực email/SMS, web client, chế độ định giá "live"
 
@@ -240,13 +240,13 @@
 
 *3.3.1. Kiến trúc triển khai tổng quan (~1.5 trang)*
 
-- Sơ đồ: App ↔ NestJS (3000) ↔ MongoDB + 3 Sidecar FastAPI
+- Sơ đồ: App ↔ NestJS (3000) ↔ MongoDB + 1 pricing-sidecar FastAPI (port 8000) [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]
 
-  - Recommender (8001): ItemItemCF + Content-Based
+  - `/predict` — DDQN SharedMLPDuelingQNet (định giá động) [ref: pricing-sidecar/main.py:277]
 
-  - Forecast (8002): Holt EWMA + DoW
+  - `/forecast` — ForecasterLSTM (dự báo nhu cầu 7 ngày) [ref: pricing-sidecar/main.py:263; ledger t1.4-forecaster-not-holt]
 
-  - Pricing (8000): DDQN + MobileNetV2
+  - `/freshness/classify` — 2 model CoreML (fruit/root), nhị phân fresh/rotten (phân loại độ tươi) [ref: pricing-sidecar/main.py:316; ledger t1.4-freshness-coreml]
 
 - ★ Graceful degradation: sidecar chết → NestJS fallback → trả sản phẩm mới nhất, user không thấy lỗi
 
@@ -266,13 +266,11 @@
 
 *3.3.3. Biểu đồ Use Case module AI/ML (~1 trang)*
 
-- UC-ML-01: Hệ thống gợi ý (Consumer xem For-You + Cross-sell)
+- UC-ML-01: Dự báo nhu cầu (Farm xem dự báo 7 ngày — NestJS DemandForecastingService → sidecar /forecast → ForecasterLSTM) [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43; ledger t1.4-forecaster-not-holt]
 
-- UC-ML-02: Dự báo nhu cầu (Farm xem dự báo 7 ngày)
+- UC-ML-02: Định giá động (Farm chụp ảnh → nhận gợi ý giá → chấp nhận/từ chối — DDQN + Safety Layer 5 quy tắc) [ref: pricing-sidecar/main.py:277; ledger t1.4-one-sidecar]
 
-- UC-ML-03: Định giá động (Farm chụp ảnh → nhận gợi ý giá → chấp nhận/từ chối)
-
-- ★ SV tự thiết kế 3 UC AI tích hợp vào hệ thống TMĐT
+- ★ SV tự thiết kế 2 UC AI tích hợp vào hệ thống TMĐT [ref: ledger t1.4-no-recommender]
 
 *3.3.4. Đặc tả Use Case chi tiết (~2 trang)*
 
@@ -306,19 +304,15 @@ E-commerce (6 biểu đồ):
 
 - SD-06: Tạo vận đơn GHN + Dijkstra fallback
 
-AI/ML (5 biểu đồ):
+AI/ML (3 biểu đồ):
 
-- SD-ML-01: Gợi ý For-You (NestJS → Sidecar 8001 → cosine similarity → trả kết quả)
+- SD-ML-01: PricingTickCron mỗi giờ (`"0 * * * *"`) — Cron lấy state sản phẩm → DDQN SharedMLPDuelingQNet → Safety Layer 5 quy tắc → ghi PriceOverride → push notification → Farm chấp nhận/từ chối [ref: f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18; ledger t1.4-interceptor-cron]
 
-- SD-ML-02: Cross-sell giỏ hàng (NestJS → Sidecar 8001 → co-occurrence → trả kết quả)
+- SD-ML-02: Dự báo nhu cầu — NestJS DemandForecastingService → sidecar `/forecast` (port 8000) → `_run_forecaster` → ForecasterLSTM → trả demand 7 ngày [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43; pricing-sidecar/main.py:263; ledger t1.4-forecaster-not-holt]
 
-- SD-ML-03: Cron huấn luyện lại mỗi giờ
+- SD-ML-03: Chu kỳ định giá chi tiết (Cron → lấy state → DDQN → Safety 5 quy tắc → PriceOverride → push notification → Farm chấp nhận/từ chối) [ref: pricing-sidecar/main.py:277; pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules]
 
-- SD-ML-04: Dự báo nhu cầu (NestJS → Sidecar 8002 → Holt EWMA → trả 7 ngày)
-
-- SD-ML-06: Chu kỳ định giá (Cron → lấy state → DDQN → Safety check → ghi PriceOverride → push notification → Farm chấp nhận/từ chối)
-
-- ★ SV tự thiết kế 5 biểu đồ tuần tự AI, mô tả luồng NestJS ↔ FastAPI ↔ Model
+- ★ SV tự thiết kế 3 biểu đồ tuần tự AI, mô tả luồng NestJS ↔ FastAPI ↔ Model [ref: ledger t1.4-no-recommender]
 
 *3.3.6. Biểu đồ hoạt động (~2 trang)*
 
@@ -330,13 +324,11 @@ E-commerce:
 
 AI/ML:
 
-- AD-ML-01: Thuật toán gợi ý (cây quyết định: có ≥5 đơn → ItemItemCF, không → Content-Based → cold-start popularity)
+- AD-ML-01: Luồng suy luận ForecasterLSTM — backend gọi `/forecast` → `_run_forecaster` → LSTM trả demand/waste_logit [ref: pricing-sidecar/main.py:128-145; ledger t1.4-forecaster-not-holt]
 
-- AD-ML-03: Holt EWMA + DoW (có ≥14 ngày → tính DoW → nhân vào forecast, không → dùng forecast thuần)
+- AD-ML-02: Suy luận DDQN + Safety Layer (DDQN chọn action → Safety 5 quy tắc thứ tự 3→4→1→2→5 → clip nếu vi phạm → ghi PriceOverride) [ref: pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules]
 
-- AD-ML-04: Suy luận DDQN + Safety Layer (DDQN chọn action → Safety check 5 quy tắc → clip nếu vi phạm → ghi PriceOverride)
-
-- ★ SV tự vẽ lưu đồ thuật toán, phải giải thích được từng nhánh quyết định
+- ★ SV tự vẽ lưu đồ thuật toán, phải giải thích được từng nhánh quyết định [ref: ledger t1.4-no-recommender]
 
 *3.3.7. Thuật toán chi tiết các module AI/ML (~4 trang)*
 

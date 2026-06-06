@@ -213,3 +213,61 @@ Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry 
 - [x] Cấu trúc outline §3.3.7 giữ nguyên (tiêu đề in-nghiêng, mục con in-đậm, cấp bullet)
 - [x] §3.4 (sau §3.3.7) không bị đụng
 - [x] Không sửa file source code
+
+## T1.10 — Sửa §1.3, §3.3.1, §3.3.3, §3.3.5, §3.3.6 (diagram/architecture corrections) ✅
+
+### Tóm tắt thay đổi
+
+**§1.3 Phạm vi nghiên cứu:**
+- "3 sidecar FastAPI" → **"1 sidecar FastAPI (pricing-sidecar) phục vụ 3 endpoint /predict /forecast /freshness/classify"** [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]
+
+**§3.3.1 Kiến trúc triển khai tổng quan:**
+- XÓA 3 sidecar (Recommender 8001, Forecast 8002, Pricing 8000 DDQN+MobileNetV2)
+- SỬA → **App ↔ NestJS(3000) ↔ MongoDB + 1 pricing-sidecar FastAPI(port 8000)**; 3 endpoint:
+  - `/predict` — DDQN SharedMLPDuelingQNet [ref: pricing-sidecar/main.py:277]
+  - `/forecast` — ForecasterLSTM [ref: pricing-sidecar/main.py:263; ledger t1.4-forecaster-not-holt]
+  - `/freshness/classify` — 2 model CoreML [ref: pricing-sidecar/main.py:316; ledger t1.4-freshness-coreml]
+- GIỮ graceful degradation (đúng)
+
+**§3.3.3 Biểu đồ Use Case AI/ML:**
+- XÓA UC-ML-01 (Recommender For-You + Cross-sell) [ref: ledger t1.4-no-recommender]
+- Re-number: UC-ML-01 = Dự báo nhu cầu [ref: demand-forecasting.service.ts:43], UC-ML-02 = Định giá động [ref: pricing-sidecar/main.py:277]
+- "★ SV tự thiết kế 3 UC AI" → **2 UC AI** [ref: ledger t1.4-no-recommender]
+
+**§3.3.5 Biểu đồ tuần tự AI/ML:**
+- XÓA SD-ML-01 (Sidecar 8001 cosine), SD-ML-02 (Sidecar 8001 co-occurrence)
+- SD-ML-03 "Cron huấn luyện lại" → **SD-ML-01 PricingTickCron mỗi giờ** (`"0 * * * *"`) [ref: pricing-tick.cron.ts:18; ledger t1.4-interceptor-cron]
+- SD-ML-04 "Sidecar 8002 Holt EWMA" → **SD-ML-02 NestJS → sidecar /forecast (8000) → _run_forecaster → ForecasterLSTM** [ref: demand-forecasting.service.ts:43; pricing-sidecar/main.py:263; ledger t1.4-forecaster-not-holt]
+- SD-ML-06 → **SD-ML-03** Chu kỳ định giá chi tiết (GIỮ logic, re-number) [ref: pricing-sidecar/main.py:277; safety.py:1-19]
+- "★ 5 biểu đồ" → **3 biểu đồ** [ref: ledger t1.4-no-recommender]
+
+**§3.3.6 Biểu đồ hoạt động AI/ML:**
+- XÓA AD-ML-01 (Recommender ≥5 đơn → ItemItemCF) [ref: ledger t1.4-no-recommender]
+- AD-ML-03 "Holt EWMA + DoW" → **AD-ML-01 Luồng suy luận ForecasterLSTM** [ref: pricing-sidecar/main.py:128-145; ledger t1.4-forecaster-not-holt]
+- AD-ML-04 → **AD-ML-02** DDQN + Safety (GIỮ logic 5 quy tắc thứ tự 3→4→1→2→5) [ref: safety.py:1-19; ledger t1.4-safety-5-rules]
+- Re-number AD-ML liền mạch: AD-ML-01, AD-ML-02
+
+### Citation bảng
+
+| Thay đổi | File:Dòng | Ledger |
+|---|---|---|
+| 1 sidecar (phạm vi) | f2t-backend/src/app.module.ts:57 | t1.4-one-sidecar |
+| /predict endpoint | pricing-sidecar/main.py:277 | t0.2-ddqn-arch |
+| /forecast endpoint | pricing-sidecar/main.py:263 | t1.4-forecaster-not-holt |
+| /freshness/classify endpoint | pricing-sidecar/main.py:316 | t1.4-freshness-coreml |
+| PricingTickCron schedule | f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18 | t1.4-interceptor-cron |
+| DemandForecastingService → /forecast | f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43 | t1.4-forecaster-not-holt |
+| _run_forecaster | pricing-sidecar/main.py:128-145 | t0.4-forecaster-parity |
+| Safety 5 quy tắc | pricing-sidecar/safety.py:1-19 | t1.4-safety-5-rules |
+| Không có recommender | grep -rliE 'recommend...' f2t-backend/src = 0 | t1.4-no-recommender |
+
+### Verify checklist
+- [x] §1.3: "3 sidecar" → "1 sidecar (pricing-sidecar) 3 endpoint"
+- [x] §3.3.1: không còn Recommender(8001) / Forecast(8002) / MobileNetV2; hiển thị 1 sidecar 3 endpoint
+- [x] §3.3.3: không còn UC-ML-01 recommender; UC-ML-01=Dự báo, UC-ML-02=Định giá; "2 UC AI" (không phải 3)
+- [x] §3.3.5: không còn SD-ML-01/02 recommender, không còn "Sidecar 8001/8002/Holt EWMA"; SD-ML-01=PricingTickCron, SD-ML-02=Forecaster, SD-ML-03=Chu kỳ định giá; "3 biểu đồ" (không phải 5)
+- [x] §3.3.6: không còn AD-ML-01 recommender, không còn "Holt EWMA + DoW + ≥14 ngày"; AD-ML-01=ForecasterLSTM, AD-ML-02=DDQN+Safety; re-number liền mạch
+- [x] Mọi mô tả kỹ thuật sửa có [ref: file:Lxx] hoặc ledger-id
+- [x] Outline (tiêu đề, thứ tự chương, phong cách dàn ý bullet) giữ nguyên
+- [x] KHÔNG sửa ngoài 5 mục được chỉ định
+- [x] KHÔNG vẽ PlantUML đầy đủ
