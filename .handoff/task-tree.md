@@ -16,15 +16,28 @@ Trạng thái: `pending` | `in_progress` | `done` | `blocked`. ⭐ = rủi ro ca
 | T0.9 | Fix gaps phát hiện + re-verify | sonnet | T0.8 | done |
 | T0.10 | Kết luận + nạp ledger cho thesis | controller | T0.9 | done |
 
-## TASK 1 — dany.docx → dany.md, sửa nội dung sai (phiên sau)
+## TASK 1 — dany.docx → dany.md, sửa nội dung sai (ĐANG CHẠY)
+Plan: `docs/superpowers/plans/2026-06-07-task1-dany-md-convert-fix.md`. Audit: `docs/thesis/dany.audit.md`.
 | ID | Việc | Model | Dep | Status |
 |----|------|-------|-----|--------|
-| T1.1 | Convert dany.docx → docs/thesis/dany.md | gemini/haiku | — | pending |
-| T1.2 | Convert thesis_A46489.docx → thesis_old.md | gemini/haiku | — | pending |
-| T1.3 | Trích outline dany.md | haiku | T1.1 | pending |
-| T1.4 | Audit claim sai → bảng "sai → đúng" | sonnet | T1.3 | pending |
-| T1.5…N | (động) Sửa từng section bám code | sonnet | T1.4 | pending |
-| T1.V | Verify pass độc lập | sonnet | T1.5…N | pending |
+| T1.1 | Convert dany.docx → docs/thesis/dany.md | haiku | — | done (671 dòng, outline in-đậm) |
+| T1.2 | Convert thesis_A46489.docx → thesis_old.md | haiku | — | done (1864 dòng, tham khảo) |
+| T1.3 | Trích outline dany.md → dany.outline.md | haiku | T1.1 | done |
+| T1.4 | Audit claim sai → dany.audit.md + nở task | sonnet | T1.3 | done (25 BỊA/VIẾT LẠI, 12 SỬA, 10 GIỮ) |
+| T1.5 ⭐ | Viết lại §1.2 Mục tiêu + §1.5 Đóng góp (xóa recommender, sửa LSTM/CoreML/13module/1sidecar) | sonnet | T1.4 | pending |
+| T1.6 ⭐ | Viết lại §2.4.1–2.4.2 (xóa lý thuyết recommender; thêm lý thuyết LSTM+DDQN/Dueling) | sonnet | T1.5 | pending |
+| T1.7 ⭐ | Viết lại §2.4.3–2.4.4 (Holt EWMA → ForecasterLSTM) | sonnet | T1.4 | pending |
+| T1.8 ⭐ | Viết lại §2.4.5 + §3.3.7(c) DDQN đúng tham số + Safety 5 rule (resolve hyperparam tại nguồn) | sonnet | T1.4 | pending |
+| T1.9 ⭐ | Viết lại §2.4.6 + §3.3.7(d) (MobileNetV2 → CoreML 2-model nhị phân) | sonnet | T1.4 | pending |
+| T1.10 ⭐ | Viết lại §3.3.1 + §3.3.3 + diagram (1 sidecar; xóa UC-ML-01/SD-ML-01/02; sửa SD-ML-04) | sonnet | T1.5 | pending |
+| T1.11 ⭐ | Viết lại §3.4.2 + §3.4.3 CSDL (10 collection thật, schema/index đúng) | sonnet | T1.4 | pending |
+| T1.12 | Sửa §4.2 + §4.4.1 số liệu (13 module, 1 sidecar, endpoint, interceptor/cron resolve nguồn) | sonnet | T1.5 | pending |
+| T1.13 ⭐ | Viết lại §4.4.2/4.4.3/4.4.5 thực nghiệm (xóa eval recommender; LSTM eval; CoreML nhị phân) | sonnet | T1.7,T1.9 | pending |
+| T1.14 ⭐ | Thêm §5.2 Limitations thật (3 giới hạn ledger t0.10) + sửa §5.1 số liệu | sonnet | T1.4 | pending |
+| T1.15 | Resolve claim chưa chứng minh (54 test / 42 màn hình / endpoint / camera freshness) | sonnet | — | pending |
+| T1.V | Verify pass độc lập toàn văn | sonnet | T1.5…T1.15 | pending |
+
+> Mỗi leaf-task T1.x: ledger-first → sửa section (giữ outline, citation inline) → verify đối kháng độc lập → done-gate → commit. KHÔNG đụng dynamic-pricing-final/ (chỉ đọc).
 
 ## TASK 2 — Viết thesis hoàn chỉnh (phiên sau)
 | ID | Việc | Model | Dep | Status |

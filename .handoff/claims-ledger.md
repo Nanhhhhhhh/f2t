@@ -172,3 +172,54 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Evidence:** (1) forecaster train↔serve mismatch → `/forecast` là xấp xỉ, nên trình bày kết quả qua offline eval `src/forecaster/eval.py` thay vì serve; (2) dow phase serve dùng weekday thật vs train `t%7` (ảnh hưởng <6.2%, demand_params.json sin/cos_weekly); (3) freshness chỉ 2 CoreML model (fruit/root), leafy/herbs dùng chung "root".
 - **Verified by:** controller T0.10 — 2026-06-07
 - **Dùng ở:** thesis section Limitations / Future work
+
+---
+
+## Nhóm: Task 1 — fact-check dany.md (T1.4 audit)
+
+> Đối chiếu `docs/thesis/dany.md` (dàn ý khóa luận) với code thật. Audit đầy đủ: `docs/thesis/dany.audit.md`. Mỗi entry verify ĐỘC LẬP bởi controller (không chỉ tin subagent).
+
+### t1.4-no-recommender: f2t KHÔNG có hệ thống gợi ý (recommender) — toàn bộ claim recommender trong dany.md là BỊA
+- **Evidence:** `grep -rliE 'recommend|itemitem|collaborative|content-based|cosine' f2t-backend/src` = **0 file** (controller chạy lại). Không có module recommender (13 module: admin, auth, delivery, demand-forecasting, dynamic-pricing, farms, notifications, orders, payments, posts, products, uploads, users). Không có collection `recommendation_caches` (`grep -rliE 'recommendation_cache|recommendationcache' f2t-backend/src` = 0). Frontend `feed.tsx::useForYouPosts` = bài đăng (posts), KHÔNG phải product recommender.
+- **Verified by:** controller T1.4 (chạy lại grep độc lập) — 2026-06-07
+- **Dùng ở:** dany.md MT3, ĐG2, §2.4.1–2.4.2, §3.3.7(a), UC-ML-01, SD-ML-01/02, §3.5.1, §4.4.2 (XÓA/VIẾT LẠI)
+
+### t1.4-forecaster-not-holt: Dự báo nhu cầu là ForecasterLSTM, KHÔNG phải Holt EWMA
+- **Evidence:** `dynamic-pricing-final/src/forecaster/model.py` — `nn.LSTM`, 2 lớp, output `{demand, waste_logit}` (ledger `t0.2-forecaster-arch`, `t0.4-forecaster-parity`). Backend `f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43` gọi `${sidecarUrl}/forecast` (cùng sidecar 8000). `grep -riE 'holt|ewma' f2t-backend/src` không trả thuật toán Holt nào. Không có CI, không có DoW seasonality factor ở serve.
+- **Verified by:** controller T1.4 — 2026-06-07
+- **Dùng ở:** dany.md MT4, ĐG3, §2.4.3–2.4.4, SD-ML-04, AD-ML-03, §4.4.3 (VIẾT LẠI)
+
+### t1.4-ddqn-dims: DDQN state 10 chiều, 11 action, SharedMLPDuelingQNet — KHÔNG phải 5-dim/5-action/MLP-5→64→32→5
+- **Evidence:** obs 10 chiều (ledger `t0.3-obs-parity`, `pricing-sidecar/main.py:114-125`); 11 action `CANDIDATES=linspace(-0.30,0.20,11)` (`dynamic-pricing-final/src/rl/reward.py:6-7`, ledger `t0.2-action-space`); mạng `SharedMLPDuelingQNet(obs_dim=10,n_cats=4,cat_embed_dim=8,hidden=128,n_actions=11)` Dueling V/A heads (`src/rl/network.py:51-57`, ledger `t0.2-ddqn-arch`). Hyperparam (cần subagent T1.8 resolve lại tại nguồn): audit ghi buffer 50k/batch 256/ε 1.0→0.05 (`agent.py`, `train.py`) — CHƯA verify độc lập bởi controller, T1.8 phải resolve.
+- **Verified by:** controller T1.4 (dims/action/network qua ledger Task 0); hyperparam = pending T1.8 — 2026-06-07
+- **Dùng ở:** dany.md §2.4.5, §3.3.7(c) (VIẾT LẠI)
+
+### t1.4-freshness-coreml: Freshness = 2 CoreML model (fruit/root) nhị phân fresh/rotten — KHÔNG phải MobileNetV2 4-class
+- **Evidence:** ledger `t0.6-coreml-freshness`; `freshnessmodels/MyFreshnessClassifier-fruit.mlmodel` + `-root.mlmodel`; endpoint `pricing-sidecar/main.py:307` `/freshness/classify`; non-fruit→model root. Không có training script ảnh, không có dataset tự thu thập.
+- **Verified by:** controller T1.4 — 2026-06-07
+- **Dùng ở:** dany.md MT6, ĐG5, §2.4.6, §3.3.7(d), §4.4.5 (VIẾT LẠI)
+
+### t1.4-one-sidecar: Chỉ 1 sidecar (pricing-sidecar, port 8000, 3 endpoint) — KHÔNG phải 3 sidecar 8000/8001/8002
+- **Evidence:** chỉ thư mục `pricing-sidecar/` (controller `ls` repo: không có recommender/forecast sidecar). `f2t-backend/src/app.module.ts:57` 1 SIDECAR_URL→8000. `demand-forecasting.service.ts:43` dùng cùng URL. 3 endpoint trên cùng 1 service: `/predict`, `/forecast`, `/freshness/classify`.
+- **Verified by:** controller T1.4 — 2026-06-07
+- **Dùng ở:** dany.md §1.3, §3.3.1 (diagram), §4.1, §4.2.1, §5.1 (VIẾT LẠI/SỬA)
+
+### t1.4-collections: 10 collection MongoDB thật; KHÔNG có recommendation_caches/forecast_caches
+- **Evidence:** `find f2t-backend/src -name "*.schema.ts"` = 10 file (controller chạy lại): user, farm, product, order, post, notification, **notification-preferences**, freshness-cache, price-override, **verification-token**. recommendation_caches/forecast_caches = 0 ref. Schema thật khác thesis: `freshness-cache.schema.ts` có `readings[{score,scannedAt}]`+`medianScore` (không `scores[5]`/`label`); `user.schema.ts` location embedded (không `addresses[]`); `price-override.schema.ts` status enum gồm `shadow/pending_review/accepted/rejected/expired`.
+- **Verified by:** controller T1.4 (chạy lại find + grep) — 2026-06-07
+- **Dùng ở:** dany.md §3.4.2, §3.4.3, §4.4.1 (CSDL — ưu tiên cao, VIẾT LẠI)
+
+### t1.4-safety-5-rules: Safety Layer = 5 rule tường minh trong safety.py (thứ tự áp: 3→4→1→2→5)
+- **Evidence:** `pricing-sidecar/safety.py:1-19` (controller đọc): Rule 3 clip `price∈[base×0.70, base×1.20]` (tick ±: −30%/+20%); Rule 4 `freshness<0.4 → price≤base×0.75`; Rule 1 sàn `price≥base×0.55`; Rule 2 trần `price≤base×2.0`; Rule 5 `price≥1000`. ⚠️ Thesis QT1 "−30%"/QT2 "+20%" thực ra KHỚP cận Rule 3 (không sai như audit row 3.9 ngụ ý); T1.8 phải trình bày CHÍNH XÁC cả 5 rule + làm rõ tick-clip [0.70,1.20] vs sàn/trần tuyệt đối [0.55, 2.0]+1000.
+- **Verified by:** controller T1.4 (đọc safety.py trực tiếp) — 2026-06-07
+- **Dùng ở:** dany.md ĐG4, §3.3.7(c) Safety Layer, AD-ML-04
+
+### t1.4-interceptor-cron: DynamicPricingInterceptor + PricingTickCron có thật (claim ĐÚNG — GIỮ)
+- **Evidence:** audit T1.4 trỏ `f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts` (chặn path `/products`, nhúng `dynamicPrice/freshnessScore/priceTag`) + `pricing-tick.cron.ts:18` cron `"0 * * * *"`. CHƯA verify độc lập từng dòng bởi controller — leaf-task tương ứng (T1.12) phải resolve citation tại nguồn trước khi viết prose.
+- **Verified by:** subagent T1.4 (đề xuất GIỮ); controller resolve lại ở T1.12 — 2026-06-07
+- **Dùng ở:** dany.md ĐG6, §4.2.2
+
+### t1.4-unverified: Claim CHƯA chứng minh — cần đếm/chạy trước khi viết
+- **Evidence:** "54/54 unit test" (audit: 21 file `*.spec.ts`, chưa đếm `it()`); "0 lỗi TypeScript build" (chưa chạy `tsc`); "42 màn hình" (audit: ~50-58 tsx trong `src/app`, chưa lọc screen thật); "24+ endpoint" (audit đếm 79 qua grep `@Get/@Post/...`). → T1.15 phải resolve bằng lệnh đếm/chạy thật; nếu không chứng minh được thì KHÔNG ghi con số tuyệt đối vào thesis.
+- **Verified by:** pending T1.15 — 2026-06-07
+- **Dùng ở:** dany.md §4.3, §4.4.1, §5.1

@@ -21,3 +21,16 @@
 ## T1.3 — trích outline dany.md ✅
 - `docs/thesis/dany.outline.md`: 5 chương, ~80 mục. Cấu trúc = dòng in-đậm (chương/2-số) + in-nghiêng (3-số). Đánh dấu ★ các mục có claim AI/ML cần fact-check.
 - Outline này là HỢP ĐỒNG bảo toàn: T1.5…N sửa nội dung nhưng GIỮ nguyên thứ tự + cấp mục.
+
+## T1.4 — audit dany.md → bảng claim sai→đúng ✅
+- Sản phẩm: `docs/thesis/dany.audit.md` (273 dòng) — phủ 5 chương, ~50 claim. Subagent sonnet viết, **controller verify độc lập** các claim lớn.
+- Kết quả audit: ~25 claim BỊA/VIẾT LẠI, ~12 SỬA SỐ, ~10 GIỮ, ~4 CHƯA XÁC MINH.
+- Subagent hit session limit → controller hoàn tất phần ledger + progress + task-tree + commit.
+- **Controller verify độc lập** (chạy lại lệnh, đọc file trực tiếp):
+  - recommender: `grep -rliE 'recommend|itemitem|collaborative|content-based|cosine' f2t-backend/src` = 0 → BỊA. ✅
+  - 1 sidecar (chỉ `pricing-sidecar/`), 13 module. ✅
+  - `pricing-sidecar/safety.py:1-19` đọc trực tiếp: đúng 5 rule. ⚠️ Audit row 3.9 hơi nhiễu — thesis QT1/QT2 (−30%/+20%) thực ra KHỚP Rule 3; T1.8 trình bày chính xác cả 5 rule. → ghi rõ ở ledger `t1.4-safety-5-rules`.
+  - `find ... *.schema.ts` = 10 file, không có recommendation_caches/forecast_caches. ✅
+- Ledger nhóm "Task 1": 9 entry (`t1.4-no-recommender`, `t1.4-forecaster-not-holt`, `t1.4-ddqn-dims`, `t1.4-freshness-coreml`, `t1.4-one-sidecar`, `t1.4-collections`, `t1.4-safety-5-rules`, `t1.4-interceptor-cron`, `t1.4-unverified`).
+- ⚠️ Điểm cần chú ý cho T1.5…N: một số con số (hyperparam DDQN buffer/batch/ε, 54 test, 42 màn hình, 79 endpoint) audit lấy nhanh — leaf-task tương ứng PHẢI resolve lại tại nguồn trước khi viết (xem ledger `t1.4-ddqn-dims`, `t1.4-unverified`).
+- Task-tree nở: T1.5–T1.15 (xem task-tree.md + mục "Đề xuất chia leaf-task" cuối dany.audit.md).
