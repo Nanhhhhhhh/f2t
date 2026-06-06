@@ -526,7 +526,55 @@ Khi inference với 21 hàng identical:
 - Lệch 2 (NGHIÊM TRỌNG): tile-21× — loại bỏ hoàn toàn temporal dynamics mà LSTM được train để khai thác
 
 ## T0.5 — Smoke-load checkpoint
-_(chưa bắt đầu)_
+
+**Ngày chạy:** 2026-06-07  
+**Test file:** `/Users/macos/f2t/pricing-sidecar/tests/test_smoke_load.py`  
+**Lệnh chạy:**
+```
+cd /Users/macos/f2t/pricing-sidecar && .venv/bin/python -m pytest tests/test_smoke_load.py -v
+```
+
+### Output pytest đầy đủ
+
+```
+============================= test session starts ==============================
+platform darwin -- Python 3.13.9, pytest-9.0.3, pluggy-1.6.0 -- /Users/macos/f2t/pricing-sidecar/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/macos/f2t/pricing-sidecar
+plugins: anyio-4.13.0
+collecting ... collected 2 items
+
+tests/test_smoke_load.py::test_ddqn_loads_and_infers PASSED              [ 50%]
+tests/test_smoke_load.py::test_forecaster_loads_and_infers PASSED        [100%]
+
+============================== 2 passed in 0.89s ===============================
+```
+
+### Kết quả
+
+| Test | Kết quả | Chi tiết |
+|---|---|---|
+| `test_ddqn_loads_and_infers` | **PASSED** | Checkpoint `rl_shared_best.pt` load OK vào `SharedMLPDuelingQNet(obs_dim=10, n_cats=4, cat_embed_dim=8, hidden=128, n_actions=11)`; `q.shape = (1, 11)`; không có missing/unexpected keys |
+| `test_forecaster_loads_and_infers` | **PASSED** | Checkpoint `forecaster_v4_best.pt` load OK vào `ForecasterLSTM(ForecasterConfig(**ck["model_cfg"]))`; output dict chứa keys `"demand"` và `"waste_logit"`; không có missing/unexpected keys |
+
+### Missing / Unexpected keys
+
+- **Không có** missing keys (strict=False, nhưng assert `not missing` và `not unexpected` đều qua).
+- **Không có** unexpected keys.
+- Prefix `_orig_mod.` (torch.compile artifact) được strip bởi test — sau khi strip, state_dict khớp hoàn toàn.
+
+### q.shape
+
+`q.shape = (1, 11)` — đúng với `n_actions=11`.
+
+### Inference forecaster
+
+`out` dict chứa `"demand"` và `"waste_logit"` — đúng với `ForecasterLSTM.forward`.
+
+### Kết luận
+
+**Trạng thái: DONE**  
+Cả 2 checkpoint load và inference thành công. Không có missing/unexpected key. q.shape đúng. Output forecaster đúng.
 
 ## T0.6 — CoreML freshness
 _(chưa bắt đầu)_

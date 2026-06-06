@@ -64,7 +64,23 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Verified by:** implementer T0.4 — 2026-06-07
 - **Dùng ở:** kết luận Task 0; thesis section AI/ML — train↔serve parity (forecaster); mục limitations
 
-> (Còn thiếu — T0.5–T0.10 sẽ nạp: CoreML, luồng backend→sidecar, kết luận cuối.)
+### t0.5-checkpoint-load: 2 checkpoint load OK + shape inference
+
+- **Evidence:** pytest thật — `cd /Users/macos/f2t/pricing-sidecar && .venv/bin/python -m pytest tests/test_smoke_load.py -v`
+  ```
+  platform darwin -- Python 3.13.9, pytest-9.0.3, pluggy-1.6.0
+  tests/test_smoke_load.py::test_ddqn_loads_and_infers PASSED              [ 50%]
+  tests/test_smoke_load.py::test_forecaster_loads_and_infers PASSED        [100%]
+  2 passed in 0.89s
+  ```
+  - `rl_shared_best.pt` → `SharedMLPDuelingQNet(obs_dim=10, n_cats=4, cat_embed_dim=8, hidden=128, n_actions=11)` — load OK, `q.shape=(1,11)`, missing=[], unexpected=[]
+  - `forecaster_v4_best.pt` → `ForecasterLSTM(ForecasterConfig(**ck["model_cfg"]))` — load OK, `out` chứa `"demand"` + `"waste_logit"`, missing=[], unexpected=[]
+  - Prefix `_orig_mod.` (torch.compile) được xử lý bởi test; sau khi strip, state_dict khớp hoàn toàn
+  - Test file: `/Users/macos/f2t/pricing-sidecar/tests/test_smoke_load.py`
+- **Verified by:** implementer T0.5 — 2026-06-07
+- **Dùng ở:** kết luận Task 0; thesis section AI/ML — checkpoint integrity
+
+> (Còn thiếu — T0.6–T0.10 sẽ nạp: CoreML, luồng backend→sidecar, kết luận cuối.)
 
 ## Nhóm: Thiết kế CSDL
 

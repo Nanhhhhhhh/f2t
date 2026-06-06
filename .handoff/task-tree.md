@@ -9,7 +9,7 @@ Trạng thái: `pending` | `in_progress` | `done` | `blocked`. ⭐ = rủi ro ca
 | T0.2 | Verify định nghĩa model khớp hằng số sidecar | sonnet | T0.1 | done |
 | T0.3 ⭐ | Obs parity: _build_obs ↔ market_env | sonnet | T0.2 | done (LỆCH→T0.9) |
 | T0.4 ⭐ | Forecaster parity: tile 21× ↔ cách train | sonnet | T0.2 | done (LỆCH NẶNG→T0.9) |
-| T0.5 | Smoke-load checkpoint + inference | sonnet | T0.2 | pending |
+| T0.5 | Smoke-load checkpoint + inference | sonnet | T0.2 | done |
 | T0.6 | CoreML freshness load + predict | sonnet | — | pending |
 | T0.7 ⭐ | Backend output đủ 9 field ProductStateVector | sonnet | — | pending |
 | T0.8 | Integration test: boot sidecar + gọi endpoint | sonnet | T0.3–T0.7 | pending |
