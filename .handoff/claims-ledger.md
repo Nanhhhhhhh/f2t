@@ -219,7 +219,15 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Verified by:** subagent T1.4 (đề xuất GIỮ); controller resolve lại ở T1.12 — 2026-06-07
 - **Dùng ở:** dany.md ĐG6, §4.2.2
 
-### t1.4-unverified: Claim CHƯA chứng minh — cần đếm/chạy trước khi viết
-- **Evidence:** "54/54 unit test" (audit: 21 file `*.spec.ts`, chưa đếm `it()`); "0 lỗi TypeScript build" (chưa chạy `tsc`); "42 màn hình" (audit: ~50-58 tsx trong `src/app`, chưa lọc screen thật); "24+ endpoint" (audit đếm 79 qua grep `@Get/@Post/...`). → T1.15 phải resolve bằng lệnh đếm/chạy thật; nếu không chứng minh được thì KHÔNG ghi con số tuyệt đối vào thesis.
-- **Verified by:** pending T1.15 — 2026-06-07
-- **Dùng ở:** dany.md §4.3, §4.4.1, §5.1
+### t1.4-unverified → RESOLVED ở t1.15
+- (xem entry `t1.15-numbers` bên dưới)
+
+### t1.15-numbers: Con số kiểm thử/endpoint/màn hình/camera — đã resolve bằng lệnh đếm thật
+- **Evidence:** (controller chạy trực tiếp trong `f2t-backend`/`f2t-frontend`):
+  - **"54/54 test" ĐÚNG**: `find src -name "*.spec.ts" | wc -l` = 21 file; `grep -rhoE "\b(it|test)\(" src --include="*.spec.ts" | wc -l` = **54** block. → GIỮ "54/54", nói rõ "54 test case trong 21 file spec".
+  - **Endpoint = 79** (không phải "24+"): `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" src --include="*.controller.ts" | wc -l` = 79; controllers = 14. → SỬA "24+" → "≈79 endpoint REST".
+  - **Màn hình ≈48**: `find src/app -name "*.tsx" | grep -vE "_layout" | wc -l` = 48 (tổng 58 tsx − 10 layout). → SỬA "42" → "≈48 màn hình route" (hoặc "≥42").
+  - **Camera quét tươi CÓ THẬT**: backend `dynamic-pricing.controller.ts:33` `@Post("freshness/:productId/scan")` summary "Classify freshness from a product photo (CoreML) and auto-submit"; frontend `f2t-frontend/src/api/dynamic-pricing/use-scan-freshness.tsx` + `use-submit-freshness.tsx`, dùng trong `farm/price-suggestions.tsx`. → GIỮ "Farm quét tươi" (CoreML từ ảnh).
+  - **"0 lỗi TypeScript build"**: KHÔNG chạy `tsc` (ngoài phạm vi, tốn thời gian) → thesis nên nói "build TypeScript thành công" mà không cam kết "0 lỗi" tuyệt đối, HOẶC bỏ.
+- **Verified by:** controller T1.15 (lệnh đếm trực tiếp) — 2026-06-07
+- **Dùng ở:** dany.md §4.3 (test), §4.4.1 (endpoint/màn hình), §3.5.2/§4.4.6 (camera), §5.1

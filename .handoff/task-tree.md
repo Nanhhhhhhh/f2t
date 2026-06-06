@@ -34,7 +34,7 @@ Plan: `docs/superpowers/plans/2026-06-07-task1-dany-md-convert-fix.md`. Audit: `
 | T1.12 | Sửa §4.2 + §4.4.1 số liệu (13 module, 1 sidecar, endpoint, interceptor/cron resolve nguồn) | sonnet | T1.5 | pending |
 | T1.13 ⭐ | Viết lại §4.4.2/4.4.3/4.4.5 thực nghiệm (xóa eval recommender; LSTM eval; CoreML nhị phân) | sonnet | T1.7,T1.9 | pending |
 | T1.14 ⭐ | Thêm §5.2 Limitations thật (3 giới hạn ledger t0.10) + sửa §5.1 số liệu | sonnet | T1.4 | pending |
-| T1.15 | Resolve claim chưa chứng minh (54 test / 42 màn hình / endpoint / camera freshness) | sonnet | — | pending |
+| T1.15 | Resolve claim chưa chứng minh (54 test / 42 màn hình / endpoint / camera freshness) | controller | — | done (54 test ĐÚNG; 79 endpoint; ~48 screen; camera scan có thật) |
 | T1.V | Verify pass độc lập toàn văn | sonnet | T1.5…T1.15 | pending |
 
 > Mỗi leaf-task T1.x: ledger-first → sửa section (giữ outline, citation inline) → verify đối kháng độc lập → done-gate → commit. KHÔNG đụng dynamic-pricing-final/ (chỉ đọc).

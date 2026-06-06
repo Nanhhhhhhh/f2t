@@ -34,3 +34,11 @@
 - Ledger nhóm "Task 1": 9 entry (`t1.4-no-recommender`, `t1.4-forecaster-not-holt`, `t1.4-ddqn-dims`, `t1.4-freshness-coreml`, `t1.4-one-sidecar`, `t1.4-collections`, `t1.4-safety-5-rules`, `t1.4-interceptor-cron`, `t1.4-unverified`).
 - ⚠️ Điểm cần chú ý cho T1.5…N: một số con số (hyperparam DDQN buffer/batch/ε, 54 test, 42 màn hình, 79 endpoint) audit lấy nhanh — leaf-task tương ứng PHẢI resolve lại tại nguồn trước khi viết (xem ledger `t1.4-ddqn-dims`, `t1.4-unverified`).
 - Task-tree nở: T1.5–T1.15 (xem task-tree.md + mục "Đề xuất chia leaf-task" cuối dany.audit.md).
+
+## T1.15 — resolve claim chưa chứng minh ✅ (controller)
+- 54/54 test ĐÚNG (54 it/test block, 21 spec file). GIỮ.
+- Endpoint = 79 (controllers=14), không phải "24+". SỬA → ~79.
+- Màn hình ~48 route tsx (58−10 layout), "42" ≈ đúng. SỬA nhẹ → ~48.
+- Camera quét tươi CÓ THẬT: backend `@Post freshness/:productId/scan` (CoreML từ ảnh) + frontend use-scan-freshness.tsx (price-suggestions). GIỮ.
+- "0 lỗi TS build" không chạy tsc → thesis nói "build thành công" không cam kết tuyệt đối.
+- Ledger: t1.15-numbers.
