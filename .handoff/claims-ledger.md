@@ -18,7 +18,22 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Verified by:** implementer T0.1 — 2026-06-07
 - **Dùng ở:** kết luận Task 0
 
-> (Còn thiếu — T0.2/T0.10 sẽ nạp: SharedMLPDuelingQNet, ForecasterLSTM, obs 10 chiều + công thức, CoreML 2 loại, luồng backend→sidecar.)
+### t0.2-ddqn-arch: SharedMLPDuelingQNet signature + cấu hình (obs_dim=10, n_cats=4, embed=8, hidden=128, n_actions=11)
+- **Evidence:** `dynamic-pricing-final/src/rl/network.py:51-57` — `__init__(obs_dim=10, n_cats=4, cat_embed_dim=8, hidden=128, n_actions=11)`; `network.py:68-73` — `forward(obs, cat_ids, mask) -> Tensor (B, n_actions)`; sidecar khởi tạo tại `pricing-sidecar/main.py:151-153` với cùng 5 tham số literal; gọi inference `main.py:293` dưới dạng `ddqn_net(obs_t, cat_t, mask_t)`.
+- **Verified by:** implementer T0.2 — 2026-06-07
+- **Dùng ở:** thesis section AI/ML — kiến trúc DDQN
+
+### t0.2-forecaster-arch: ForecasterLSTM.forward trả {demand, waste_logit}; ForecasterConfig.obs_dim tồn tại
+- **Evidence:** `dynamic-pricing-final/src/forecaster/model.py:46-49` — `return {"demand": self.demand_head(z).squeeze(-1), "waste_logit": self.waste_head(z).squeeze(-1)}`; `model.py:8-9` — `@dataclass class ForecasterConfig: obs_dim: int = 11` (field đầu tiên); sidecar đọc `cfg.obs_dim` tại `main.py:167` sau khi load checkpoint; sidecar dùng `out["demand"]` và `out["waste_logit"]` tại `main.py:136-137`. ForecasterConfig.obs_dim default=11 nhưng giá trị runtime lấy từ checkpoint dict.
+- **Verified by:** implementer T0.2 — 2026-06-07
+- **Dùng ở:** thesis section AI/ML — kiến trúc Forecaster LSTM
+
+### t0.2-action-space: CANDIDATES (11 phần tử, delta -0.30→+0.20); compute_mask trả (11,) bool
+- **Evidence:** `dynamic-pricing-final/src/rl/reward.py:6-7` — `CANDIDATES = np.linspace(-0.30, 0.20, 11); CANDIDATES[6] = 0.0`; giá trị thực: `[-0.30, -0.25, -0.20, -0.15, -0.10, -0.05, 0.0, 0.05, 0.10, 0.15, 0.20]` (11 phần tử, bước 0.05); `reward.py:61` — `mask = np.ones(11, dtype=bool)` → shape (11,); sidecar dùng tại `main.py:289` `compute_mask(sv.freshness, sv.category)` và `main.py:296` `delta = float(CANDIDATES[action_idx])`. `len(CANDIDATES)==11 == N_ACTIONS`.
+- **Verified by:** implementer T0.2 — 2026-06-07
+- **Dùng ở:** thesis section AI/ML — không gian hành động, chiến lược định giá
+
+> (Còn thiếu — T0.3–T0.10 sẽ nạp: obs 10 chiều + công thức, CoreML 2 loại, luồng backend→sidecar.)
 
 ## Nhóm: Thiết kế CSDL
 
