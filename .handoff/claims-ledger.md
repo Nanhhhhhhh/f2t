@@ -128,4 +128,35 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 - **Verified by:** implementer T0.7 — 2026-06-07
 - **Dùng ở:** kết luận Task 0; thesis section Luồng nghiệp vụ — backend→sidecar integration; thesis section Limitations — train↔serve gap
 
-> (Còn thiếu — T0.8–T0.10 sẽ nạp: integration test, kết luận cuối.)
+### t0.9-fixes: Fix gaps — comp_ratio sửa; RGB/BGR + dow document-only
+
+- **Evidence:**
+
+  **FIX 1 — comp_ratio dim7 (ĐÃ ÁP):**
+  - File sửa: `pricing-sidecar/main.py:108-112`
+  - Trước: `comp_ratio = (competitor_ref_price / base_price) if base_price > 0 else 1.0`
+  - Sau: `current_price = base_price * (1.0 + prev_delta); comp_ratio = competitor_ref_price / max(current_price, 1e-6)`
+  - Evidence env: `dynamic-pricing-final/src/env/market_env.py:134` — `comp_ratio = self._comp_prices[cat] / max(self._prices[cat], 1e-6)` (chia current_price đã áp delta)
+  - Tác động: khi `prev_delta≠0`, comp_ratio cũ lệch; VD `prev_delta=-0.05`, `base=20000`, `comp=19000`: cũ=0.950, mới=1.000
+
+  **FIX 2 — RGB/BGR (DOCUMENT-ONLY — KHÔNG SỬA CODE):**
+  - Thực nghiệm: yellow-green (R=150,G=200,B=60) feed RGB: fresh=`0.9634`; BGR-swap: fresh=`0.1628` — RGB as-is cho kết quả đúng
+  - Red image: RGB: fresh=`0.7956`; BGR-swap: fresh=`0.5128` — khác biệt đáng kể
+  - coremltools 9.0 source (`model.py:1032-1038`): chỉ validate `mode==RGB`, KHÔNG swap channels. colorSpace=BGR là Create ML/Metal artifact, không ảnh hưởng PIL feed
+  - **Kết luận: `.convert("RGB")` ở `main.py:320` là ĐÚNG — model expect RGB**
+
+  **FIX 3 — dow lệch pha (DOCUMENT-ONLY — KHÔNG SỬA CODE):**
+  - `demand_params.json`: sin_weekly/cos_weekly tất cả categories rất nhỏ (max ~0.023). Seasonal factor tối đa ±3.1% (root), herbs=0
+  - Demand formula: `season = 1.0 + sin_w*sin(2π*dow/7) + cos_w*cos(2π*dow/7)` (`demand.py:47`)
+  - Lệch pha tối đa 6 ngày → sai số season factor tối đa ~6.2% — biên độ nhỏ, chấp nhận được
+  - Env không neo lịch (`t%7`, t=0 bất kỳ ngày). Wall-clock weekday hợp lý hơn về ngữ nghĩa thực tế
+  - **Kết luận: lệch pha dow là "lành tính" — KHÔNG SỬA**
+
+  **Re-verify gate:**
+  - pytest: `4 passed in 0.91s` — test_ddqn_loads_and_infers PASSED, test_forecaster_loads_and_infers PASSED, test_coreml_predict[fruit] PASSED, test_coreml_predict[root] PASSED
+  - `/predict` 2 ca (port 8231): ca1 leafy→`{"targetPrice":10000.0,"delta_pct":0.0}` OK; ca2 fruit critical→`{"targetPrice":15000.0,"delta_pct":-25.0,"safety_clipped":true}` OK — không crash sau fix
+
+- **Verified by:** implementer T0.9 — 2026-06-07
+- **Dùng ở:** kết luận Task 0; thesis section Limitations — train↔serve gap (comp_ratio fixed; RGB an toàn; dow lệch pha nhỏ)
+
+> (Còn thiếu — T0.10 sẽ nạp: kết luận cuối.)

@@ -896,7 +896,143 @@ INFO:     Application startup complete.
 4/4 endpoint trả 2xx + payload hợp lệ. Sidecar phục vụ kiến trúc dynamic-pricing-final ở RUNTIME: DDQN masked-argmax pricing + safety clip OK; CoreML freshness OK; forecaster CHẠY nhưng output không đáng tin do lệch T0.4. Background task exit 144 = do controller pkill (SIGTERM), không phải crash.
 
 ## T0.9 — Fix gaps
-_(chưa bắt đầu)_
+
+**Ngày chạy:** 2026-06-07  
+**File sửa:** `/Users/macos/f2t/pricing-sidecar/main.py`
+
+---
+
+### FIX 1 — comp_ratio dim7 (ĐÃ ÁP — NGHIÊM TRỌNG)
+
+**Vấn đề:** `main.py:108` (cũ) dùng `base_price` làm mẫu số:
+```python
+# TRƯỚC (sai):
+comp_ratio = (competitor_ref_price / base_price) if base_price > 0 else 1.0
+```
+Env train (`market_env.py:134`): `comp_ratio = self._comp_prices[cat] / max(self._prices[cat], 1e-6)` — chia cho `self._prices[cat]` là **giá hiện tại sau khi áp delta** (không phải base_price).
+
+**Fix đã áp (`main.py:108-112`):**
+```python
+# SAU (đúng):
+# comp_ratio: env divides by current price (base * (1+prev_delta)), not base_price.
+# market_env.py:134: comp_ratio = self._comp_prices[cat] / max(self._prices[cat], 1e-6)
+# where self._prices[cat] is the current price after applying prev_delta.
+current_price = base_price * (1.0 + prev_delta)
+comp_ratio = competitor_ref_price / max(current_price, 1e-6)
+```
+
+**Lý do:** `prev_delta` đã là tham số của `_build_obs` (param L94). Khi `prev_delta=0.0` (default), fix không thay đổi kết quả; khi `prev_delta≠0` (mọi re-price decision), comp_ratio sẽ khớp đúng với env.
+
+**Ví dụ định lượng:** `base_price=20000`, `competitor_ref_price=19000`, `prev_delta=-0.05`:
+- Trước fix: `comp_ratio = 19000/20000 = 0.950`
+- Sau fix: `current_price = 20000 × 0.95 = 19000`; `comp_ratio = 19000/19000 = 1.000`
+- Khác biệt 5.3% trong obs, nằm trong clip range [0.5, 2.0] → ảnh hưởng trực tiếp đến Q-values DDQN
+
+---
+
+### FIX 2 — RGB/BGR freshness (ĐIỀU TRA → KHÔNG SỬA CODE — DOCUMENT)
+
+**Kết luận điều tra: coremltools KHÔNG tự reorder kênh; tuy nhiên model đã được train trên RGB và cần RGB.**
+
+**Evidence số liệu (chạy thật):**
+
+| Ảnh test | Format feed | `fresh` score (fruit model) | Nhận xét |
+|---|---|---|---|
+| Pure red (255,0,0) | RGB as-is (current) | `0.7956` | Model nhận red = red |
+| Pure red (BGR-corrected: feed blue) | BGR-swap | `0.5128` | Model thấy blue ≠ red → khác |
+| Yellow-green (R=150,G=200,B=60) | RGB as-is (current) | **`0.9634`** | Đúng hành vi: fresh green→fresh score cao |
+| Yellow-green (BGR-corrected: feed blue-ish) | BGR-swap | **`0.1628`** | SAI: blue-ish → rotten score cao |
+| Rotten brown (R=120,G=80,B=100) | RGB as-is | `0.6439` | |
+| Rotten brown (BGR-corrected) | BGR-swap | `0.6023` | ít thay đổi vì B≈R |
+| Green (R=0,G=200,B=0) | RGB as-is | `0.9477` | |
+| Green (BGR-corrected: swap R↔B = no-op for G) | BGR-swap | `0.9477` | Giống hệt — expected (G unaffected) |
+
+**Phân tích coremltools source (`model.py:1032-1038`):**
+```python
+if input_desc.type.imageType.colorSpace in (
+    _proto.FeatureTypes_pb2.ImageFeatureType.BGR,
+    _proto.FeatureTypes_pb2.ImageFeatureType.RGB,
+):
+    if input_val.mode != "RGB":
+        raise TypeError(...)
+```
+coremltools 9.0 chỉ **validate** mode==RGB cho cả BGR và RGB declared models — nó **không swap channels**. PIL Image mode "RGB" được truyền thẳng đến MLModel runtime.
+
+**Kết luận:** `colorSpace=BGR` (raw enum 30) trong spec là artifact của Create ML training pipeline (sử dụng Metal/CoreVideo nội bộ theo BGR byte order trên macOS), nhưng khi Create ML export model ra `.mlmodel` để dùng với coremltools/Python, model đã được train và expect dữ liệu theo thứ tự PIL RGB. Feed yellow-green RGB cho fresh score `0.9634` (hợp lý), BGR-swap cho `0.1628` (sai). **Code hiện tại `.convert("RGB")` là ĐÚNG — KHÔNG SỬA.**
+
+---
+
+### FIX 3 — dow (ĐIỀU TRA → KHÔNG SỬA CODE — DOCUMENT)
+
+**Kết luận điều tra: demand model CÓ seasonality tuần (sin_weekly/cos_weekly) nhưng ảnh hưởng RẤT NHỎ; lệch pha dow không gây tác động nghiêm trọng.**
+
+**Evidence từ `dynamic-pricing-final/data/params/demand_params.json`:**
+
+| category | sin_weekly | cos_weekly | magnitude max |
+|---|---|---|---|
+| leafy | -0.021453 | -0.018568 | ~2.8% swing |
+| root | 0.023284 | -0.021368 | ~3.1% swing |
+| fruit | -0.005355 | -0.014501 | ~1.5% swing |
+| herbs | 0.0 | 0.0 | 0% (no seasonality) |
+
+**Demand rate formula** (`dynamic-pricing-final/src/env/demand.py:47`):
+```python
+season = 1.0 + sin_w * math.sin(2 * math.pi * dow / 7) + cos_w * math.cos(2 * math.pi * dow / 7)
+```
+
+**Obs dim[2] và dim[3]** là `sin(2π·dow/7)` và `cos(2π·dow/7)` — cùng signal với seasonality factor trong demand. Lệch pha:
+- Env train: `dow = self._t % 7` (episode reset t=0 bất kỳ ngày nào, không neo lịch)
+- Sidecar serve: `dow = datetime.now().weekday()` (Monday=0)
+- Lệch pha tối đa = 6 ngày (nếu episode bắt đầu vào Sunday)
+
+**Tác động lệch pha:** Seasonal factor tối đa `|sin_weekly| + |cos_weekly|` ≈ 3.1% (root category). Với lệch pha bất kỳ, sai số trong `season` factor tối đa ≈ `2 × 3.1%` ≈ 6.2%. Đây là **biên độ nhỏ**.
+
+**Convention:** Env không neo lịch (train với `t%7`), nên không có convention "ngày nào = dow=0". Dùng wall-clock weekday thực tế là hợp lý về mặt ý nghĩa (demand thực tế thay đổi theo ngày trong tuần). Sai số pha là acceptable trade-off.
+
+**Kết luận: KHÔNG SỬA — ghi document.** Wall-clock weekday hợp lý hơn arbitrary `t%7`. Ảnh hưởng seasonality < 6.2% và đã được clip. Đây là lệch pha "lành tính".
+
+---
+
+### Re-verify BẮT BUỘC sau fix
+
+**1. pytest (4 tests):**
+```
+cd /Users/macos/f2t/pricing-sidecar && .venv/bin/python -m pytest tests/test_smoke_load.py tests/test_coreml_freshness.py -v
+
+============================= test session starts ==============================
+platform darwin -- Python 3.13.9, pytest-9.0.3, pluggy-1.6.0 -- /Users/macos/f2t/pricing-sidecar/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/macos/f2t/pricing-sidecar
+plugins: anyio-4.9.0
+
+tests/test_smoke_load.py::test_ddqn_loads_and_infers PASSED              [ 25%]
+tests/test_smoke_load.py::test_forecaster_loads_and_infers PASSED        [ 50%]
+tests/test_coreml_freshness.py::test_coreml_predict[MyFreshnessClassifier-fruit.mlmodel] PASSED [ 75%]
+tests/test_coreml_freshness.py::test_coreml_predict[MyFreshnessClassifier-root.mlmodel] PASSED [100%]
+
+4 passed in 0.91s
+```
+→ **PASS 4/4**
+
+**2. /predict 2 ca (sidecar boot port 8231):**
+
+```bash
+# ca 1: leafy, freshness 0.9, prev_delta=0.0 (default)
+curl -s -X POST http://127.0.0.1:8231/predict -H 'Content-Type: application/json' \
+  -d '{"state_vectors":[{"productId":"p1","category":"leafy","freshness":0.9,"inventory_ratio":0.5,"base_price":10000,"competitor_ref_price":11000}]}'
+→ {"overrides":[{"productId":"p1","targetPrice":10000.0,"delta_pct":0.0,"safety_clipped":false,"freshness_tag":"fresh"}]}
+
+# ca 2: fruit, freshness 0.3, prev_delta=-0.05 (FIX 1 kích hoạt)
+# Với fix: current_price = 20000*(1-0.05)=19000; comp_ratio = 19000/19000 = 1.0
+# Trước fix: comp_ratio = 19000/20000 = 0.95 (sai)
+curl -s -X POST http://127.0.0.1:8231/predict -H 'Content-Type: application/json' \
+  -d '{"state_vectors":[{"productId":"p2","category":"fruit","freshness":0.3,"inventory_ratio":1.2,"base_price":20000,"competitor_ref_price":19000,"days_to_restock":5,"prev_delta":-0.05,"demand_7d":14}]}'
+→ {"overrides":[{"productId":"p2","targetPrice":15000.0,"delta_pct":-25.0,"safety_clipped":true,"freshness_tag":"critical"}]}
+```
+
+Cả 2 ca: trả JSON hợp lệ, không crash. Kết quả hợp lý (leafy tươi → HOLD; fruit critical → giảm mạnh, clip safety).
+
+**Trạng thái: DONE**
 
 ## T0.10 — Kết luận + nạp ledger
 _(chưa bắt đầu)_

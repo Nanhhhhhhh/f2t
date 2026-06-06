@@ -17,7 +17,14 @@ Bắt đầu **T0.1** (diff `/Users/macos/dynamic-pricing-v3` ↔ `f2t/dynamic-p
 - Task 0: chưa bắt đầu leaf-task nào (T0.1–T0.10 = pending).
 - Task 1, 2: chưa tới (phiên sau).
 
-## T0.9 fix-backlog (lỗi phát hiện, sửa ở T0.9)
+## T0.9 fix-backlog — ĐÃ XỬ LÝ (xem progress T0.9)
+- #1 comp_ratio: ✅ ĐÃ SỬA code (main.py:108-112) khớp env.
+- #2 forecaster: ⏸️ GIỮ NGUYÊN theo user → document giới hạn ở thesis (T0.10).
+- #3 dim1/5/9: ✅ đã chốt khớp (T0.7), không cần fix.
+- #4 RGB/BGR: ✅ DOCUMENT-ONLY — model train RGB, coremltools không swap; `.convert("RGB")` đúng (evidence: BGR-swap→fresh 0.16 sai).
+- #5 dow: ✅ DOCUMENT-ONLY — demand seasonality tuần biên độ <±3.1%, lệch pha lành tính.
+
+### (lịch sử backlog gốc)
 1. **[obs dim7 comp_ratio] NGHIÊM TRỌNG** — sidecar chia `base_price`, env chia giá hiện hành. Fix: `competitor_ref_price / (base_price * (1 + prev_delta))` (main.py:108). Evidence: market_env.py:134 vs main.py:108.
 2. **[obs dim2/3 dow] lệch pha** — sidecar `datetime.now().weekday()` vs env `self._t % 7`. Cần quyết: bỏ tín hiệu dow ở serve, hay map lại pha. Evidence: market_env.py:132 vs main.py:98.
 3. ~~[obs dim1/5/9] phụ thuộc backend~~ **ĐÃ CHỐT (T0.7):** dim1 `inventory_ratio` khớp y hệt env (`availableQuantity/100`, dynamic-pricing.service.ts:228). dim5/9 công thức khớp; chỉ giá trị `demand_7d` (=forecast.demand7d, service.ts:274) không tin được vì forecaster lệch → quy về #4. KHÔNG cần fix riêng dim1/5/9.

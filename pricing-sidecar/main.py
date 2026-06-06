@@ -105,7 +105,11 @@ def _build_obs(
     demand_ratio = (demand_7d / 7.0) / BASE_DEMAND[category] if demand_7d > 0 else 1.0
     inv_units = inventory_ratio * 100.0
     inv_coverage = inv_units / max(demand_7d, 1.0) if demand_7d > 0 else inv_units / max(BASE_DEMAND[category] * 7, 1.0)
-    comp_ratio = (competitor_ref_price / base_price) if base_price > 0 else 1.0
+    # comp_ratio: env divides by current price (base * (1+prev_delta)), not base_price.
+    # market_env.py:134: comp_ratio = self._comp_prices[cat] / max(self._prices[cat], 1e-6)
+    # where self._prices[cat] is the current price after applying prev_delta.
+    current_price = base_price * (1.0 + prev_delta)
+    comp_ratio = competitor_ref_price / max(current_price, 1e-6)
 
     return np.array([
         float(np.clip(freshness, 0.0, 1.0)),
