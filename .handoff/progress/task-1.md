@@ -12,3 +12,8 @@
 - Freshness: thesis "MobileNetV2, 4 class" vs code 2 CoreML model fruit/root, nhị phân fresh/rotten (ledger t0.6). **SAI.**
 - Recommender: thesis MT3/ĐG2/sidecar 8001 ItemItemCF+Content-Based — CẦN xác minh f2t-backend có recommender thật không.
 - Sidecar topology: thesis 3 sidecar (8000/8001/8002) vs Task 0 thấy 1 pricing-sidecar (8000) phục vụ predict/forecast/freshness — CẦN xác minh.
+
+## T1.2 — convert thesis_A46489.docx → thesis_old.md ✅ (tham khảo)
+- Lệnh: `pandoc "/Users/macos/Downloads/thesis_A46489.docx" -f docx -t gfm --wrap=none --extract-media=...`.
+- Kết quả: `docs/thesis/thesis_old.md` 1864 dòng, 85 heading `#`, 92 dòng in-đậm, 1 media dir. Đã thêm banner ⚠️ THAM KHẢO đầu file.
+- Lưu ý: file landed ở repo root do cwd, đã `mv` về `docs/thesis/`. Đây là bản thesis CŨ đầy đủ prose — chỉ tham khảo, KHÔNG tin, KHÔNG sửa.
