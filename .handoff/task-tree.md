@@ -49,11 +49,11 @@ Plan: `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md`. Đầu ra:
 | T2.3a-g | 23 diagram PlantUML (ERD/deploy/FDD/usecase/SD×9/AD×4/net×2/business×2) | sonnet | T2.2 | done (verify đối kháng PASS, fix erd referenceId String) |
 | T2.4-T2.5 | Chương 1 GIỚI THIỆU prose | sonnet | T2.3 | done (verify PASS, 15 cit) |
 | T2.6-T2.11 | Chương 2 CƠ SỞ LÝ THUYẾT prose (§2.4 AI/ML ⭐) | sonnet | T2.3 | done (verify PASS, §2.4 resolve source) |
-| T2.12-T2.16 | Chương 3 phần 1: §3.1-§3.3.6 (nghiệp vụ+kiến trúc+UC+SD+AD) | sonnet | T2.3 | ⏳ NEXT |
-| T2.17-T2.19 ⭐ | Chương 3: §3.3.7 a/b/c AI/ML (2-lớp) | sonnet | T2.16 | pending |
-| T2.20-T2.21 ⭐ | Chương 3: §3.4 CSDL (ERD+10 collection+index, 2-lớp) | sonnet | T2.16 | pending |
-| T2.22 | Chương 3: §3.5 giao diện | sonnet | T2.16 | pending |
-| T2.23-T2.28 | Chương 4 TRIỂN KHAI (§4.4.2/3/4 eval AI/ML ⭐, không bịa số) | sonnet | T2.22 | pending |
+| T2.12-T2.16 | Chương 3 phần 1: §3.1-§3.3.6 (nghiệp vụ+kiến trúc+UC+SD+AD) | sonnet | T2.3 | done (verify PASS; fix GHN/cron/port+Redis trung thực) |
+| T2.17-T2.19 ⭐ | Chương 3: §3.3.7 a/b/c AI/ML (2-lớp) | sonnet | T2.16 | done (verify 2-lớp PASS; obs_dim=10 tile-21×; Safety 3→4→1→2→5; 9/9 hyperparam) |
+| T2.20-T2.21 ⭐ | Chương 3: §3.4 CSDL (ERD+10 collection+index, 2-lớp) | sonnet | T2.16 | done (verify 2-lớp PASS; 10 collection resolve 10 schema; orders 3 single index) |
+| T2.22 | Chương 3: §3.5 giao diện | sonnet | T2.16 | done (verify PASS; Consumer 0 recommender; Farm quét tươi+gợi ý giá thật) |
+| T2.23-T2.28 | Chương 4 TRIỂN KHAI (§4.4.2/3/4 eval AI/ML ⭐, không bịa số) | sonnet | T2.22 | ⏳ NEXT |
 | T2.29-T2.30 | Chương 5 (3 giới hạn bắt buộc ⭐) + TLTK IEEE | sonnet | T2.28 | pending |
 | T2.V | Verify toàn văn độc lập → VERIFY-REPORT.md | sonnet/controller | T2.30 | pending |
 
