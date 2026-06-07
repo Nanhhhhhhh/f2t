@@ -3,7 +3,11 @@
 > Cập nhật mục "Việc tiếp theo" + commit TRƯỚC khi kết thúc mỗi phiên.
 
 ## Phase hiện tại
-**Task 0 addendum đang chạy: RETRAIN forecaster obs_dim=10 (T0.11–T0.13).** User reopened — yêu cầu fix forecaster nếu được.
+**Task 0 ✅ DONE (gồm addendum retrain T0.11–T0.13) + Task 1 ✅ DONE. Việc tiếp theo = TASK 2.**
+
+> Cập nhật 2026-06-07: forecaster đã retrain obs_dim=10 (T0.13, checkpoint model_cfg obs_dim=10) — layout mismatch 11≠10 HẾT, chỉ còn giới hạn serve tile-21×. Task 1 đã convert+fact-check `docs/thesis/dany.md` trung thực 100% với code (xem `docs/thesis/dany.verify-report.md`).
+
+### (Lịch sử) Task 0 addendum retrain — đã xong
 - Quyết định: retrain forecaster trên env-10 hiện tại (fix layout 11≠10 + version skew). Tiling-21× VẪN còn (cần backend history → document). Freshness leafy/herbs + dow KHÔNG fix được (thiếu data / vô nghĩa).
 - Backup an toàn: `dynamic-pricing-final/_backup_obs11/` (checkpoint + parquet obs11) — KHÔNG commit, để revert.
 - T0.11 regen data: ĐANG CHẠY (scripts/generate_data.py, venv sidecar, cwd=dynamic-pricing-final, log $CLAUDE_JOB_DIR/tmp/gendata.log).
@@ -24,11 +28,15 @@
 Sidecar phục vụ dynamic-pricing-final: **định giá `/predict` trung thực** (sau fix comp_ratio), **dự báo `/forecast` có giới hạn** (forecaster train↔serve mismatch, giữ nguyên theo user → document trong thesis), freshness OK. Backend gửi đủ 9 field. Code fix: `pricing-sidecar/main.py` comp_ratio. Test mới: `tests/test_smoke_load.py`, `tests/test_coreml_freshness.py`.
 
 ## Việc tiếp theo
-Bắt đầu **Task 1** (T1.1: convert `~/Downloads/dany.docx` → `docs/thesis/dany.md` bằng pandoc, giữ outline). Xem plan: cần viết plan Task 1 (chưa có — mới có plan Task 0). Đề xuất: dùng writing-plans cho Task 1, hoặc dispatch T1.1/T1.2 (convert, cơ học) trước rồi audit. Nhớ: 3 giới hạn ở ledger `t0.10-thesis-limitations` PHẢI vào thesis.
+Bắt đầu **TASK 2** — viết khoá luận hoàn chỉnh từ `docs/thesis/dany.md` (đã fact-check ở Task 1). Quy trình: writing-plans cho Task 2 → subagent-driven-development. Bắt đầu T2.1 (dàn ý đầy đủ từ dany.md), T2.2 (fact-pack CSDL/AI-ML/luồng → ledger), T2.3 (diagram PlantUML), rồi nở T2.4…N viết từng chương + fact-check, cuối cùng T2.V verify toàn văn.
+- INPUT chính: `docs/thesis/dany.md` (dàn-ý đã đúng + citation inline), `docs/thesis/dany.audit.md`, `docs/thesis/dany.verify-report.md`, `.handoff/claims-ledger.md` (tái dùng evidence).
+- BẮT BUỘC giữ 3 giới hạn `t0.10-thesis-limitations` (forecaster tile-21× steady-state [obs_dim=10, KHÔNG còn layout mismatch], dow <6.2%, freshness 2/4 model).
+- Ràng buộc: chân thực 100% với code; ưu tiên CSDL/AI-ML/diagram; tiếng Việt; diagram PlantUML; KHÔNG đụng dynamic-pricing-final/ (chỉ đọc).
 
 ## Task đang mở
-- Task 0: ✅ done toàn bộ.
-- Task 1, 2: chưa bắt đầu (phiên sau).
+- Task 0: ✅ done toàn bộ (gồm retrain obs_dim=10).
+- Task 1: ✅ done toàn bộ (T1.1–T1.V + sync post-retrain). dany.md trung thực với code.
+- Task 2: ⏳ chưa bắt đầu — là việc tiếp theo.
 
 ## T0.9 fix-backlog — ĐÃ XỬ LÝ (xem progress T0.9)
 - #1 comp_ratio: ✅ ĐÃ SỬA code (main.py:108-112) khớp env.
