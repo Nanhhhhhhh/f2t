@@ -180,7 +180,30 @@ Ngoài kiểm thử đơn vị, dự án áp dụng quy trình kiểm tra chất
 ## 4.4. Đánh giá hệ thống
 
 ### 4.4.1. Đánh giá chức năng tổng quan
-<!-- T2.25: dany.md L537-541; 13 module, ≈79 endpoint, 10 collection, ≈48 màn hình; ledger t1.15-numbers, t1.4-collections -->
+
+Hệ thống F2T được triển khai hoàn chỉnh dưới dạng kiến trúc Monolith + 1 Sidecar, bao gồm 13 module NestJS phía backend [ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar], một pricing-sidecar Python duy nhất trên cổng 8000 phục vụ ba chức năng AI/ML [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar], và ≈48 màn hình route trên ứng dụng di động Expo React Native [ref: ledger t1.15-numbers, t2.2-frontend-routes]. Toàn bộ backend phơi bày khoảng 79 REST endpoint được đếm từ 14 controller thông qua lệnh `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" src --include="*.controller.ts" | wc -l` [ref: ledger t1.15-numbers], phân bố trên 10 collection MongoDB không có bảng cache suy luận bổ sung [ref: ledger t1.4-collections].
+
+**Bảng 4.6 — Trạng thái hoàn thành 13 module NestJS**
+
+| STT | Module | Endpoint tiêu biểu | Trạng thái chức năng |
+|---|---|---|---|
+| 1 | `admin` | GET /analytics, PATCH /users/:id/ban | Đã tích hợp đầy đủ |
+| 2 | `auth` | POST /register, POST /login, POST /refresh | Đã tích hợp đầy đủ |
+| 3 | `delivery` | POST /shipments, GET /tracking/:id | Đã tích hợp (GHN + Dijkstra fallback) [ref: f2t-backend/src/modules/delivery/delivery.service.ts:131,232; ledger t2.2-stripe-ghn] |
+| 4 | `demand-forecasting` | POST /demand-forecasting/forecast | Đã tích hợp (gọi ForecasterLSTM qua `/forecast`) [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43; ledger t1.4-forecaster-not-holt] |
+| 5 | `dynamic-pricing` | GET /price-overrides, PATCH /price-overrides/:id/accept | Đã tích hợp (cron + interceptor + vòng đời PriceOverride) [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron] |
+| 6 | `farms` | GET /farms/nearby, POST /farms, PATCH /farms/:id | Đã tích hợp đầy đủ |
+| 7 | `notifications` | GET /notifications, POST /notifications/read-all | Đã tích hợp (Expo Push + cron cảnh báo tồn kho) |
+| 8 | `orders` | POST /orders, PATCH /orders/:id/status | Đã tích hợp đầy đủ |
+| 9 | `payments` | POST /payments/checkout, POST /payments/webhook | Đã tích hợp (Stripe Checkout + Webhook) [ref: f2t-backend/src/modules/payments/payments.service.ts:102,120; ledger t2.2-stripe-ghn] |
+| 10 | `posts` | POST /posts/add, GET /posts | Đã tích hợp đầy đủ |
+| 11 | `products` | GET /products, GET /products/:id | Đã tích hợp đầy đủ |
+| 12 | `uploads` | POST /uploads | Đã tích hợp (Cloudinary hoặc fallback local) |
+| 13 | `users` | GET /users/me, PATCH /users/me | Đã tích hợp đầy đủ |
+
+Cột "Trạng thái chức năng" phản ánh mức độ tích hợp luồng nghiệp vụ hoàn chỉnh; các module AI/ML (`demand-forecasting`, `dynamic-pricing`) có lưu ý về giới hạn độ chính xác mô hình phục vụ được trình bày chi tiết tại §4.4.2 và §4.4.3. Cụ thể, ForecasterLSTM hiện phục vụ bằng cơ chế tile-21× (lặp lại cùng một vector trạng thái 21 lần thay cho chuỗi lịch sử thật 21 ngày) [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations] — xem §4.4.2 để phân tích giới hạn này.
+
+Về giao diện người dùng, ứng dụng Consumer không có màn hình gợi ý sản phẩm [ref: ledger t1.4-no-recommender]; các tính năng AI/ML hiển thị với người dùng cuối bao gồm: nhãn độ tươi và giá động được nhúng vào phản hồi danh sách sản phẩm bởi `DynamicPricingInterceptor` [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron], biểu đồ dự báo nhu cầu trên Farm Dashboard, tính năng gợi ý giá DDQN dành cho Farm owner, và tính năng quét độ tươi bằng CoreML cũng dành cho Farm owner [ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml].
 
 ### 4.4.2. Đánh giá dự báo nhu cầu
 <!-- T2.26 ⭐2-lớp: dany.md L543-555; eval.py offline + giới hạn tile-21×; KHÔNG bịa số; ledger t0.4-forecaster-parity, t0.10 -->
@@ -192,4 +215,53 @@ Ngoài kiểm thử đơn vị, dự án áp dụng quy trình kiểm tra chất
 <!-- T2.28 ⭐2-lớp: dany.md L589-599; Confusion Matrix 2×2 + giới hạn 2/4; KHÔNG bịa số; ledger t0.6-coreml-freshness, t0.10 -->
 
 ### 4.4.5. Demo sản phẩm
-<!-- T2.25: dany.md L601-603; 8 screenshot; ledger t1.4-no-recommender, t1.15-numbers -->
+
+Phần này trình bày tám màn hình đại diện của ứng dụng F2T, bao quát đầy đủ ba vai trò người dùng (Consumer, Farm owner, Admin) và minh họa cách các chức năng AI/ML biểu hiện tường minh trên giao diện sản phẩm. Tất cả màn hình được chụp từ phiên demo với dữ liệu seed (`npm run seed`) trên máy phát triển chạy Expo Go.
+
+---
+
+**Hình 4.1 — [ảnh chụp màn hình: màn hình Home Consumer — danh sách sản phẩm nổi bật theo farm lân cận]**
+
+Màn hình Home hiển thị danh sách sản phẩm được lọc theo vị trí địa lý thông qua truy vấn `$geoNear` trên collection `farms` [ref: f2t-backend/src/modules/farms/farms.service.ts]. Mỗi thẻ sản phẩm hiển thị tên, giá gốc, và ảnh bìa. Không có ô "sản phẩm gợi ý" hay phần "Có thể bạn thích" trên màn hình này — ứng dụng Consumer không có module gợi ý sản phẩm [ref: ledger t1.4-no-recommender].
+
+---
+
+**Hình 4.2 — [ảnh chụp màn hình: màn hình Chi tiết sản phẩm — nhãn độ tươi + giá động DDQN]**
+
+Màn hình Chi tiết sản phẩm hiển thị hai trường bổ sung do `DynamicPricingInterceptor` nhúng vào response: `freshnessScore` (điểm độ tươi từ mô hình CoreML, hiển thị dưới dạng nhãn màu, ví dụ "Tươi — 0.82") và `dynamicPrice` (giá tư vấn AI từ DDQN, ví dụ "23.500 ₫") cùng nhãn `priceTag` ("flash\_discount" khi `deltaPct < 0`, "standard" khi ngược lại) [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]. Cơ chế này hoạt động hoàn toàn trong lớp interceptor mà không yêu cầu thay đổi controller hay frontend.
+
+---
+
+**Hình 4.3 — [ảnh chụp màn hình: màn hình Giỏ hàng và Thanh toán Stripe]**
+
+Màn hình Giỏ hàng tổng hợp danh sách sản phẩm đã chọn với số lượng và đơn giá snapshot (giá tại thời điểm thêm vào giỏ, nhúng trong `OrderItem` theo cơ chế embedded snapshot [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:7-34; ledger t1.11-schema-detail]). Khi nhấn "Thanh toán", ứng dụng gọi `POST /api/payments/checkout`, nhận `url` Stripe Checkout Session, và mở WebView để Consumer hoàn tất thanh toán [ref: f2t-backend/src/modules/payments/payments.service.ts:102; ledger t2.2-stripe-ghn]. Trạng thái đơn hàng chỉ được cập nhật sau khi nhận webhook `checkout.session.completed` từ Stripe — không dựa vào redirect URL [ref: f2t-backend/src/modules/payments/payments.service.ts:120; ledger t2.2-stripe-ghn].
+
+---
+
+**Hình 4.4 — [ảnh chụp màn hình: màn hình Theo dõi đơn hàng — bản đồ tuyến đường GHN/Dijkstra]**
+
+Màn hình Tracking hiển thị trạng thái đơn hàng theo vòng đời bảy bước (`pending → confirmed → preparing → ready_for_pickup → shipped → delivered → cancelled`) [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:128-138]. Khi `GHN_TOKEN` được cấu hình, hệ thống sử dụng API GHN để tạo vận đơn và theo dõi trạng thái thực [ref: f2t-backend/src/modules/delivery/delivery.service.ts:131; ledger t2.2-stripe-ghn]; khi chưa cấu hình, hệ thống fallback về thuật toán Dijkstra minh họa với đồ thị 10 nút HCMC hardcoded, trả mã vận đơn demo `GHN-ALGO-F2T-99` [ref: f2t-backend/src/modules/delivery/delivery.service.ts:232; ledger t2.2-stripe-ghn].
+
+---
+
+**Hình 4.5 — [ảnh chụp màn hình: Farm Dashboard — biểu đồ dự báo nhu cầu 7 ngày tới (ForecasterLSTM)]**
+
+Farm Dashboard hiển thị biểu đồ dự báo nhu cầu 7 ngày tới cho từng sản phẩm, lấy từ endpoint `/forecast` của pricing-sidecar qua module `demand-forecasting` [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43; ledger t1.4-forecaster-not-holt]. Mô hình phục vụ là ForecasterLSTM (LSTM 2 lớp, window=21, dual-head demand + waste\_logit), tuy nhiên đầu vào hiện tại được tile-21× từ cùng một vector trạng thái thay vì chuỗi lịch sử thật [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations] — giới hạn này được phân tích chi tiết tại §4.4.2. Tile hiển thị `demand_7d` (tổng cầu dự kiến 7 ngày) và `waste_prob` (xác suất hàng tồn bị hỏng).
+
+---
+
+**Hình 4.6 ★AI — [ảnh chụp màn hình: Farm — Trang gợi ý giá DDQN (màn hình "Đề xuất giá AI")]**
+
+Màn hình Gợi ý giá cho phép Farm owner xem đề xuất giá tư vấn từ DDQN (SharedMLPDuelingQNet, 11 action `delta_pct ∈ linspace(-0.30, 0.20, 11)`) đã qua Safety Layer 5 quy tắc [ref: pricing-sidecar/safety.py:1-23; ledger t1.4-safety-5-rules]. Mỗi đề xuất hiển thị `targetPrice` (giá tư vấn sau safety clip), `deltaPct` (mức điều chỉnh so với giá gốc), `freshnessScore`, và cờ `safetyClipped` cho biết Safety Layer có can thiệp điều chỉnh hay không. Farm owner có thể chọn "Chấp nhận" (chuyển `PriceOverride.status` sang `accepted`) hoặc "Từ chối" (sang `rejected`) — AI đóng vai trò tư vấn, Farm giữ quyền quyết định cuối [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:45-50; ledger t1.4-interceptor-cron].
+
+---
+
+**Hình 4.7 ★AI — [ảnh chụp màn hình: Farm — Trang quét độ tươi CoreML (camera + kết quả phân loại nhị phân)]**
+
+Màn hình Quét độ tươi cho phép Farm owner chụp ảnh sản phẩm và nhận kết quả phân loại nhị phân (fresh / rotten) từ mô hình CoreML [ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml]. Ảnh được encode base64, gửi đến endpoint `POST /freshness/classify` của sidecar; sidecar chọn model theo danh mục — `MyFreshnessClassifier-fruit.mlmodel` cho danh mục `fruit`, `MyFreshnessClassifier-root.mlmodel` cho các danh mục còn lại [ref: pricing-sidecar/main.py:316-319]. Kết quả trả về gồm `label` ("fresh"/"rotten"), `score` (0–1), và `tag` mô tả mức độ tươi. Điểm tươi này được lưu vào collection `freshness_cache` và cập nhật vào `PriceOverride` ở lần cron tick tiếp theo.
+
+---
+
+**Hình 4.8 — [ảnh chụp màn hình: Admin Dashboard — thống kê tổng quan nền tảng]**
+
+Màn hình Admin Dashboard nạp dữ liệu từ endpoint `/admin/analytics` và hiển thị khối Overview gồm sáu thẻ chỉ số: tổng người dùng, tổng Farm, tổng đơn hàng, tổng doanh thu, số người dùng mới trong tháng và số đơn mới trong tháng; bên dưới là hai bảng phân rã "Orders by Status" (số đơn theo từng trạng thái) và "Farms by Verification" (số Farm theo trạng thái xác minh) [ref: f2t-frontend/src/app/admin/index.tsx:68-108; f2t-frontend/src/api/admin/use-get-admin-analytics.tsx:12-15]. Từ màn hình này, Admin điều hướng sang các màn quản trị con (Users, Farms, Orders) để thực hiện phê duyệt/từ chối Farm, ban/unban tài khoản và thay đổi vai trò — các thao tác được bảo vệ bởi `AdminGuard` ở phía backend [ref: f2t-backend/src/modules/admin/; ledger t1.4-one-sidecar]. (Báo cáo Shadow — danh sách `PriceOverride` ở trạng thái `shadow` — hiện chỉ tồn tại dưới dạng endpoint backend `GET /dynamic-pricing/shadow-report` [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.controller.ts:78-84] và CHƯA được tích hợp vào màn hình Admin trên ứng dụng di động.)

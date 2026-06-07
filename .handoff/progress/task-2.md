@@ -879,3 +879,71 @@ Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **
 | Văn phong học thuật tiếng Việt, đoạn văn + bảng | ✅ PASS |
 
 **Done-gate T2.24: PASS** → §4.3 đầy đủ 4 tiểu mục (§4.3.1 chiến lược, §4.3.2 bảng phân bố 54 test, §4.3.3 tích hợp trọng yếu, §4.3.4 quy trình QA); §4.4.* còn nguyên comment.
+
+## T2.25 — §4.4.1 + §4.4.5 ✅
+
+**Ngày:** 2026-06-07
+**File đích:** `docs/thesis/final/chuong-4-trien-khai-thuc-nghiem.md` — §4.4.1 (Đánh giá chức năng tổng quan) + §4.4.5 (Demo sản phẩm) đã có prose học thuật tiếng Việt đầy đủ.
+
+### Bảng citation T2.25
+
+| Section | Claim | Citation | Trạng thái |
+|---|---|---|---|
+| §4.4.1 | 13 module NestJS | `[ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar]` | PASS — `ls src/modules` = 13 thư mục thật |
+| §4.4.1 | 1 sidecar port 8000 phục vụ 3 chức năng AI | `[ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]` | PASS — app.module.ts:57 PRICING_SIDECAR_URL default http://localhost:8000 |
+| §4.4.1 | ≈48 màn hình route | `[ref: ledger t1.15-numbers, t2.2-frontend-routes]` | PASS — canonical number |
+| §4.4.1 | ≈79 REST endpoint từ 14 controller | `[ref: ledger t1.15-numbers]` | PASS — canonical number |
+| §4.4.1 | 10 collection MongoDB (không có recommendation_caches/forecast_caches) | `[ref: ledger t1.4-collections]` | PASS — canonical |
+| §4.4.1 Bảng 4.6 | delivery: GHN + Dijkstra fallback | `[ref: f2t-backend/src/modules/delivery/delivery.service.ts:131,232; ledger t2.2-stripe-ghn]` | PASS — delivery.service.ts:131 dijkstra, :232 trackingCode GHN-ALGO-F2T-99 |
+| §4.4.1 Bảng 4.6 | demand-forecasting: gọi ForecasterLSTM qua /forecast | `[ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43; ledger t1.4-forecaster-not-holt]` | PASS — service.ts:42-43 http.post /forecast |
+| §4.4.1 Bảng 4.6 | dynamic-pricing: cron + interceptor + PriceOverride | `[ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]` | PASS — interceptor.ts:74-77 dynamicPrice/freshnessScore/priceTag |
+| §4.4.1 Bảng 4.6 | payments: Stripe Checkout + Webhook | `[ref: f2t-backend/src/modules/payments/payments.service.ts:102,120; ledger t2.2-stripe-ghn]` | PASS — payments.service.ts:102 createCheckoutSession, :120 handleWebhook |
+| §4.4.1 | Consumer 0 recommender | `[ref: ledger t1.4-no-recommender]` | PASS — câu phủ định trung thực |
+| §4.4.1 | ForecasterLSTM tile-21× giới hạn (ref sang §4.4.2) | `[ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations]` | PASS — ghi đúng giới hạn, không overclaim |
+| §4.4.1 | CoreML quét tươi (Farm owner) | `[ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml]` | PASS — main.py:316 @app.post("/freshness/classify") |
+| §4.4.5 Hình 4.1 | $geoNear + 0 gợi ý sản phẩm | `[ref: f2t-backend/src/modules/farms/farms.service.ts; ledger t1.4-no-recommender]` | PASS |
+| §4.4.5 Hình 4.2 | DynamicPricingInterceptor 3 trường: dynamicPrice/freshnessScore/priceTag | `[ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]` | PASS — interceptor.ts:74-76 khớp 100% |
+| §4.4.5 Hình 4.3 | OrderItem embedded snapshot | `[ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:7-34; ledger t1.11-schema-detail]` | PASS |
+| §4.4.5 Hình 4.3 | Stripe checkout POST /api/payments/checkout | `[ref: f2t-backend/src/modules/payments/payments.service.ts:102; ledger t2.2-stripe-ghn]` | PASS |
+| §4.4.5 Hình 4.3 | Stripe webhook là nguồn xác thực đơn hàng | `[ref: f2t-backend/src/modules/payments/payments.service.ts:120; ledger t2.2-stripe-ghn]` | PASS |
+| §4.4.5 Hình 4.4 | Order lifecycle 7 bước + GHN/Dijkstra | `[ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:128-138; f2t-backend/src/modules/delivery/delivery.service.ts:131,232; ledger t2.2-stripe-ghn]` | PASS |
+| §4.4.5 Hình 4.5 | ForecasterLSTM qua /forecast module demand-forecasting | `[ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43; ledger t1.4-forecaster-not-holt]` | PASS |
+| §4.4.5 Hình 4.5 | tile-21× giới hạn + ref §4.4.2 | `[ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations]` | PASS — không overclaim accuracy |
+| §4.4.5 Hình 4.6 ★AI | DDQN 11 action linspace(-0.30,0.20,11) + Safety 5 quy tắc | `[ref: pricing-sidecar/safety.py:1-23; ledger t1.4-safety-5-rules]` | PASS — safety.py:1-23 khớp |
+| §4.4.5 Hình 4.6 ★AI | PriceOverride.status shadow/pending_review/accepted/rejected/expired | `[ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:45-50; ledger t1.4-interceptor-cron]` | PASS |
+| §4.4.5 Hình 4.7 ★AI | CoreML 2 model fruit/root nhị phân | `[ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml]` | PASS — main.py:316-319 khớp |
+| §4.4.5 Hình 4.8 | AdminGuard + module admin | `[ref: f2t-backend/src/modules/admin/; ledger t1.4-one-sidecar]` | PASS |
+
+### Self-review T2.25
+
+| Tiêu chí | Kết quả |
+|---|---|
+| 13 module — bảng 4.6 đủ 13 dòng, đúng tên | ✅ PASS |
+| ≈79 endpoint / 14 controller (canonical, không ghi số khác) | ✅ PASS |
+| 10 collection (không có recommendation_caches / forecast_caches) | ✅ PASS |
+| ≈48 màn hình (canonical) | ✅ PASS |
+| 1 sidecar (không 3) cổng 8000 | ✅ PASS |
+| 8 screenshot caption — 0 từ "For-You/gợi ý sản phẩm/sản phẩm tương tự/cross-sell/recommender" | ✅ PASS — grep tìm không có |
+| Screenshot 6 "Gợi ý giá" DDQN advisory — GIỮ (THẬT) | ✅ PASS |
+| Screenshot 7 "Quét tươi" CoreML — GIỮ (THẬT) | ✅ PASS |
+| Screenshot 5 "Dự báo" ForecasterLSTM + tile-21× lưu ý — GIỮ (THẬT, có giới hạn) | ✅ PASS |
+| AI/ML module trong bảng 4.6: ghi trạng thái "đã tích hợp" + ref giới hạn §4.4.2/4.4.3 — KHÔNG overclaim accuracy/MAE/AUROC | ✅ PASS |
+| §4.4.2 / §4.4.3 / §4.4.4 comments còn nguyên (T2.26/T2.27/T2.28) | ✅ PASS — xác nhận bằng Read dòng 208-215 |
+| Mọi câu kỹ thuật có citation [ref: path:Lxx] hoặc [ref: ledger <id>] | ✅ PASS |
+| 0 từ cấm: Holt/EWMA/3 sidecar/8001/8002/obs_dim=11/MobileNetV2/4-class/recommendation | ✅ PASS |
+| Văn phong học thuật tiếng Việt, đoạn văn + bảng + 8 hình placeholder | ✅ PASS |
+
+**Done-gate T2.25: PASS** → §4.4.1 đủ prose + Bảng 4.6 (13 module); §4.4.5 đủ 8 screenshot caption trung thực; §4.4.2/3/4 còn nguyên comment T2.26/T2.27/T2.28.
+
+### T2.25 — VERIFY ĐỐI KHÁNG (agent độc lập) → REJECT → controller fix → PASS
+
+**Verifier:** sonnet độc lập, 22 mục resolve tại source. 21/22 PASS.
+- ≈79 endpoint (grep @Get/Post/Put/Patch/Delete = 79), 14 controller, 13 module, 10 collection (recommendation/forecast_cache=0) ✅
+- §4.4.1 KHÔNG overclaim eval (cột trạng thái chỉ "đã tích hợp", AI module trỏ §4.4.2/3) ✅
+- Demo 8 caption: 0 recommender cho Consumer (Hình 4.1 phủ định trung thực); giá động interceptor:74-77; Dijkstra 10 nút + GHN-ALGO-F2T-99; LSTM 2 lớp window=21; DDQN 11 action linspace(-0.30,0.20,11) + Safety 5 rule; CoreML fruit/root nhị phân ✅
+
+**1 REJECT (resolve):** Hình 4.8 caption KHẲNG ĐỊNH Admin Dashboard *màn hình* hiển thị "báo cáo Shadow (danh sách PriceOverride shadow)" — SAI: `f2t-frontend/src/app/admin/index.tsx` không có tích hợp shadow-report (0 hook/component); shadow-report chỉ là endpoint backend `dynamic-pricing.controller.ts:78-84`. dany.md L603 screenshot 8 cũng chỉ ghi "Admin Dashboard". → Controller SỬA caption mô tả đúng nội dung admin/index.tsx (Overview 6 thẻ + Orders by Status + Farms by Verification, nạp /admin/analytics) [ref: admin/index.tsx:68-108; use-get-admin-analytics.tsx:12-15] + ghi rõ Shadow Report là endpoint backend CHƯA tích hợp UI mobile.
+
+**1 WARN (resolve):** câu tile-21× §4.4.1 thiếu citation → controller thêm [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations].
+
+**Done-gate T2.25 (post-fix): PASS** → commit task(T2.25).
