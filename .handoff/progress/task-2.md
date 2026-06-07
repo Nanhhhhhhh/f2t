@@ -837,3 +837,45 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 | Văn phong học thuật tiếng Việt, đoạn văn liền mạch + bảng cho phần cứng/thư viện/seed | ✅ PASS |
 
 **Done-gate T2.23: PASS** → §4.1+§4.2.1+§4.2.2+§4.2.3 đầy đủ prose, §4.3/§4.4.* còn nguyên comment.
+
+---
+
+## T2.24 — §4.3 Kiểm thử ✅
+
+**Ngày:** 2026-06-07
+**File đích:** `docs/thesis/final/chuong-4-trien-khai-thuc-nghiem.md` — comment `<!-- T2.24: ... -->` đã thay bằng prose §4.3.1–§4.3.4.
+
+### Phương pháp đếm spec
+
+Đếm trực tiếp từ mã nguồn bằng hai lệnh:
+1. `find /Users/macos/f2t/f2t-backend/src -name "*.spec.ts" | sort` → 21 tệp spec
+2. `grep -cE "^\s+(it|test)\(" <mỗi-file>` → tổng 54 test case
+
+Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **resolve tại nguồn** — không tái dùng từ bộ nhớ.
+
+### Bảng citation T2.24
+
+| Claim | Citation | Trạng thái |
+|---|---|---|
+| 54/54 test case PASS | [ref: ledger t1.15-numbers; f2t-backend/src/**/*.spec.ts — đếm trực tiếp] | PASS — đếm thật 54 |
+| 21 tệp spec | [ref: f2t-backend/src/modules/*/*.spec.ts; f2t-backend/src/app.controller.spec.ts; f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.spec.ts] | PASS — liệt kê 21 file thật |
+| Jest + mongodb-memory-server | [ref: CLAUDE.md — quy ước test] | PASS |
+| Stripe webhook: 7 case (createCheckoutSession×4 + handleWebhook×3) | [ref: f2t-backend/src/modules/payments/payments.service.spec.ts; payments.service.ts:120-138; ledger t2.2-stripe-ghn] | PASS — đọc spec thật, đếm 7 `it(` |
+| GHN + Dijkstra: 7 case phân 3 nhóm (createShipment×2, handleGhnWebhook×2, getTracking×3) | [ref: f2t-backend/src/modules/delivery/delivery.service.spec.ts; delivery.service.ts:98,131,232; ledger t2.2-stripe-ghn] | PASS — đọc spec thật, đếm 7 `it(` |
+| DynamicPricingInterceptor: 6 case | [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.spec.ts] | PASS — đếm 6 `it(` |
+| pnpm check-all = lint + tsc --noemit + test | [ref: f2t-frontend/package.json scripts; CLAUDE.md] | PASS (ghi là quy trình mục tiêu CI, KHÔNG khẳng định kết quả đã đo) |
+
+### Self-review T2.24
+
+| Tiêu chí | Kết quả |
+|---|---|
+| Con số test = 54/54 (21 spec) — đúng canonical | ✅ PASS |
+| KHÔNG khẳng định "tsc 0 lỗi đã verify" — chỉ mô tả quy trình/mục tiêu CI | ✅ PASS — dùng "đặt mục tiêu CI là..." |
+| Số case Stripe và Delivery lấy từ đọc spec thật (KHÔNG từ dany.md con số "7 cases"/"4 cases") | ✅ PASS — payments: 7 case, delivery: 7 case (dany.md ghi "4 cases" cho delivery là không chính xác, đếm thật = 7; không dùng con số dany.md) |
+| §4.1, §4.2.* không bị chỉnh sửa | ✅ PASS |
+| §4.4.* còn nguyên comment | ✅ PASS |
+| 0 từ cấm (recommender/Holt/EWMA/3 sidecar/8001/8002/obs_dim=11) | ✅ PASS |
+| Mọi câu kỹ thuật có citation inline | ✅ PASS |
+| Văn phong học thuật tiếng Việt, đoạn văn + bảng | ✅ PASS |
+
+**Done-gate T2.24: PASS** → §4.3 đầy đủ 4 tiểu mục (§4.3.1 chiến lược, §4.3.2 bảng phân bố 54 test, §4.3.3 tích hợp trọng yếu, §4.3.4 quy trình QA); §4.4.* còn nguyên comment.

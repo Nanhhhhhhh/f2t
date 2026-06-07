@@ -125,7 +125,57 @@ Các tài khoản Farm được tạo bằng vòng lặp `for (let i = 1; i <= 3
 Tất cả mật khẩu seed được băm bằng bcrypt với `saltRounds=10` [ref: f2t-backend/src/modules/users/users.service.ts:18; ledger t2.2-security] trước khi lưu vào MongoDB, đảm bảo tính nhất quán với cơ chế bảo mật của hệ thống sản xuất.
 
 ## 4.3. Kiểm thử
-<!-- T2.24: dany.md L525-533; 54/54 test; ledger t1.15-numbers -->
+
+### 4.3.1. Chiến lược kiểm thử
+
+Chiến lược kiểm thử của dự án F2T tập trung vào kiểm thử đơn vị (unit test) tự động, được tích hợp vào quy trình phát triển thường ngày. Toàn bộ bộ kiểm thử backend được viết bằng Jest, sử dụng `mongodb-memory-server` để khởi tạo một phiên bản MongoDB in-memory trong bộ nhớ cho mỗi lần chạy thử — đảm bảo mỗi test case hoàn toàn độc lập, không phụ thuộc vào cơ sở dữ liệu thực, và có thể tái tạo ở bất kỳ môi trường nào [ref: CLAUDE.md — quy ước test]. Phương pháp này loại bỏ sự cần thiết phải kết nối MongoDB thật trong quá trình CI/CD, đồng thời giảm thiểu thời gian khởi động bộ kiểm thử.
+
+Mỗi module NestJS được kiểm thử thông qua ít nhất một tệp `*.spec.ts` đặt cạnh module tương ứng trong thư mục `src/modules/<tên-module>/`. Ngoài các tệp spec theo module, dự án còn bao gồm một tệp kiểm thử cho controller gốc (`app.controller.spec.ts`) và một tệp kiểm thử riêng cho `DynamicPricingInterceptor` — thành phần xuyên cắt quan trọng được đặt tại `src/common/interceptors/` [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.spec.ts].
+
+### 4.3.2. Kết quả kiểm thử đơn vị
+
+Bộ kiểm thử backend gồm **54 test case** phân bố trên **21 tệp spec**, tất cả đều đạt kết quả PASS [ref: ledger t1.15-numbers]. **Bảng 4.5** trình bày phân bố số lượng test case theo từng tệp spec, được đếm trực tiếp từ mã nguồn.
+
+**Bảng 4.5 — Phân bố test case theo tệp spec (54 test case / 21 tệp)**
+
+| STT | Tệp spec | Số test case |
+|---|---|---|
+| 1 | `app.controller.spec.ts` | 1 |
+| 2 | `common/interceptors/dynamic-pricing.interceptor.spec.ts` | 6 |
+| 3 | `modules/admin/admin.service.spec.ts` | 4 |
+| 4 | `modules/auth/auth.controller.spec.ts` | 1 |
+| 5 | `modules/auth/auth.service.spec.ts` | 1 |
+| 6 | `modules/delivery/delivery.service.spec.ts` | 7 |
+| 7 | `modules/demand-forecasting/demand-forecasting.service.spec.ts` | 3 |
+| 8 | `modules/dynamic-pricing/dynamic-pricing.service.spec.ts` | 9 |
+| 9 | `modules/farms/farms.controller.spec.ts` | 1 |
+| 10 | `modules/farms/farms.service.spec.ts` | 2 |
+| 11 | `modules/notifications/notifications.controller.spec.ts` | 1 |
+| 12 | `modules/notifications/notifications.service.spec.ts` | 1 |
+| 13 | `modules/orders/orders.controller.spec.ts` | 1 |
+| 14 | `modules/orders/orders.service.spec.ts` | 3 |
+| 15 | `modules/payments/payments.service.spec.ts` | 7 |
+| 16 | `modules/posts/posts.controller.spec.ts` | 1 |
+| 17 | `modules/posts/posts.service.spec.ts` | 1 |
+| 18 | `modules/products/products.controller.spec.ts` | 1 |
+| 19 | `modules/products/products.service.spec.ts` | 1 |
+| 20 | `modules/users/users.controller.spec.ts` | 1 |
+| 21 | `modules/users/users.service.spec.ts` | 1 |
+| | **Tổng** | **54** |
+
+[ref: f2t-backend/src/modules/*/*.spec.ts; f2t-backend/src/app.controller.spec.ts; f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.spec.ts; ledger t1.15-numbers]
+
+Hai module có mật độ test case cao nhất là `dynamic-pricing` (9 case) và `payments`/`delivery` (7 case mỗi module), phản ánh độ phức tạp nghiệp vụ và số lượng nhánh xử lý ngoại lệ của các module này. Module `dynamic-pricing` bao gồm các trường hợp cho toàn bộ vòng đời `PriceOverride` (shadow, pending\_review, accepted, rejected, expired) cũng như cơ chế xử lý lỗi khi sidecar không phản hồi [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.spec.ts].
+
+### 4.3.3. Kiểm thử tích hợp các thành phần trọng yếu
+
+**Tích hợp thanh toán Stripe.** Tệp `payments.service.spec.ts` kiểm thử đầy đủ hai luồng nghiệp vụ trọng yếu: (1) `createCheckoutSession` — bao gồm các kịch bản tạo phiên thanh toán thành công, từ chối khi đơn hàng thuộc người dùng khác (`ForbiddenException`), từ chối khi đơn hàng đã thanh toán, và từ chối khi phương thức thanh toán là tiền mặt (`BadRequestException`); (2) `handleWebhook` — bao gồm các kịch bản cập nhật trạng thái đơn hàng khi nhận sự kiện `checkout.session.completed` (thanh toán thành công), cập nhật khi nhận sự kiện `checkout.session.expired` (thanh toán thất bại/hết hạn), và ném ngoại lệ khi chữ ký Stripe không hợp lệ [ref: f2t-backend/src/modules/payments/payments.service.spec.ts]. Thiết kế kiểm thử này bao phủ các kịch bản idempotency quan trọng — webhook là nguồn xác thực duy nhất cho trạng thái thanh toán, theo quy ước đã xác lập [ref: f2t-backend/src/modules/payments/payments.service.ts:120-138; ledger t2.2-stripe-ghn].
+
+**Tích hợp giao vận GHN và fallback Dijkstra.** Tệp `delivery.service.spec.ts` kiểm thử ba nhóm kịch bản chính: (1) `createShipment` — kiểm thử thoát nhẹ nhàng (graceful skip) khi GHN chưa được cấu hình, và kiểm thử ném `BadRequestException` khi đơn hàng thiếu địa chỉ giao hàng; (2) `handleGhnWebhook` — kiểm thử ghi nhận bước theo dõi và cập nhật trạng thái đơn hàng khi nhận webhook `delivered`, và kiểm thử bỏ qua webhook khi mã đơn GHN không tồn tại; (3) `getTracking` — kiểm thử trả về tuyến đường Dijkstra mock khi đơn hàng chưa có mã GHN, kiểm thử tính trọng lượng động từ danh sách sản phẩm, và kiểm thử degrade gracefully về dữ liệu DB khi GHN API không khả dụng [ref: f2t-backend/src/modules/delivery/delivery.service.spec.ts; f2t-backend/src/modules/delivery/delivery.service.ts:98,131,232; ledger t2.2-stripe-ghn].
+
+### 4.3.4. Quy trình đảm bảo chất lượng mã nguồn
+
+Ngoài kiểm thử đơn vị, dự án áp dụng quy trình kiểm tra chất lượng mã nguồn nhiều lớp thông qua lệnh `pnpm check-all` tại frontend, bao gồm ba bước liên tiếp: (1) ESLint phân tích tĩnh mã nguồn TypeScript; (2) `tsc --noemit` kiểm tra kiểu TypeScript strict mà không sinh mã; và (3) chạy toàn bộ bộ kiểm thử Jest [ref: f2t-frontend/package.json scripts; CLAUDE.md — quy trình]. Quy trình này đặt mục tiêu CI là toàn bộ ba bước đều đi qua mà không có lỗi, đảm bảo tính nhất quán kiểu dữ liệu xuyên suốt codebase TypeScript. Tương tự, backend áp dụng `npm run lint` (ESLint --fix) kết hợp với `npm run test` trước khi đánh dấu hoàn thành bất kỳ module nào [ref: CLAUDE.md — quy ước backend].
 
 ## 4.4. Đánh giá hệ thống
 
