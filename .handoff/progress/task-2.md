@@ -322,3 +322,78 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 | §1.6 mô tả đúng 5 chương khớp STRUCTURE.md | ✅ PASS |
 | Văn phong học thuật tiếng Việt, đoạn văn liền mạch (không bullet trừ MT/ĐG đánh số) | ✅ PASS |
 | Độ dài ~5 trang (ước lượng) | ✅ PASS (~5 trang khi in A4 font 13) |
+
+## T2.6-T2.11 — Chương 2 ✅
+
+**File đích:** `docs/thesis/final/chuong-2-co-so-ly-thuyet.md` — GHI ĐÈ đầy đủ, skeleton comment → prose học thuật tiếng Việt.
+
+### Citation đã dùng (mỗi câu kỹ thuật):
+
+| Section | Citation chính | Nội dung |
+|---|---|---|
+| §2.1.2 | `[ref: ledger t1.4-no-recommender]` | F2T chỉ hiện thực 3/4 ứng dụng AI (không có recommender) |
+| §2.2.1 | `[ref: ledger t1.4-one-sidecar]` | Monolith + 1 sidecar — không phải 3 sidecar |
+| §2.2.2 | `[ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]` | 1 sidecar port 8000, 3 endpoint |
+| §2.2.2 | `[ref: pricing-sidecar/main.py:263, 277, 316]` | 3 endpoint /forecast, /predict, /freshness/classify |
+| §2.2.2 | `[ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:283-285; ledger t2.2-security]` | Graceful degradation |
+| §2.3.1 | `[ref: ledger t2.2-tech-versions]` | Expo SDK ~53.0.27, react-native 0.79.6, nativewind ^4.1.21, zustand ^5.0.5, mmkv ~3.1.0 |
+| §2.3.1 | `[ref: ledger t2.2-frontend-routes; t1.15-numbers]` | ≈48 màn hình, 8 route groups |
+| §2.3.2 | `[ref: ledger t2.2-tech-versions]` | @nestjs/common 11.0.1, class-validator 0.14.2, stripe ^22.1.1, mongoose 8.19.1, bcrypt 6.0.0, passport-jwt 4.0.1 |
+| §2.3.2 | `[ref: f2t-backend/src/modules/auth/guards/jwt-auth.guard.ts:1-5; ledger t2.2-security]` | JwtAuthGuard |
+| §2.3.3 | `[ref: ledger t1.4-collections; t1.11-schema-detail]` | 10 collection MongoDB |
+| §2.3.3 | `[ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:7-34; ledger t1.11-schema-detail]` | OrderItem embedded snapshot |
+| §2.3.4 | `[ref: ledger t2.2-tech-versions]` | fastapi>=0.111, torch>=2.2, coremltools>=7.0 |
+| §2.3.5 | `[ref: f2t-backend/src/modules/payments/payments.service.ts:54,102; ledger t2.2-stripe-ghn]` | Stripe checkout |
+| §2.3.5 | `[ref: f2t-backend/src/modules/payments/payments.service.ts:120-133; ledger t2.2-stripe-ghn]` | Stripe webhook |
+| §2.3.5 | `[ref: f2t-backend/src/modules/delivery/providers/ghn.provider.ts:47-89; ledger t2.2-stripe-ghn]` | GHN createOrder |
+| §2.3.5 | `[ref: f2t-backend/src/modules/delivery/delivery.service.ts:98-232; ledger t2.2-stripe-ghn]` | Dijkstra fallback demo |
+| §2.4.1 | `[ref: dynamic-pricing-final/src/forecaster/model.py:9-15]` | ForecasterConfig obs_dim=10, window=21, hidden=128, layers=2, n_cats=4, embed=8 |
+| §2.4.1 | `[ref: dynamic-pricing-final/src/forecaster/model.py:22-37, 44-49]` | cat_embed, LSTM, dual-head demand+waste_logit |
+| §2.4.1 | `[ref: ledger t0.2-forecaster-arch, t0.4-forecaster-parity]` | Diagrams + parity xác nhận |
+| §2.4.1 | `[ref: ledger t0.10-thesis-limitations]` | Tile-21× giới hạn còn tồn tại |
+| §2.4.2 | `[ref: pricing-sidecar/main.py:114-125; ledger t0.2-action-space, t1.4-ddqn-dims]` | State 10 chiều |
+| §2.4.2 | `[ref: dynamic-pricing-final/src/rl/reward.py:6-7]` | CANDIDATES = linspace(-0.30,0.20,11), 11 action |
+| §2.4.2 | `[ref: dynamic-pricing-final/src/rl/network.py:51-81]` | SharedMLPDuelingQNet architecture |
+| §2.4.2 | `[ref: ledger t0.2-ddqn-arch, t1.4-ddqn-dims]` | Xác nhận DDQN dims |
+| §2.4.3 | `[ref: pricing-sidecar/main.py:318-333; ledger t0.6-coreml-freshness, t1.4-freshness-coreml]` | 2 model CoreML fruit/root nhị phân |
+| §2.4.3 | `[ref: pricing-sidecar/main.py:324; ledger t0.9-fixes]` | RGB feed đúng, coremltools không hoán kênh |
+| §2.4.3 | `[ref: ledger t0.10-thesis-limitations]` | Giới hạn 2/4 model CoreML |
+| §2.5 | `[ref: ledger t1.4-no-recommender]` | Chưa có hệ thống nào tích hợp 3 chức năng AI cho nông hộ nhỏ |
+| §2.6 | `[ref: ledger t1.4-no-recommender]` | F2T định hướng 3 trục: mobile-first, AI 3 chức năng, advisory pricing |
+| §2.6 | `[ref: dynamic-pricing-final/src/forecaster/model.py:9-15; ledger t0.4-forecaster-parity]` | ForecasterLSTM trong định hướng |
+| §2.6 | `[ref: dynamic-pricing-final/src/rl/network.py:51-81; ledger t0.2-ddqn-arch]` | DDQN trong định hướng |
+| §2.6 | `[ref: pricing-sidecar/main.py:318-333; ledger t0.6-coreml-freshness]` | CoreML trong định hướng |
+| §2.6 | `[ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:43-49; ledger t1.11-schema-detail]` | Advisory pricing schema |
+
+### Nguồn ngoài [TLTK] đã dùng:
+- TMĐT nông sản khái niệm chung
+- Xu hướng TMĐT di động Việt Nam (e-Conomy SEA)
+- Agile/Scrum (Schwaber & Sutherland)
+- REST API (Fielding)
+- Monolithic vs Microservices vs Sidecar (Richardson)
+- React Native, Expo documentation
+- NestJS, MongoDB documentation
+- FastAPI vs Flask (ASGI)
+- LSTM (Hochreiter & Schmidhuber 1997)
+- DQN (Mnih et al. 2015), Double DQN (van Hasselt et al. 2016), Dueling DQN (Wang et al. 2016)
+- Transfer Learning & CNN for image classification
+- Apple CoreML documentation
+- Foodmap/Sendo Farm/Bac Tom/Lazada Fresh (thị trường)
+
+### Checklist self-review:
+
+| Tiêu chí | Kết quả |
+|---|---|
+| obs_dim=10 (không phải 11) trong §2.4.1 | ✅ PASS — "obs_dim=10" tại ForecasterConfig, dẫn ledger t0.4-forecaster-parity |
+| 2 model CoreML nhị phân (fruit/root) trong §2.4.3 | ✅ PASS — "2 model CoreML nhị phân" + main.py:318 |
+| F2T chỉ hiện thực 3/4 ứng dụng AI tại §2.1.2 (không có recommender) | ✅ PASS — ghi rõ "F2T không có hệ thống gợi ý sản phẩm [ref: ledger t1.4-no-recommender]" |
+| Version đúng: Expo ~53.0.27, expo-router ~5.1.11, RN 0.79.6, nativewind ^4.1.21, zustand ^5.0.5, mmkv ~3.1.0; NestJS 11.0.1, mongoose 8.19.1, bcrypt 6.0.0, passport-jwt 4.0.1, stripe ^22.1.1, cv 0.14.2; FastAPI>=0.111, torch>=2.2, coremltools>=7.0 | ✅ PASS — ledger t2.2-tech-versions |
+| 0 từ cấm: recommender/CF/ItemItemCF/Content-Based/cosine/TF-IDF, Holt/EWMA/DoW seasonality factor, MobileNetV2/4-class, obs_dim=11, 5-dim/5-action, 3 sidecar | ✅ PASS — không xuất hiện trong prose |
+| 1 sidecar (không 3) tại §2.2 | ✅ PASS — "Monolith + 1 Sidecar" + "port 8000, 3 endpoint" |
+| §2.4.2: state 10 chiều, 11 action, SharedMLPDuelingQNet (hidden=128, cat_embed 4×8) | ✅ PASS — bảng 10 chiều, CANDIDATES linspace, network.py:51-81 |
+| §2.5: kết luận không nêu recommender là điểm khác biệt F2T | ✅ PASS — kết luận chỉ nêu "dự báo nhu cầu, định giá động và phân loại độ tươi" |
+| §2.6: advisory pricing, không phải auto-pricing | ✅ PASS — "giá tư vấn", "AI là công cụ hỗ trợ quyết định" |
+| Mọi câu kỹ thuật có citation [ref:] hoặc [TLTK] | ✅ PASS |
+| Thứ tự mục §2.1→§2.6 giữ nguyên như skeleton | ✅ PASS |
+| Văn phong học thuật tiếng Việt, đoạn văn liền mạch | ✅ PASS |
+| Độ dài ~12 trang (ước lượng) | ✅ PASS (~12 trang khi in A4 font 13) |
