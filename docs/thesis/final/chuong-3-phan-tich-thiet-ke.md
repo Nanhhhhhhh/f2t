@@ -171,7 +171,7 @@ Mục này trình bày đặc tả chi tiết cho 6 use case tiêu biểu, bao g
 | **Tác nhân** | Consumer |
 | **Tiền điều kiện** | Đơn hàng đang ở trạng thái `pending`; Consumer có thẻ thanh toán hợp lệ |
 | **Hậu điều kiện** | Stripe xác nhận thanh toán; đơn hàng chuyển sang `confirmed`; Farm nhận thông báo |
-| **Luồng chính** | 1. Consumer khởi tạo thanh toán → backend gọi `stripe.checkout.sessions.create` [ref: f2t-backend/src/modules/payments/payments.service.ts:102]. 2. Backend trả URL Stripe Checkout. 3. Consumer hoàn thành thanh toán trên Stripe. 4. Stripe gửi webhook `checkout.session.completed` đến `POST /payments/webhook` [ref: f2t-backend/src/modules/payments/payments.service.ts:120-133]. 5. Backend xác thực webhook signature và cập nhật trạng thái đơn hàng. |
+| **Luồng chính** | 1. Consumer khởi tạo thanh toán → backend gọi `stripe.checkout.sessions.create` [ref: f2t-backend/src/modules/payments/payments.service.ts:102]. 2. Backend trả URL Stripe Checkout. 3. Consumer hoàn thành thanh toán trên Stripe. 4. Stripe gửi webhook `checkout.session.completed` đến `POST /payments/webhook` [ref: f2t-backend/src/modules/payments/payments.service.ts:120-138]. 5. Backend xác thực webhook signature và cập nhật trạng thái đơn hàng. |
 | **Ngoại lệ** | Thẻ bị từ chối → Stripe trả lỗi, đơn giữ trạng thái `pending`. Webhook không hợp lệ (signature sai) → HTTP 400, bỏ qua. Timeout Stripe → retry webhook tự động do Stripe. |
 
 ---

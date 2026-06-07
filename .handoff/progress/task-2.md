@@ -768,3 +768,22 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 - §3.1-§3.4 nguyên vẹn (27 heading) ✅
 
 **Done-gate T2.22: PASS** → commit task(T2.22). **CHƯƠNG 3 HOÀN TẤT (T2.12→T2.22).**
+
+## RE-VERIFY TOÀN CHƯƠNG 3 (theo yêu cầu người dùng) — PASS ✅
+
+**Ngày:** 2026-06-07 (cuối phiên Task 2 #2). 2 lớp: (A) quét cơ học controller; (B) verifier đối kháng độc lập agent mới quét toàn §3.1→§3.5.
+
+**(A) Quét cơ học:**
+- 32/32 file trong mọi `[ref: path]` TỒN TẠI ✅
+- 0 từ cấm khẳng định (recommender/Holt/EWMA/cosine/MobileNetV2/4-class/obs_dim=11/8001/8002/3 sidecar/scores[5]/addresses[]/packing/completed-status/"5 biểu đồ AI") — chỉ phủ định/ledger-id ✅
+- Số liệu canonical nhất quán: obs_dim=10, 11 action, 13 module, 1 sidecar port 8000, 3 endpoint, 10 collection, 9 SD (3 AI), 4 AD (2 AI) ✅
+- "completed" duy nhất = sự kiện Stripe thật `checkout.session.completed` (payments.service.ts:136), KHÔNG phải order-status ✅
+
+**(B) Verifier đối kháng độc lập (16 nhóm rủi ro cao resolve 100% tại source): PASS, 0 REJECT.**
+- AI/ML: obs_dim=10 (model.py:9), tile-21× (main.py:135), state10/11action (main.py:114-125, reward.py:6-7), SharedMLPDuelingQNet (network.py:51-81), 9/9 hyperparam (agent.py:144-148, train.py:12-15), Bellman/Huber/clip (agent.py:236/239/243), Safety 3→4→1→2→5 (safety.py:6,9-10,13,16,19), CoreML 2 model (main.py:318,183-184) ✅
+- CSDL: 10 collection (grep recommendation/forecast_cache=0), users.location embedded, orders 7 status, freshness_cache readings/medianScore, price_overrides 5 status, index (orders 3 single, products 4, posts 4, 3 TTL, unique, compound) ✅
+- Hạ tầng: 1 sidecar 8000 + 3 endpoint, backend 3000, cron "0 * * * *", Redis=cache dự báo, Dijkstra fallback, GHN ghn.provider.ts:73, Stripe, Shadow Report endpoint controller.ts:78 + service getShadowReport ✅
+
+**Sửa duy nhất sau re-verify:** citation webhook Stripe `payments.service.ts:120-133` → `120-138` (để range bao trùm case `checkout.session.completed` ở dòng 136). Không có lỗi nội dung nào khác.
+
+**KẾT LUẬN RE-VERIFY: Chương 3 PASS toàn bộ — chân thực 100% với code.**
