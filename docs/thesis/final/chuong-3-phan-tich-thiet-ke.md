@@ -279,13 +279,98 @@ Thứ tự 3→4→1→2→5 không tùy tiện: Quy tắc 3 thiết lập biên
 ### 3.3.7. Thuật toán chi tiết các module AI/ML
 
 #### (a) Dự báo nhu cầu
-<!-- T2.17 ⭐2-lớp: dany.md L335-349; ForecasterLSTM obs_dim=10 + giới hạn tile-21×; ledger t0.4-forecaster-parity, t0.10-thesis-limitations -->
+
+Mô-đun dự báo nhu cầu trong F2T được xây dựng trên kiến trúc **ForecasterLSTM** — một mạng nơ-ron hồi tiếp với hai lớp LSTM xếp chồng, được thiết kế để xử lý chuỗi trạng thái thị trường theo cửa sổ thời gian. Kiến trúc cụ thể bao gồm: LSTM 2 lớp, kích thước ẩn (`hidden_size`) 128 đơn vị, hệ số dropout 0,2 (áp dụng giữa các lớp LSTM), và kích thước đầu vào (`input_size`) bằng `obs_dim = 10` — khớp chính xác với vector quan sát 10 chiều của môi trường sau lần huấn luyện lại T0.13 [ref: dynamic-pricing-final/src/forecaster/model.py:9,23-29]. Cửa sổ thời gian đầu vào có độ dài `window = 21` bước, tạo ra tensor đầu vào có hình dạng `(batch, 21, 10)` [ref: dynamic-pricing-final/src/forecaster/model.py:13].
+
+Bên cạnh chuỗi trạng thái, mô hình còn tích hợp thông tin danh mục hàng hoá thông qua một lớp nhúng học được (`nn.Embedding(n_categories=4, cat_embed_dim=8)`) [ref: dynamic-pricing-final/src/forecaster/model.py:22]. Vector nhúng danh mục (8 chiều) được ghép nối (`concat`) với trạng thái ẩn cuối cùng của LSTM (128 chiều), tạo ra vector tổng hợp `z` có số chiều `z_dim = 128 + 8 = 136` chiều. Vector `z` này là đầu vào chung cho hai nhánh đầu ra song song (**dual-head**):
+
+- **`demand_head`**: lớp tuyến tính `Linear(136, 1)` — dự báo nhu cầu tổng hợp 7 ngày tới (đơn vị tương đối so với `base_demand`).
+- **`waste_head`**: chuỗi `Linear(136, 64) → ReLU → Dropout(0.2) → Linear(64, 1)` — dự báo log-odds xác suất lãng phí (`waste_logit`); sidecar lấy `sigmoid(waste_logit)` để chuyển về xác suất `p_waste ∈ (0, 1)`.
+
+Hàm `forward` trả về từ điển `{"demand": Tensor, "waste_logit": Tensor}` [ref: dynamic-pricing-final/src/forecaster/model.py:46-49], trong đó `demand` và `waste_logit` đều có hình dạng `(batch,)`.
+
+**Luồng phục vụ (serve):** Khi Farm xem dự báo nhu cầu, backend gọi `DemandForecastingService`, dịch vụ này gửi yêu cầu POST đến endpoint `/forecast` trên sidecar FastAPI (cổng 8000) [ref: pricing-sidecar/main.py:263-274]. Sidecar nhận vector trạng thái, gọi hàm `_build_obs(...)` để xây dựng vector quan sát 10 chiều, rồi chuyển tiếp sang hàm `_run_forecaster(obs, category)` [ref: pricing-sidecar/main.py:128-137]. Bên trong `_run_forecaster`, sidecar load checkpoint `forecaster_v4_best.pt`, khởi tạo `ForecasterLSTM` theo cấu hình lưu trong checkpoint, rồi thực hiện suy luận để trả về cặp `(demand7d, p_waste)` [ref: pricing-sidecar/main.py:128-145].
+
+**Giới hạn kỹ thuật (trạng thái sau retrain T0.13):** Sau khi huấn luyện lại với `obs_dim = 10`, lỗi không khớp layout (`11 ≠ 10`) đã được giải quyết hoàn toàn — thao tác pad/slice tại `main.py:134` nay là no-op vì `forecaster_obs_dim = 10 = len(obs)` [ref: pricing-sidecar/main.py:134]. Giới hạn duy nhất còn tồn tại là cách sidecar xây dựng đầu vào chuỗi: thay vì cung cấp 21 vector quan sát từ 21 ngày thực sự khác nhau, sidecar **tile-21×** cùng một vector trạng thái hiện tại (`np.tile(obs_padded, (OBS_WINDOW, 1))`) [ref: pricing-sidecar/main.py:135], do backend chưa lưu trữ và cung cấp chuỗi lịch sử 21 ngày. Hậu quả là LSTM nhận 21 hàng đầu vào giống hệt nhau — được gọi là chế độ **steady-state** — và không quan sát được biến động thời gian thực. Kết quả từ endpoint `/forecast` do đó là xấp xỉ; đánh giá tin cậy cần chạy offline bằng script `dynamic-pricing-final/src/forecaster/eval.py` với chuỗi trạng thái thực [ref: pricing-sidecar/main.py:134-135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations].
 
 #### (b) Định giá động
-<!-- T2.18 ⭐2-lớp: dany.md L351-379; state 10 + 11 action + hyperparam + Safety 5 rule; ledger t1.8-ddqn-hyperparams, t1.4-safety-5-rules -->
+
+Mô-đun định giá động trong F2T sử dụng thuật toán **Double DQN (DDQN)** với kiến trúc mạng Dueling, được huấn luyện trong môi trường mô phỏng thị trường nông sản tươi. Toàn bộ pipeline bao gồm ba thành phần thiết kế chính: không gian trạng thái 10 chiều, không gian hành động rời rạc 11 phần tử, và mạng `SharedMLPDuelingQNet` dùng chung cho bốn danh mục hàng hoá.
+
+**Không gian trạng thái — 10 chiều:**
+
+| Chiều | Tên | Công thức / Nguồn |
+|---|---|---|
+| 0 | `freshness` | Điểm tươi ∈ [0, 1] từ CoreML |
+| 1 | `inv_ratio` | `min(availableQty / 100, 2.0)` |
+| 2 | `sin(2π·dow/7)` | Chu kỳ tuần (thành phần sin) |
+| 3 | `cos(2π·dow/7)` | Chu kỳ tuần (thành phần cos) |
+| 4 | `days_to_restock/30` | Ngày đến đợt nhập hàng, chuẩn hoá theo 30 |
+| 5 | `demand_ratio` | `(demand_7d / 7) / base_demand`, clip [0, 3] |
+| 6 | `prev_delta` | Delta giá chu kỳ trước, clip [−0.30, +0.20] |
+| 7 | `comp_ratio` | `competitor_ref_price / max(current_price, 1e−6)` |
+| 8 | `days_to_waste/14` | Ngày còn lại đến ngưỡng lãng phí, chuẩn hoá theo 14 |
+| 9 | `inv_coverage/3` | Tồn kho / tổng cầu 7 ngày, chuẩn hoá theo 3 |
+
+[ref: pricing-sidecar/main.py:114-125; ledger t0.3-obs-parity]
+
+**Không gian hành động — 11 phần tử:** Tập hành động được định nghĩa là `CANDIDATES = np.linspace(-0.30, 0.20, 11)`, tạo ra 11 mức delta giá cách đều nhau 0,05: [−0.30, −0.25, −0.20, −0.15, −0.10, −0.05, 0.00, +0.05, +0.10, +0.15, +0.20]. Phần tử thứ 7 (chỉ số 6) được cố định bằng 0,0 để đảm bảo hành động giữ nguyên giá chính xác tuyệt đối (`CANDIDATES[6] = 0.0`) [ref: dynamic-pricing-final/src/rl/reward.py:6-7; ledger t0.2-action-space].
+
+**Kiến trúc mạng — SharedMLPDuelingQNet:** Mạng chia sẻ một bộ mã hoá MLP cho toàn bộ bốn danh mục, tránh phải duy trì bốn mạng riêng biệt. Thông tin danh mục được đưa vào qua lớp nhúng `nn.Embedding(n_cats=4, cat_embed_dim=8)` [ref: dynamic-pricing-final/src/rl/network.py:60-64], vector nhúng (8 chiều) được ghép nối với vector quan sát (10 chiều) trước khi đi qua các lớp chung. Cấu trúc đầy đủ:
+
+- **Shared layers:** `Linear(10 + 8, 128) → ReLU → Linear(128, 128) → ReLU`
+- **V-stream (giá trị trạng thái):** `Linear(128, 64) → ReLU → Linear(64, 1)` → ra `V(s)` vô hướng
+- **A-stream (lợi thế hành động):** `Linear(128, 64) → ReLU → Linear(64, 11)` → ra `A(s, a)` vector 11 chiều
+- **Tổng hợp Dueling:** `Q(s, a) = V(s) + A(s, a) − mean(A(s, ·))` [ref: dynamic-pricing-final/src/rl/network.py:51-81; ledger t0.2-ddqn-arch]
+
+**Siêu tham số huấn luyện:**
+
+| Tham số | Giá trị | Nguồn |
+|---|---|---|
+| Learning rate (`lr`) | 1×10⁻⁴ | `agent.py:L144`: `MultiCatDDQNAgent.__init__` `lr: float = 1e-4` |
+| Hệ số chiết khấu (γ) | 0,99 | `agent.py:L145`: `gamma: float = 0.99` (gán `self.gamma` tại L154) |
+| Kích thước batch | 256 | `agent.py:L146`: `batch_size: int = 256` |
+| Warmup (min buffer) | 1 000 bước | `agent.py:L147`: `warmup: int = 1_000` |
+| Dung lượng replay buffer | 50 000 | `agent.py:L148`: `buffer_capacity: int = 50_000` |
+| ε ban đầu | 1,0 | `train.py:L12`: `EPSILON_START = 1.0` |
+| ε kết thúc | 0,05 | `train.py:L13`: `EPSILON_END = 0.05` |
+| Số episode decay ε | 2 000 | `train.py:L14`: `EPSILON_DECAY_EP = 2_000` |
+| Chu kỳ đồng bộ target net | 500 bước | `train.py:L15`: `TARGET_SYNC_STEPS = 500` |
+
+[ref: dynamic-pricing-final/src/rl/agent.py; dynamic-pricing-final/src/rl/train.py; ledger t1.8-ddqn-hyperparams]
+
+Thuật toán cập nhật tuân theo nguyên lý Double DQN: mạng online chọn hành động tốt nhất ở trạng thái tiếp theo, mạng target đánh giá giá trị Q tương ứng. Mục tiêu Bellman `target = r + γ · (1 − done) · Q_target(s', argmax_a Q_online(s', a))` [ref: dynamic-pricing-final/src/rl/agent.py:236]. Hàm mất mát là Smooth L1 (Huber loss) [ref: dynamic-pricing-final/src/rl/agent.py:239]. Gradient được cắt (`clip_grad_norm_ = 10.0`) [ref: dynamic-pricing-final/src/rl/agent.py:243] trước khi cập nhật tham số bằng Adam optimizer [ref: dynamic-pricing-final/src/rl/agent.py:178].
+
+**Safety Layer — 5 quy tắc theo thứ tự áp dụng 3→4→1→2→5:**
+
+Sau khi mạng DDQN xuất ra delta giá đề xuất (`delta`), giá mục tiêu `target_price = base_price × (1 + delta)` được qua một tầng an toàn cứng trước khi ghi vào cơ sở dữ liệu. Năm quy tắc được áp dụng tuần tự, mỗi quy tắc có thể thu hẹp thêm khoảng giá hợp lệ [ref: pricing-sidecar/safety.py:1-19]:
+
+| Thứ tự áp | Quy tắc | Điều kiện | Ràng buộc |
+|---|---|---|---|
+| 1 | **Quy tắc 3** — Tick-clip | Luôn áp | `price ∈ [base × 0.70, base × 1.20]` |
+| 2 | **Quy tắc 4** — Freshness mandate | `freshness < 0.4` | `price ≤ base × 0.75` |
+| 3 | **Quy tắc 1** — Sàn chi phí | Luôn áp | `price ≥ base × 0.55` |
+| 4 | **Quy tắc 2** — Trần tuyệt đối | Luôn áp | `price ≤ base × 2.0` |
+| 5 | **Quy tắc 5** — Giá tối thiểu | Luôn áp | `price ≥ 1 000 VND` |
+
+Thứ tự 3→4→1→2→5 không tuỳ tiện: Quy tắc 3 (tick-clip) thiết lập biên bước tối đa [−30%, +20%] so với `base_price` trước tiên; Quy tắc 4 ghi đè giới hạn trên khi hàng sắp hỏng (freshness < 0,4), buộc giảm giá tối đa còn 75% base; Quy tắc 1 và 2 sau đó áp biên tuyệt đối [55%, 200%] độc lập với tick; cuối cùng Quy tắc 5 đảm bảo giá có ý nghĩa kinh tế (≥ 1 000 VND) [ref: pricing-sidecar/safety.py:6,8-10,12-13,15-16,18-19]. Trường hợp bất kỳ quy tắc nào thay đổi giá, sidecar trả về cờ `safety_clipped = true` trong phản hồi để backend ghi nhận.
+
+Hệ thống vận hành theo chế độ **shadow** trong giai đoạn ban đầu — giá đề xuất được ghi vào collection `price_overrides` với trạng thái `shadow` và hiển thị cho Farm dưới dạng đề xuất tham khảo. Farm chủ động chấp nhận hoặc từ chối đề xuất; khi được chấp nhận, trạng thái chuyển sang `accepted` và `DynamicPricingInterceptor` phục vụ `dynamicPrice` này cho Consumer [ref: ledger t1.4-safety-5-rules].
 
 #### (c) Phân loại độ tươi
-<!-- T2.19 ⭐2-lớp: dany.md L381-395; 2 model CoreML + giới hạn 2/4; ledger t0.6-coreml-freshness, t0.10 -->
+
+Mô-đun phân loại độ tươi trong F2T dựa trên **Apple CoreML** — framework suy luận máy học tại thiết bị của Apple — với hai mô hình nhị phân riêng biệt được triển khai trong sidecar FastAPI:
+
+- **`MyFreshnessClassifier-fruit.mlmodel`**: dùng cho các sản phẩm thuộc danh mục `fruit` và `fruits`.
+- **`MyFreshnessClassifier-root.mlmodel`**: dùng cho tất cả danh mục còn lại, bao gồm `leafy`, `herbs`, và `root`.
+
+Mapping danh mục sang mô hình được thực hiện tại `main.py:318`: `model_key = "fruit" if req.category in ("fruit", "fruits") else "root"` [ref: pricing-sidecar/main.py:318; ledger t1.4-freshness-coreml].
+
+**Pipeline phân loại:** Endpoint FastAPI POST `/freshness/classify` [ref: pricing-sidecar/main.py:316-333] nhận ảnh sản phẩm ở định dạng base64. Sidecar giải mã ảnh, chuyển đổi không gian màu bằng `PIL.Image.convert("RGB")`, và resize về kích thước đầu vào `299 × 299` pixel [ref: pricing-sidecar/main.py:324]. Lưu ý: mặc dù metadata model khai báo `colorSpace = BGR`, coremltools phiên bản 9.0 không thực hiện hoán đổi kênh màu khi nhận ảnh PIL — do đó việc feed ảnh ở định dạng RGB là **đúng** và cho kết quả chính xác [ref: pricing-sidecar/main.py:324; ledger t0.9-fixes].
+
+Kết quả suy luận từ lời gọi `model.predict({"image": img})` trả về từ điển có hai khoá: `target` (chuỗi `"fresh"` hoặc `"rotten"`) và `targetProbability` (từ điển chuỗi → xác suất float) [ref: pricing-sidecar/main.py:325-330; ledger t0.6-coreml-freshness]. Điểm tươi cuối cùng được tính là `score = targetProbability["fresh"]` — tức xác suất để nhãn dự đoán là `"fresh"` [ref: pricing-sidecar/main.py:330]. Giá trị `score ∈ (0, 1)` này được sử dụng trực tiếp làm chiều số 0 trong vector trạng thái 10 chiều của DDQN ở mỗi chu kỳ định giá. Phản hồi trả về backend gồm bốn trường: `{score, tag, label, confidence}`, trong đó `tag ∈ {"fresh", "aging", "critical"}` được phân loại theo ngưỡng `score ≥ 0.8 / ≥ 0.4` [ref: pricing-sidecar/main.py:332-333].
+
+**Giới hạn kỹ thuật:** Hệ thống hiện chỉ có **2 trong 4 danh mục** được trang bị mô hình CoreML riêng (fruit và root); các danh mục `leafy` và `herbs` sử dụng chung mô hình root theo cơ chế fallback thiết kế cố ý. Ngoài ra, không có training script hay dataset ảnh nông sản tự thu thập — hai mô hình `.mlmodel` được tạo bằng Apple Create ML với dữ liệu không công khai, và quá trình huấn luyện không thuộc phạm vi hệ thống F2T. Đây là giới hạn cần công khai khi đánh giá độ tổng quát của mô hình [ref: ledger t0.10-thesis-limitations].
 
 ## 3.4. Phân tích, thiết kế cơ sở dữ liệu
 
