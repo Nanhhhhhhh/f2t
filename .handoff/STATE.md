@@ -18,7 +18,7 @@
 
 ### (Lịch sử) Task 0 addendum retrain — đã xong
 - Quyết định: retrain forecaster trên env-10 hiện tại (fix layout 11≠10 + version skew). Tiling-21× VẪN còn (cần backend history → document). Freshness leafy/herbs + dow KHÔNG fix được (thiếu data / vô nghĩa).
-- Backup an toàn: `dynamic-pricing-final/_backup_obs11/` (checkpoint + parquet obs11) — KHÔNG commit, để revert.
+- ~~Backup an toàn: `dynamic-pricing-final/_backup_obs11/`~~ — ĐÃ XOÁ (2026-06-07) khi dọn local. Là checkpoint obs11 cũ (đã bị obs10 thay thế, validated) + parquet TÁI TẠO ĐƯỢC qua `scripts/generate_data.py`. Nếu cần revert retrain: regen data rồi train lại layout obs11. KHÔNG có trên remote (cố ý, ~85MB).
 - T0.11 regen data: ĐANG CHẠY (scripts/generate_data.py, venv sidecar, cwd=dynamic-pricing-final, log $CLAUDE_JOB_DIR/tmp/gendata.log).
 - T0.12 retrain: chờ data. `scripts/retrain.py` (obs_dim=OBS_DIM=10, max_epochs=100 patience=8, MPS).
 - T0.13: validate + sidecar auto-load obs_dim=10 (hết pad lệch) + re-run integration.
