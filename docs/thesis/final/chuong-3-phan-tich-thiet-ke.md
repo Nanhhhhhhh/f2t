@@ -2,49 +2,279 @@
 
 ## 3.1. Mô tả quy trình nghiệp vụ
 
-<!-- T2.12: §3.1 — nguồn dany.md L195-217; diagram business-process-current/f2t -->
+Chương này trình bày quy trình nghiệp vụ hiện tại và quy trình đề xuất của hệ thống F2T, làm cơ sở cho toàn bộ phân tích và thiết kế tiếp theo. Cả hai quy trình được hình thức hóa bằng sơ đồ quy trình nghiệp vụ chuẩn BPMN (xem Hình business-process-current.puml và business-process-f2t.puml).
 
 ### 3.1.1. Quy trình hiện tại (thủ công)
-<!-- T2.12: dany.md L197-203 -->
+
+Chuỗi cung ứng nông sản tươi tại Việt Nam hiện nay vận hành theo mô hình trung gian nhiều tầng [TLTK]. Quy trình điển hình gồm năm bước tuần tự: (1) **Nông dân** thu hoạch và bán sản phẩm thô tại vườn hoặc điểm thu mua địa phương; (2) **Thương lái** thu gom, phân loại sơ bộ và vận chuyển về đầu mối; (3) **Chợ đầu mối** tập kết và phân phối theo lô lớn; (4) **Cửa hàng / siêu thị** mua buôn, chia nhỏ và bày bán lẻ; (5) **Người tiêu dùng** mua trực tiếp tại quầy (xem Hình business-process-current.puml).
+
+Mô hình nhiều trung gian này phát sinh ít nhất ba nhóm vấn đề nghiêm trọng. Thứ nhất, **thông tin giá bất cân xứng**: nông dân thiếu dữ liệu thị trường thực thời, buộc phải chấp nhận giá thương lái đặt ra, thường thấp hơn 30–50% so với giá bán lẻ cuối cùng [TLTK]. Thứ hai, **mất tươi trong lưu thông**: sản phẩm phải qua 3–4 điểm trung chuyển mà không có cơ chế giám sát nhiệt độ hay thời gian, dẫn đến tỷ lệ thất thoát sau thu hoạch ở Việt Nam ước tính lên tới 20–30% đối với rau quả tươi [TLTK]. Thứ ba, **thiếu truy xuất nguồn gốc và dự báo**: người tiêu dùng không biết sản phẩm xuất phát từ trang trại nào, còn cả chuỗi cung ứng không có công cụ dự báo nhu cầu để điều phối sản xuất — hậu quả là vừa thiếu hàng khi nhu cầu tăng đột biến, vừa thừa ứ khi thu hoạch đồng loạt.
 
 ### 3.1.2. Quy trình đề xuất (F2T)
-<!-- T2.12: dany.md L205-209; luồng AI interceptor; ledger t1.4-interceptor-cron, t1.4-no-recommender -->
+
+Hệ thống F2T thiết kế lại quy trình nghiệp vụ theo mô hình nền tảng kết nối trực tiếp (xem Hình business-process-f2t.puml), loại bỏ các tầng trung gian không tạo giá trị và tích hợp AI/ML vào từng điểm tiếp xúc then chốt.
+
+Luồng chính gồm tám giai đoạn: (1) Farm chủ đăng ký tài khoản và thông tin trang trại; (2) Admin duyệt hồ sơ đảm bảo chất lượng; (3) Farm đăng sản phẩm kèm ảnh tươi để CoreML phân loại; (4) Consumer tìm kiếm theo vị trí địa lý; (5) Đặt hàng; (6) Thanh toán qua Stripe Checkout; (7) Giao hàng qua GHN; (8) Đánh giá sau nhận hàng.
+
+**Luồng AI đan xen** là điểm phân biệt cốt lõi của F2T. Mỗi khi Consumer gọi API lấy danh sách sản phẩm, `DynamicPricingInterceptor` tự động bổ sung vào phản hồi ba trường: `dynamicPrice` (giá động), `freshnessScore` (điểm tươi từ CoreML) và `priceTag` (nhãn "flash\_discount" hoặc "standard") [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77]. Interceptor này hoạt động trong suốt mà không làm thay đổi API contract — Consumer nhận thông tin giá cập nhật nhất mà không cần gọi endpoint riêng. Giá động được tính bởi `PricingTickCron` chạy định kỳ mỗi giờ theo lịch cron mặc định `"0 * * * *"` (có thể cấu hình qua biến môi trường `PRICING_CRON_SCHEDULE`) [ref: f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18], gọi sidecar FastAPI `/predict` để mô hình DDQN đề xuất delta giá, sau đó qua Safety Layer 5 quy tắc trước khi ghi vào MongoDB.
+
+Về phía Farm, dashboard hiển thị hai loại hỗ trợ AI: (a) **dự báo nhu cầu 7 ngày** do ForecasterLSTM sinh ra qua endpoint `/forecast` [ref: pricing-sidecar/main.py:263]; (b) **đề xuất giá** từ DDQN (SharedMLPDuelingQNet) — Farm có quyền chấp nhận hoặc từ chối đề xuất, không bị ép giá tự động [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]. Hệ thống không có chức năng gợi ý sản phẩm cho người mua [ref: ledger t1.4-no-recommender].
 
 ### 3.1.3. Ba tác nhân hệ thống
-<!-- T2.12: dany.md L211-217 -->
+
+F2T xác định ba tác nhân chính tương tác với hệ thống, với vai trò và đặc quyền phân tách rõ ràng.
+
+**Consumer (Người tiêu dùng)** là tác nhân cuối của chuỗi cung ứng. Consumer sử dụng ứng dụng di động để duyệt sản phẩm theo vị trí địa lý, đặt hàng, thanh toán trực tuyến, theo dõi trạng thái giao hàng theo thời gian thực và gửi đánh giá sau khi nhận hàng. Consumer nhận thấy điểm tươi và giá động được tích hợp trực tiếp vào danh sách sản phẩm mà không cần thao tác thêm [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77].
+
+**Farm Owner (Chủ trang trại)** là nhà cung cấp sản phẩm. Farm Owner đăng ký trang trại qua ứng dụng, thực hiện CRUD sản phẩm, chụp ảnh rau quả để hệ thống phân loại độ tươi bằng CoreML, xem bảng dự báo nhu cầu 7 ngày và nhận đề xuất giá từ DDQN. Farm Owner có toàn quyền chấp nhận hoặc từ chối đề xuất giá, xem thống kê doanh thu và nhận thông báo đẩy khi có đơn hàng mới.
+
+**Admin (Quản trị viên)** là tác nhân có đặc quyền cao nhất, chịu trách nhiệm vận hành nền tảng. Admin duyệt hoặc từ chối đăng ký trang trại, quản lý tài khoản người dùng (bao gồm khả năng tạm khóa tài khoản), giám sát và xử lý các đơn hàng có vấn đề, xem thống kê toàn hệ thống và thực hiện cấu hình vận hành.
+
+---
 
 ## 3.2. Phân tích, thiết kế chức năng nghiệp vụ
 
-<!-- T2.13: §3.2 — nguồn dany.md L219-239; diagram fdd -->
-
 ### 3.2.1. Yêu cầu chức năng theo vai trò
-<!-- T2.13: dany.md L221-227; Consumer 8/Farm 7/Admin 5; ledger t1.4-no-recommender -->
+
+Dựa trên phân tích quy trình nghiệp vụ và đặc điểm ba tác nhân ở mục 3.1, hệ thống F2T xác định tổng cộng 20 yêu cầu chức năng phân theo vai trò như sau.
+
+**Consumer — 8 chức năng:**
+
+1. **CF-01: Đăng ký và xác thực tài khoản** — Đăng ký bằng email, xác thực OTP, đăng nhập JWT.
+2. **CF-02: Tìm kiếm sản phẩm theo vị trí địa lý** — Lọc trang trại và sản phẩm trong bán kính địa lý bằng chỉ mục 2dsphere của MongoDB.
+3. **CF-03: Xem sản phẩm với nhãn tươi và giá động** — Mỗi sản phẩm hiển thị `freshnessScore`, `dynamicPrice` và `priceTag` do `DynamicPricingInterceptor` bổ sung [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-no-recommender].
+4. **CF-04: Quản lý giỏ hàng** — Thêm, sửa số lượng, xóa sản phẩm, tính tổng thanh toán.
+5. **CF-05: Thanh toán trực tuyến qua Stripe** — Tạo Stripe Checkout Session, nhận kết quả qua webhook.
+6. **CF-06: Theo dõi giao hàng** — Xem trạng thái đơn hàng và thông tin vận đơn GHN theo thời gian thực.
+7. **CF-07: Đánh giá sản phẩm và trang trại** — Gửi đánh giá sau khi đơn hàng ở trạng thái "delivered".
+8. **CF-08: Nhận thông báo đẩy** — Nhận push notification về cập nhật trạng thái đơn hàng.
+
+**Farm Owner — 7 chức năng:**
+
+1. **FF-01: Đăng ký và quản lý trang trại** — Đăng ký thông tin trang trại, chờ Admin duyệt, chỉnh sửa hồ sơ.
+2. **FF-02: Quản lý sản phẩm (CRUD)** — Tạo, sửa, xóa sản phẩm; gắn danh mục và giá cơ sở.
+3. **FF-03: Quét và phân loại độ tươi** — Chụp ảnh sản phẩm để CoreML (2 model fruit/root) phân loại nhị phân fresh/rotten [ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness].
+4. **FF-04: Xem dự báo nhu cầu 7 ngày** — Dashboard hiển thị kết quả ForecasterLSTM qua `/forecast` [ref: pricing-sidecar/main.py:263; ledger t1.4-forecaster-not-holt].
+5. **FF-05: Nhận và xử lý đề xuất giá (gợi ý giá)** — Xem đề xuất delta giá từ DDQN sau Safety Layer; chấp nhận hoặc từ chối [ref: pricing-sidecar/main.py:277; ledger t1.4-safety-5-rules].
+6. **FF-06: Xem thống kê doanh thu** — Biểu đồ doanh thu, số đơn theo thời gian.
+7. **FF-07: Nhận thông báo đẩy** — Nhận thông báo về đơn hàng mới, đề xuất giá mới.
+
+**Admin — 5 chức năng:**
+
+1. **AF-01: Duyệt đăng ký trang trại** — Xem xét và phê duyệt hoặc từ chối hồ sơ farm mới.
+2. **AF-02: Quản lý người dùng** — Xem danh sách, tạm khóa hoặc kích hoạt tài khoản Consumer và Farm.
+3. **AF-03: Quản lý đơn hàng** — Giám sát và can thiệp các đơn hàng có vấn đề.
+4. **AF-04: Xem thống kê toàn hệ thống** — Biểu đồ doanh thu, số đơn, số farm/consumer theo thời gian.
+5. **AF-05: Cấu hình vận hành** — Thiết lập các tham số hệ thống.
 
 ### 3.2.2. Yêu cầu phi chức năng
-<!-- T2.13: dany.md L229-231 -->
+
+Hệ thống F2T phải đáp ứng sáu nhóm yêu cầu phi chức năng (NFR) sau. Các tiêu chí được thiết kế để đảm bảo hệ thống hoạt động ổn định trong môi trường di động và đám mây thực tế [TLTK].
+
+| Tiêu chí | Mô tả | Cơ chế thực hiện |
+|---|---|---|
+| **Bảo mật** | Xác thực bằng JWT, mật khẩu lưu trữ dưới dạng bcrypt hash với saltRounds=10 | `JwtAuthGuard` [ref: f2t-backend/src/modules/auth/guards/jwt-auth.guard.ts:1-5]; `bcrypt.hash(password, 10)` [ref: f2t-backend/src/modules/users/users.service.ts:18; ledger t2.2-security] |
+| **Hiệu năng** | Thời gian phản hồi API mục tiêu dưới 500ms cho các endpoint nghiệp vụ thông thường | Chỉ mục MongoDB (2dsphere, compound) [ref: ledger t1.11-schema-detail], NestJS không đồng bộ I/O, cache kết quả dự báo bằng Redis [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:34,66] |
+| **Khả dụng & Graceful Degradation** | Khi sidecar FastAPI không phản hồi, NestJS trả về dữ liệu dự phòng thay vì lỗi 5xx; Consumer không nhận thấy sự cố | `catch` block tại `dynamic-pricing.service.ts:283-285` (predict) và `dynamic-pricing.service.ts:154-161` (freshness) trả null / fallback Weibull [ref: ledger t2.2-security] |
+| **Khả mở rộng** | Sidecar FastAPI (port 8000) có thể scale ngang độc lập với NestJS backend; 13 module NestJS tách biệt nhau [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar] | Kiến trúc monolith NestJS + 1 sidecar riêng biệt |
+| **Khả bảo trì** | Toàn bộ backend TypeScript/NestJS, sidecar Python typing với Pydantic; lint và kiểm thử 54 test case / 21 file spec [ref: ledger t1.15-numbers] | TypeScript strict, ESLint, Jest với coverage |
+| **Khả dùng (Usability)** | Giao diện mobile-first, ≈48 màn hình route Expo Router [ref: ledger t1.15-numbers]; luồng đặt hàng tối ưu dưới 5 bước | NativeWind TailwindCSS trên React Native |
 
 ### 3.2.3. Sơ đồ phân rã chức năng
-<!-- T2.13: dany.md L233-239; AI/ML = 3 chức năng thật; ledger t1.4-no-recommender -->
+
+Sơ đồ phân rã chức năng (FDD) phân cấp toàn bộ chức năng của hệ thống từ gốc F2T xuống bốn nhóm chức năng chính, mỗi nhóm tiếp tục phân rã thành các chức năng lá (xem Hình fdd-functional-decomposition.puml).
+
+**Nhóm Quản lý người dùng** bao gồm: đăng ký, xác thực OTP, đăng nhập/đăng xuất, quản lý hồ sơ và phân quyền theo vai trò (Consumer/Farm/Admin).
+
+**Nhóm E-commerce** bao gồm: quản lý sản phẩm, tìm kiếm địa lý, giỏ hàng, đặt hàng, thanh toán Stripe và theo dõi giao hàng GHN.
+
+**Nhóm AI/ML** gồm đúng 3 chức năng thực sự có trong hệ thống [ref: ledger t1.4-no-recommender]:
+1. **Dự báo nhu cầu** — ForecasterLSTM chạy qua endpoint `/forecast` của sidecar [ref: pricing-sidecar/main.py:263].
+2. **Định giá động** — DDQN (SharedMLPDuelingQNet) kết hợp Safety Layer 5 quy tắc, chạy qua endpoint `/predict` và `PricingTickCron` [ref: pricing-sidecar/main.py:277].
+3. **Phân loại độ tươi** — 2 model CoreML (fruit/root), nhị phân fresh/rotten, chạy qua endpoint `/freshness/classify` [ref: pricing-sidecar/main.py:316].
+
+**Nhóm Quản trị** bao gồm: duyệt farm, quản lý tài khoản, giám sát đơn hàng và thống kê vận hành.
+
+---
 
 ## 3.3. Phân tích, thiết kế kiến trúc hệ thống
 
 ### 3.3.1. Kiến trúc triển khai tổng quan
-<!-- T2.14: dany.md L243-253; 1 sidecar 3 endpoint; diagram deployment-architecture; ledger t1.4-one-sidecar -->
+
+Hệ thống F2T được triển khai theo kiến trúc **monolith NestJS kết hợp một sidecar ML** (xem Hình deployment-architecture.puml). Quyết định kiến trúc này xuất phát từ bối cảnh đây là hệ thống khóa luận của một sinh viên, trong đó tính đơn giản và khả năng vận hành độc lập quan trọng hơn tính phân tán quy mô lớn.
+
+**Backend NestJS 11** [ref: ledger t2.2-tech-versions] chạy trên cổng mặc định 3000 [ref: f2t-backend/src/main.ts:59-60], gồm 13 module [ref: ledger t1.4-one-sidecar]: `admin`, `auth`, `delivery`, `demand-forecasting`, `dynamic-pricing`, `farms`, `notifications`, `orders`, `payments`, `posts`, `products`, `uploads` và `users`. Backend kết nối tới **MongoDB** để lưu trữ dữ liệu nghiệp vụ và tới **Redis** (qua `RedisModule`) để cache kết quả dự báo nhu cầu [ref: f2t-backend/src/app.module.ts:84; f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:34,66]. Toàn bộ cấu hình URL sidecar được đọc từ biến môi trường `PRICING_SIDECAR_URL` với giá trị mặc định `http://localhost:8000` [ref: f2t-backend/src/app.module.ts:57].
+
+**Pricing Sidecar FastAPI** chạy trên cổng 8000 và cung cấp đúng 3 endpoint phục vụ các chức năng AI/ML [ref: ledger t1.4-one-sidecar]:
+
+- `/predict` (POST) — nhận state vector 10 chiều, trả delta giá từ DDQN sau Safety Layer [ref: pricing-sidecar/main.py:277].
+- `/forecast` (POST) — nhận state vector, trả `demand7d` và `pWaste` từ ForecasterLSTM [ref: pricing-sidecar/main.py:263].
+- `/freshness/classify` (POST) — nhận ảnh sản phẩm (JPEG/PNG), trả nhãn "fresh"/"rotten" và xác suất từ 2 model CoreML [ref: pricing-sidecar/main.py:316].
+
+**Ứng dụng di động** (React Native / Expo) giao tiếp với NestJS backend qua REST API. Frontend không gọi trực tiếp sidecar — mọi logic AI/ML đều được trừu tượng hóa phía backend.
+
+**Graceful degradation** là cơ chế bảo vệ then chốt: khi sidecar không phản hồi (timeout, restart, lỗi), NestJS bắt ngoại lệ và trả về dữ liệu dự phòng thay vì lỗi 5xx — Consumer vẫn nhận được danh sách sản phẩm với giá cuối cùng được lưu trong MongoDB, không trải nghiệm lỗi hệ thống [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:283-285; ledger t2.2-security].
 
 ### 3.3.2. Biểu đồ Use Case tổng quan
-<!-- T2.14: dany.md L255-267; diagram usecase-overview -->
+
+Biểu đồ use case tổng quan mô hình hóa tập hợp đầy đủ các chức năng mà ba tác nhân tương tác với hệ thống F2T (xem Hình usecase-overview.puml). Sáu nhóm use case được tổ chức theo miền chức năng:
+
+- **UC-01: Quản lý tài khoản** — Consumer và Farm Owner đăng ký, đăng nhập, quản lý hồ sơ; Admin quản lý người dùng. Bao gồm xác thực OTP email và refresh JWT.
+- **UC-02: Đặt hàng & Thanh toán** — Consumer tìm kiếm sản phẩm theo vị trí, thêm vào giỏ, đặt hàng và thanh toán qua Stripe Checkout. Giá hiển thị trong use case này đã được DynamicPricingInterceptor xử lý [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77].
+- **UC-03: Quản lý sản phẩm** — Farm Owner thực hiện CRUD sản phẩm, thiết lập giá cơ sở và danh mục.
+- **UC-04: Quản lý trang trại** — Farm Owner đăng ký và duy trì thông tin trang trại; Admin duyệt hoặc từ chối đăng ký.
+- **UC-05: Theo dõi giao hàng** — Consumer và Farm Owner xem trạng thái đơn hàng và thông tin vận đơn GHN.
+- **UC-06: Quản lý vận hành Admin** — Admin xem thống kê, giám sát đơn hàng và thực hiện cấu hình hệ thống.
 
 ### 3.3.3. Biểu đồ Use Case module AI/ML
-<!-- T2.15: dany.md L269-275; 2 UC-ML; diagram usecase-aiml; ledger t1.4-no-recommender -->
+
+Module AI/ML của F2T bổ sung hai use case tích hợp trí tuệ nhân tạo vào quy trình nghiệp vụ e-commerce (xem Hình usecase-aiml.puml). Hệ thống không có use case gợi ý sản phẩm cho người mua — đây là thiết kế cố ý sau khi xác minh không có module recommender trong codebase [ref: ledger t1.4-no-recommender].
+
+**UC-ML-01: Dự báo nhu cầu** — Tác nhân: Farm Owner. Farm Owner xem bảng dự báo nhu cầu 7 ngày cho từng sản phẩm trên dashboard. Phía backend, `DemandForecastingService` gọi `${sidecarUrl}/forecast` [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43], sidecar nhận state vector và chạy hàm `_run_forecaster` → `ForecasterLSTM` để trả về giá trị `demand7d` và `pWaste` (xác suất thất thoát) [ref: pricing-sidecar/main.py:263]. Kết quả dự báo giúp Farm Owner điều phối kế hoạch sản xuất và thu hoạch. Đây là use case do sinh viên tự thiết kế tích hợp ML vào nền tảng TMĐT [ref: ledger t1.4-forecaster-not-holt].
+
+**UC-ML-02: Định giá động (gợi ý giá)** — Tác nhân: Farm Owner. `PricingTickCron` tự động kích hoạt mỗi giờ [ref: f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18] để DDQN tính toán đề xuất delta giá cho từng sản phẩm. Farm Owner thấy đề xuất giá trên dashboard và quyết định chấp nhận hoặc từ chối. Khi Farm Owner chấp nhận, hệ thống ghi `PriceOverride` vào MongoDB và `DynamicPricingInterceptor` bắt đầu trả giá mới cho Consumer [ref: pricing-sidecar/main.py:277; ledger t1.4-one-sidecar]. Đây là thiết kế advisory (tư vấn), không ép giá tự động.
 
 ### 3.3.4. Đặc tả Use Case chi tiết
-<!-- T2.15: dany.md L277-291; 6 UC tiêu biểu -->
+
+Mục này trình bày đặc tả chi tiết cho 6 use case tiêu biểu, bao gồm tác nhân, tiền điều kiện, hậu điều kiện, luồng chính và ngoại lệ. Các use case được chọn đại diện cho toàn bộ các luồng nghiệp vụ quan trọng của hệ thống.
+
+---
+
+**UC-01: Đăng ký tài khoản**
+
+| Thuộc tính | Nội dung |
+|---|---|
+| **Tác nhân** | Consumer, Farm Owner (vai trò tương tự) |
+| **Tiền điều kiện** | Người dùng chưa có tài khoản; có kết nối mạng |
+| **Hậu điều kiện** | Tài khoản được tạo, email xác thực OTP hoàn tất, có thể đăng nhập |
+| **Luồng chính** | 1. Người dùng nhập email, mật khẩu, tên hiển thị. 2. Backend tạo tài khoản, mã hóa mật khẩu bcrypt saltRounds=10 [ref: f2t-backend/src/modules/users/users.service.ts:18]. 3. Hệ thống gửi mã OTP qua email. 4. Người dùng nhập OTP để xác thực. 5. Hệ thống cấp JWT access token + refresh token. |
+| **Ngoại lệ** | Email đã tồn tại → trả HTTP 409. OTP hết hạn → yêu cầu gửi lại. Mật khẩu không đủ mạnh → trả HTTP 422 với chi tiết lỗi. |
+
+---
+
+**UC-02: Đặt hàng**
+
+| Thuộc tính | Nội dung |
+|---|---|
+| **Tác nhân** | Consumer (đã đăng nhập) |
+| **Tiền điều kiện** | Consumer đã xác thực JWT; giỏ hàng có ít nhất 1 sản phẩm còn hàng |
+| **Hậu điều kiện** | Đơn hàng tạo thành công với trạng thái `pending`; snapshot giá được nhúng vào đơn hàng |
+| **Luồng chính** | 1. Consumer xem giỏ hàng với giá động hiện tại (qua interceptor). 2. Consumer xác nhận đặt hàng. 3. Backend tạo Order document, nhúng snapshot OrderItem gồm `productId`, `quantity`, `unitPrice` (giá tại thời điểm đặt) [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:128-138]. 4. Trạng thái đơn chuyển sang `pending`. 5. Farm nhận push notification về đơn mới. |
+| **Ngoại lệ** | Sản phẩm hết hàng → trả HTTP 422. JWT hết hạn → refresh tự động. Lỗi mạng → đơn chưa tạo, giỏ hàng giữ nguyên. |
+
+---
+
+**UC-03: Thanh toán Stripe**
+
+| Thuộc tính | Nội dung |
+|---|---|
+| **Tác nhân** | Consumer |
+| **Tiền điều kiện** | Đơn hàng đang ở trạng thái `pending`; Consumer có thẻ thanh toán hợp lệ |
+| **Hậu điều kiện** | Stripe xác nhận thanh toán; đơn hàng chuyển sang `confirmed`; Farm nhận thông báo |
+| **Luồng chính** | 1. Consumer khởi tạo thanh toán → backend gọi `stripe.checkout.sessions.create` [ref: f2t-backend/src/modules/payments/payments.service.ts:102]. 2. Backend trả URL Stripe Checkout. 3. Consumer hoàn thành thanh toán trên Stripe. 4. Stripe gửi webhook `checkout.session.completed` đến `POST /payments/webhook` [ref: f2t-backend/src/modules/payments/payments.service.ts:120-133]. 5. Backend xác thực webhook signature và cập nhật trạng thái đơn hàng. |
+| **Ngoại lệ** | Thẻ bị từ chối → Stripe trả lỗi, đơn giữ trạng thái `pending`. Webhook không hợp lệ (signature sai) → HTTP 400, bỏ qua. Timeout Stripe → retry webhook tự động do Stripe. |
+
+---
+
+**UC-04: Theo dõi giao hàng GHN**
+
+| Thuộc tính | Nội dung |
+|---|---|
+| **Tác nhân** | Consumer, Farm Owner |
+| **Tiền điều kiện** | Đơn hàng đã `confirmed`; vận đơn GHN đã tạo hoặc đang dùng fallback Dijkstra |
+| **Hậu điều kiện** | Người dùng xem được trạng thái giao hàng hiện tại |
+| **Luồng chính** | 1. Người dùng xem chi tiết đơn hàng. 2. Backend kiểm tra `ghnOrderCode` trong document. 3. Nếu có GHN code: gọi `ghnProvider.getTracking` → trả trạng thái thực từ GHN API. 4. Nếu không có GHN code (fallback demo): backend chạy thuật toán Dijkstra trên graph 10 node HCMC hardcoded, trả route mô phỏng với `trackingCode: 'GHN-ALGO-F2T-99'` [ref: f2t-backend/src/modules/delivery/delivery.service.ts:131,232; ledger t2.2-stripe-ghn]. |
+| **Ngoại lệ** | GHN API không phản hồi → graceful degrade: trả DB data có `ghnOrderCode` thay vì crash [ref: f2t-backend/src/modules/delivery/delivery.service.ts:255-278]. |
+
+---
+
+**UC-05: Định giá động / Gợi ý giá**
+
+| Thuộc tính | Nội dung |
+|---|---|
+| **Tác nhân** | Hệ thống (cron), Farm Owner (phê duyệt) |
+| **Tiền điều kiện** | Sản phẩm đã đăng; sidecar FastAPI đang chạy trên port 8000 |
+| **Hậu điều kiện** | PriceOverride mới ghi vào MongoDB; Farm nhận thông báo đề xuất giá; Consumer nhận giá mới qua interceptor |
+| **Luồng chính** | 1. Cron `"0 * * * *"` kích hoạt `runPricingTick` [ref: f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18]. 2. Backend thu thập state vector 10 chiều cho từng sản phẩm. 3. Gọi sidecar `POST /predict` [ref: pricing-sidecar/main.py:277]. 4. Sidecar chạy DDQN → Safety Layer 5 quy tắc (thứ tự 3→4→1→2→5) [ref: pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules] → trả `targetPrice` và `delta_pct`. 5. Backend ghi PriceOverride với status `pending_review`. 6. Farm nhận push notification. 7. Farm chấp nhận → status chuyển `accepted`; từ chối → `rejected`. |
+| **Ngoại lệ** | Sidecar không phản hồi → `catch` block trả null, không ghi PriceOverride [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:283-285]. Category không xác định → sidecar bỏ qua sản phẩm đó. |
+
+---
+
+**UC-06: Dự báo nhu cầu**
+
+| Thuộc tính | Nội dung |
+|---|---|
+| **Tác nhân** | Farm Owner |
+| **Tiền điều kiện** | Farm Owner đã đăng nhập; sản phẩm có danh mục hợp lệ (fruit/vegetable/herbs/root) |
+| **Hậu điều kiện** | Dashboard hiển thị tổng nhu cầu dự kiến 7 ngày và xác suất thất thoát |
+| **Luồng chính** | 1. Farm Owner mở dashboard sản phẩm. 2. Frontend gọi API dự báo. 3. Backend `DemandForecastingService` gọi `POST /forecast` [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43]. 4. Sidecar chạy `_run_forecaster` → `ForecasterLSTM` → tile obs 21× → trả `{demand7d, pWaste}` [ref: pricing-sidecar/main.py:128-145]. 5. Backend trả kết quả về frontend. 6. Dashboard hiển thị tổng nhu cầu 7 ngày và xác suất thất thoát. |
+| **Ngoại lệ** | Sidecar không phản hồi → trả `demand7d=0.0` (fallback hardcoded) [ref: pricing-sidecar/main.py:131-132]. Category không hợp lệ → HTTP 422 từ sidecar. |
+
+---
 
 ### 3.3.5. Biểu đồ tuần tự
-<!-- T2.16: dany.md L293-317; 6 SD e-commerce + 3 SD-ML; diagrams sd-01..06, sd-ml-01..03 -->
+
+Hệ thống F2T có tổng cộng **9 biểu đồ tuần tự**: 6 biểu đồ mô tả luồng e-commerce chính và **3 biểu đồ AI/ML** mô tả tương tác giữa NestJS backend và FastAPI sidecar. Các biểu đồ được thiết kế bám sát cấu trúc call stack thực tế trong code.
+
+**Nhóm E-commerce (6 biểu đồ):**
+
+**SD-01: Đăng nhập và JWT refresh** (xem Hình sd-01-login-jwt.puml) — Mô tả luồng Consumer gửi credentials → AuthService xác thực, `bcrypt.compare` hash → cấp `accessToken` + `refreshToken`. Luồng refresh: khi access token hết hạn, client gửi refresh token → backend cấp access token mới mà không yêu cầu đăng nhập lại.
+
+**SD-02: Đăng ký tài khoản** (xem Hình sd-02-register.puml) — Mô tả luồng nhập form → backend tạo user với `bcrypt.hash(password, 10)` [ref: f2t-backend/src/modules/users/users.service.ts:18] → gửi OTP email → người dùng xác thực → hệ thống đánh dấu `emailVerified=true`.
+
+**SD-03: Tìm kiếm theo vị trí địa lý** (xem Hình sd-03-search-geo.puml) — Mô tả Consumer cung cấp tọa độ → backend thực hiện MongoDB `$near` query với chỉ mục 2dsphere → trả danh sách sản phẩm theo khoảng cách. `DynamicPricingInterceptor` tự động bổ sung `dynamicPrice`, `freshnessScore`, `priceTag` vào mỗi phần tử kết quả [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77].
+
+**SD-04: Tạo đơn hàng** (xem Hình sd-04-create-order.puml) — Mô tả Consumer xác nhận giỏ hàng → backend kiểm tra tồn kho → tạo Order document với OrderItem embedded (snapshot giá tại thời điểm đặt, tránh drift giá) [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:128-138] → đơn hàng trạng thái `pending` → push notification đến Farm.
+
+**SD-05: Thanh toán Stripe Checkout** (xem Hình sd-05-stripe-checkout.puml) — Mô tả luồng đầy đủ: Consumer khởi tạo thanh toán → backend gọi `stripe.checkout.sessions.create` với line\_items từ order items [ref: f2t-backend/src/modules/payments/payments.service.ts:102] → trả URL Stripe → Consumer hoàn thành thanh toán trên Stripe → Stripe gọi webhook `POST /payments/webhook` → backend `stripe.webhooks.constructEvent` [ref: f2t-backend/src/modules/payments/payments.service.ts:126] → cập nhật trạng thái đơn hàng.
+
+**SD-06: Tạo vận đơn GHN và Dijkstra fallback** (xem Hình sd-06-ghn-dijkstra.puml) — Mô tả hai nhánh: (1) Khi đơn đã có GHN code, backend gọi `ghnProvider.createOrder` → `POST ${GHN_API}/v2/shipping-order/create` [ref: f2t-backend/src/modules/delivery/providers/ghn.provider.ts:73; ledger t2.2-stripe-ghn] (nhánh kích hoạt fallback khi chưa có GHN code được quyết định tại [ref: f2t-backend/src/modules/delivery/delivery.service.ts:98]); (2) Khi chưa có GHN code (fallback demo), backend chạy thuật toán Dijkstra trên graph 10 node HCMC hardcoded, trả route mô phỏng với `trackingCode: 'GHN-ALGO-F2T-99'` [ref: f2t-backend/src/modules/delivery/delivery.service.ts:131,232]. Cần lưu ý rằng fallback Dijkstra là minh họa học thuật, không phải routing production — trong triển khai thực tế, toàn bộ đơn hàng đều dùng GHN API thật.
+
+**Nhóm AI/ML (3 biểu đồ tuần tự):**
+
+**SD-ML-01: PricingTickCron — chu kỳ định giá mỗi giờ** (xem Hình sd-ml-01-pricing-cron.puml) — Mô tả `PricingTickCron` kích hoạt theo lịch cron `"0 * * * *"` [ref: f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18]. Backend thu thập state sản phẩm (freshness, inventory, giá, competitor) → gọi `POST /predict` hàng loạt → DDQN `SharedMLPDuelingQNet` chọn action trong 11 phần tử CANDIDATES [ref: ledger t0.2-action-space] → Safety Layer 5 quy tắc kiểm tra và clip → ghi `PriceOverride` status `pending_review` → push notification đến Farm → Farm chấp nhận (`accepted`) hoặc từ chối (`rejected`).
+
+**SD-ML-02: Dự báo nhu cầu theo yêu cầu** (xem Hình sd-ml-02-forecast.puml) — Mô tả Farm Owner mở dashboard → frontend gọi API → backend `DemandForecastingService` gọi `POST /forecast` trên sidecar port 8000 [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43] → sidecar nhận state vector → `_run_forecaster` tile obs 21× → `ForecasterLSTM` forward pass (LSTM 2 lớp, hidden 128, dual-head) → trả `{demand7d, pWaste}` [ref: pricing-sidecar/main.py:263] → backend trả kết quả → dashboard hiển thị dự báo 7 ngày và xác suất thất thoát.
+
+**SD-ML-03: Chu kỳ định giá chi tiết — DDQN và Safety Layer** (xem Hình sd-ml-03-pricing-detail.puml) — Mô tả chi tiết hơn SD-ML-01, tập trung vào luồng xử lý trong sidecar: state vector 10 chiều [ref: pricing-sidecar/main.py:114-125] → `SharedMLPDuelingQNet` forward với `obs_t`, `cat_t`, `mask_t` → `compute_mask` dựa trên freshness/category [ref: ledger t0.2-action-space] → `argmax(Q)` chọn action → Safety Layer `apply_safety` áp 5 quy tắc thứ tự 3→4→1→2→5 [ref: pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules] → trả `{targetPrice, delta_pct, safety_clipped}` [ref: pricing-sidecar/main.py:277].
 
 ### 3.3.6. Biểu đồ hoạt động
-<!-- T2.16: dany.md L319-333; AD-01,02 + AD-ML-01,02; diagrams ad-*; ledger t1.4-safety-5-rules -->
+
+Hệ thống F2T có 4 biểu đồ hoạt động mô tả logic rẽ nhánh và điều kiện chuyển trạng thái của các quy trình quan trọng nhất: 2 biểu đồ e-commerce và 2 biểu đồ AI/ML.
+
+**AD-01: Vòng đời đơn hàng** (xem Hình ad-01-order-lifecycle.puml) — Biểu đồ hoạt động mô tả vòng đời đầy đủ của một đơn hàng qua 7 trạng thái enum được định nghĩa tường minh trong schema [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:128-138]:
+
+1. `pending` — Đơn vừa được tạo, chờ xác nhận từ Farm.
+2. `confirmed` — Farm xác nhận đơn hàng (thường sau khi Stripe webhook thành công).
+3. `preparing` — Farm đang chuẩn bị hàng.
+4. `ready_for_pickup` — Hàng sẵn sàng để GHN lấy.
+5. `shipped` — GHN đã lấy hàng, đang giao.
+6. `delivered` — Người dùng đã nhận hàng.
+7. `cancelled` — Đơn hàng bị hủy (từ bất kỳ trạng thái nào trước `shipped`).
+
+Biểu đồ thể hiện hai nhánh song song quan trọng: nhánh thanh toán Stripe (Consumer) và nhánh xử lý đơn (Farm). Trạng thái `cancelled` là nút cuối của nhánh ngoại lệ, có thể đến từ `pending`, `confirmed` hoặc `preparing`.
+
+**AD-02: Xác thực JWT** (xem Hình ad-02-jwt.puml) — Biểu đồ mô tả luồng xác thực stateless của hệ thống. Khi client gửi request với access token: `JwtAuthGuard` [ref: f2t-backend/src/modules/auth/guards/jwt-auth.guard.ts:1-5] xác thực chữ ký và thời gian hết hạn. Nếu token còn hạn → request tiếp tục. Nếu token hết hạn → client gửi refresh token → backend cấp access token mới → client thử lại request gốc. Nếu refresh token cũng hết hạn hoặc không hợp lệ → HTTP 401, yêu cầu đăng nhập lại.
+
+**AD-ML-01: Luồng suy luận ForecasterLSTM** (xem Hình ad-ml-01-forecaster.puml) — Biểu đồ mô tả quy trình inference của mô hình dự báo nhu cầu. Bắt đầu từ request `/forecast`: (1) Kiểm tra `forecaster_net is None` — nếu chưa load trả `(0.0, 0.0)` [ref: pricing-sidecar/main.py:131-132]; (2) Xây dựng vector quan sát 10 chiều từ state vector; (3) Tile obs 21× tạo cửa sổ thời gian `(21, 10)` [ref: pricing-sidecar/main.py:135]; (4) ForecasterLSTM forward pass: LSTM encoder 2 lớp (hidden=128) → hidden state → dual-head: `demand_head` và `waste_head`; (5) `max(0.0, demand)` clip giá trị âm; `sigmoid(waste_logit)` cho xác suất thất thoát [ref: pricing-sidecar/main.py:140-141]; (6) Nếu exception (lỗi tensor, OOM) → catch, log warning, trả `(0.0, 0.0)` [ref: pricing-sidecar/main.py:143-145]. Điểm giới hạn cần ghi nhận: do backend chưa cung cấp chuỗi 21 ngày lịch sử thực, sidecar tile obs hiện tại 21× (steady-state), do đó LSTM không quan sát temporal dynamics thực sự — đây là hạn chế của triển khai hiện tại.
+
+**AD-ML-02: Suy luận DDQN kết hợp Safety Layer** (xem Hình ad-ml-02-ddqn-safety.puml) — Biểu đồ mô tả quy trình định giá đầy đủ, bao gồm DDQN và Safety Layer 5 quy tắc với thứ tự áp dụng bắt buộc [ref: pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules]:
+
+1. Nhận state vector → xây dựng obs 10 chiều.
+2. `compute_mask(freshness, category)` → vector bool 11 chiều mask các action không hợp lệ.
+3. `SharedMLPDuelingQNet.forward(obs_t, cat_t, mask_t)` → Q-values 11 chiều (masked).
+4. `argmax(Q[mask])` → `action_idx` → `delta = CANDIDATES[action_idx]`.
+5. `price_raw = base_price * (1 + delta)`.
+6. **Safety Layer áp thứ tự 3→4→1→2→5:**
+   - **Quy tắc 3** (tick clip): `price ∈ [base×0.70, base×1.20]` — giới hạn biến động mỗi chu kỳ.
+   - **Quy tắc 4** (freshness mandate): nếu `freshness < 0.4` thì `price ≤ base×0.75` — ép giảm giá hàng gần hết hạn.
+   - **Quy tắc 1** (cost floor): `price ≥ base×0.55` — sàn tránh bán lỗ.
+   - **Quy tắc 2** (price ceiling): `price ≤ base×2.0` — trần tránh thổi giá.
+   - **Quy tắc 5** (minimum viable): `price ≥ 1000` VND — giá tối thiểu tuyệt đối.
+7. Nếu `clipped_price ≠ original_price` → `safety_clipped=True`.
+8. Trả `{targetPrice, delta_pct, safety_clipped}` về backend.
+
+Thứ tự 3→4→1→2→5 không tùy tiện: Quy tắc 3 thiết lập biên tick trước, Quy tắc 4 override biên đó khi hàng sắp hỏng, sau đó Quy tắc 1 và 2 bảo vệ biên tuyệt đối, cuối cùng Quy tắc 5 đảm bảo giá có nghĩa kinh tế [ref: pricing-sidecar/safety.py:1-19].
 
 ### 3.3.7. Thuật toán chi tiết các module AI/ML
 

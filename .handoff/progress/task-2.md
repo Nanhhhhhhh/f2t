@@ -420,3 +420,136 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 - Ghi chú từ T2.2/T2.3: Dijkstra (delivery.service.ts:131) là **fallback demo** graph 10 node HCMC hardcoded, KHÔNG phải routing production → §3.3.5 SD-06 + §5.2 trình bày rõ. Stripe chỉ ở backend + WebView (frontend không có @stripe/stripe-react-native).
 - §4.4.2/3/4 + eval: KHÔNG bịa số MAE/AUROC/accuracy/doanh thu cụ thể (chưa chạy eval) — trình bày phương pháp + bảng khung. 3 paper (Nassibi 2023/Xue 2025/Kayikci 2022) là [TLTK] giữ nguyên.
 - §5.2 BẮT BUỘC `grep -c "HẠN CHẾ BẮT BUỘC"` ≥3, trạng thái post-retrain (forecaster tile-21× obs_dim=10 — KHÔNG ghi obs_dim=11/layout mismatch).
+
+## T2.12-T2.16 — Chương 3 §3.1-§3.3.6 ✅
+
+**Ngày:** 2026-06-07
+**File đích:** `docs/thesis/final/chuong-3-phan-tich-thiet-ke.md` (§3.1 → §3.3.6 đã có prose; §3.3.7/§3.4/§3.5 còn nguyên comment skeleton)
+
+### Bảng citation đã dùng
+
+| Section | Citation | Nội dung xác nhận |
+|---|---|---|
+| §3.1.1 | [TLTK] | Chuỗi cung ứng 5 bước, 3 vấn đề (giá bất cân xứng, mất tươi, thiếu truy xuất/dự báo) |
+| §3.1.2 | `f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77` | `dynamicPrice`, `freshnessScore`, `priceTag` ("flash_discount"/"standard") trả về trong response |
+| §3.1.2 | `f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18` | Cron schedule `"0 * * * *"` mỗi giờ |
+| §3.1.2 | `pricing-sidecar/main.py:263` | Endpoint `/forecast` ForecasterLSTM |
+| §3.1.2 | `ledger t1.4-interceptor-cron` | DynamicPricingInterceptor + PricingTickCron có thật |
+| §3.1.2 | `ledger t1.4-no-recommender` | KHÔNG có gợi ý sản phẩm cho Consumer |
+| §3.2.1 CF-03 | `f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-no-recommender` | Consumer thấy nhãn tươi + giá động, không có gợi ý sản phẩm |
+| §3.2.1 FF-03 | `pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness` | 2 model CoreML fruit/root, nhị phân fresh/rotten |
+| §3.2.1 FF-04 | `pricing-sidecar/main.py:263; ledger t1.4-forecaster-not-holt` | ForecasterLSTM qua `/forecast` |
+| §3.2.1 FF-05 | `pricing-sidecar/main.py:277; ledger t1.4-safety-5-rules` | DDQN + Safety Layer gợi ý giá |
+| §3.2.2 Bảo mật | `f2t-backend/src/modules/auth/guards/jwt-auth.guard.ts:1-5` | JwtAuthGuard extends AuthGuard('jwt') |
+| §3.2.2 Bảo mật | `f2t-backend/src/modules/users/users.service.ts:18; ledger t2.2-security` | bcrypt.hash(password, 10) saltRounds=10 |
+| §3.2.2 Graceful | `f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:283-285; ledger t2.2-security` | catch block predict → null, không crash |
+| §3.2.2 Khả mở rộng | `f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar` | 1 SIDECAR_URL port 8000, 13 module NestJS |
+| §3.2.2 Test | `ledger t1.15-numbers` | 54 test case / 21 file spec |
+| §3.2.2 Màn hình | `ledger t1.15-numbers` | ≈48 màn hình route Expo Router |
+| §3.2.3 AI/ML | `pricing-sidecar/main.py:263; ledger t1.4-no-recommender` | 3 chức năng thật: Dự báo nhu cầu |
+| §3.2.3 AI/ML | `pricing-sidecar/main.py:277` | Định giá động DDQN |
+| §3.2.3 AI/ML | `pricing-sidecar/main.py:316` | Phân loại độ tươi CoreML |
+| §3.3.1 | `f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar` | 1 sidecar port 8000 mặc định |
+| §3.3.1 | `pricing-sidecar/main.py:277` | Endpoint `/predict` DDQN |
+| §3.3.1 | `pricing-sidecar/main.py:263` | Endpoint `/forecast` ForecasterLSTM |
+| §3.3.1 | `pricing-sidecar/main.py:316` | Endpoint `/freshness/classify` CoreML |
+| §3.3.1 | `f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:283-285; ledger t2.2-security` | Graceful degrade predict |
+| §3.3.2 | `f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77` | UC-02 giá động qua interceptor |
+| §3.3.3 UC-ML-01 | `f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43; ledger t1.4-forecaster-not-holt` | DemandForecastingService gọi /forecast |
+| §3.3.3 UC-ML-02 | `pricing-sidecar/main.py:277; ledger t1.4-one-sidecar` | DDQN định giá advisory |
+| §3.3.3 | `ledger t1.4-no-recommender` | Chỉ 2 UC-ML, không có UC recommender |
+| §3.3.4 UC-01 | `f2t-backend/src/modules/users/users.service.ts:18` | bcrypt.hash đăng ký |
+| §3.3.4 UC-02 | `f2t-backend/src/modules/orders/schemas/order.schema.ts:128-138` | snapshot OrderItem embedded |
+| §3.3.4 UC-03 | `f2t-backend/src/modules/payments/payments.service.ts:102` | stripe.checkout.sessions.create |
+| §3.3.4 UC-03 | `f2t-backend/src/modules/payments/payments.service.ts:120-133` | webhook handleWebhook |
+| §3.3.4 UC-03 | `f2t-backend/src/modules/payments/payments.service.ts:126` | stripe.webhooks.constructEvent |
+| §3.3.4 UC-04 | `f2t-backend/src/modules/delivery/delivery.service.ts:131,232; ledger t2.2-stripe-ghn` | Dijkstra fallback trackingCode GHN-ALGO-F2T-99 |
+| §3.3.4 UC-04 | `f2t-backend/src/modules/delivery/delivery.service.ts:255-278` | graceful degrade GHN tracking fail |
+| §3.3.4 UC-05 | `f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18` | cron "0 * * * *" |
+| §3.3.4 UC-05 | `pricing-sidecar/main.py:277; pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules` | DDQN + Safety 5 rule |
+| §3.3.4 UC-05 | `f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:283-285` | catch predict → null |
+| §3.3.4 UC-06 | `f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43` | gọi /forecast |
+| §3.3.4 UC-06 | `pricing-sidecar/main.py:128-145` | _run_forecaster ForecasterLSTM |
+| §3.3.4 UC-06 | `pricing-sidecar/main.py:131-132` | fallback (0.0, 0.0) khi sidecar lỗi |
+| §3.3.5 SD-02 | `f2t-backend/src/modules/users/users.service.ts:18` | bcrypt.hash đăng ký |
+| §3.3.5 SD-03 | `f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77` | interceptor bổ sung dynamicPrice |
+| §3.3.5 SD-04 | `f2t-backend/src/modules/orders/schemas/order.schema.ts:128-138` | OrderItem embedded snapshot |
+| §3.3.5 SD-05 | `f2t-backend/src/modules/payments/payments.service.ts:102,126` | stripe create + verify |
+| §3.3.5 SD-06 | `f2t-backend/src/modules/delivery/delivery.service.ts:98; ledger t2.2-stripe-ghn` | GHN createOrder |
+| §3.3.5 SD-06 | `f2t-backend/src/modules/delivery/delivery.service.ts:131,232` | Dijkstra fallback |
+| §3.3.5 SD-ML-01 | `f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18` | cron "0 * * * *" |
+| §3.3.5 SD-ML-01 | `ledger t0.2-action-space` | 11 phần tử CANDIDATES linspace(-0.30,0.20,11) |
+| §3.3.5 SD-ML-02 | `f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43; pricing-sidecar/main.py:263` | /forecast ForecasterLSTM |
+| §3.3.5 SD-ML-03 | `pricing-sidecar/main.py:114-125` | state vector 10 chiều |
+| §3.3.5 SD-ML-03 | `pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules` | Safety 5 rule 3→4→1→2→5 |
+| §3.3.5 SD-ML-03 | `pricing-sidecar/main.py:277` | endpoint /predict trả targetPrice/delta_pct |
+| §3.3.6 AD-01 | `f2t-backend/src/modules/orders/schemas/order.schema.ts:128-138` | 7 trạng thái enum đúng |
+| §3.3.6 AD-02 | `f2t-backend/src/modules/auth/guards/jwt-auth.guard.ts:1-5` | JwtAuthGuard |
+| §3.3.6 AD-ML-01 | `pricing-sidecar/main.py:131-132` | fallback (0.0,0.0) khi model None |
+| §3.3.6 AD-ML-01 | `pricing-sidecar/main.py:135` | tile 21× tạo window (21,10) |
+| §3.3.6 AD-ML-01 | `pricing-sidecar/main.py:140-141` | max(0.0, demand) + sigmoid(waste_logit) |
+| §3.3.6 AD-ML-01 | `pricing-sidecar/main.py:143-145` | catch exception → (0.0, 0.0) |
+| §3.3.6 AD-ML-02 | `pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules` | Safety Layer 5 quy tắc |
+
+### Danh sách Hình tham chiếu
+
+| Hình | Section đề cập |
+|---|---|
+| `business-process-current.puml` | §3.1 (intro), §3.1.1 |
+| `business-process-f2t.puml` | §3.1 (intro), §3.1.2 |
+| `fdd-functional-decomposition.puml` | §3.2.3 |
+| `deployment-architecture.puml` | §3.3.1 |
+| `usecase-overview.puml` | §3.3.2 |
+| `usecase-aiml.puml` | §3.3.3 |
+| `sd-01-login-jwt.puml` | §3.3.5 SD-01 |
+| `sd-02-register.puml` | §3.3.5 SD-02 |
+| `sd-03-search-geo.puml` | §3.3.5 SD-03 |
+| `sd-04-create-order.puml` | §3.3.5 SD-04 |
+| `sd-05-stripe-checkout.puml` | §3.3.5 SD-05 |
+| `sd-06-ghn-dijkstra.puml` | §3.3.5 SD-06 |
+| `sd-ml-01-pricing-cron.puml` | §3.3.5 SD-ML-01 |
+| `sd-ml-02-forecast.puml` | §3.3.5 SD-ML-02 |
+| `sd-ml-03-pricing-detail.puml` | §3.3.5 SD-ML-03 |
+| `ad-01-order-lifecycle.puml` | §3.3.6 AD-01 |
+| `ad-02-jwt.puml` | §3.3.6 AD-02 |
+| `ad-ml-01-forecaster.puml` | §3.3.6 AD-ML-01 |
+| `ad-ml-02-ddqn-safety.puml` | §3.3.6 AD-ML-02 |
+
+### Self-review checklist
+
+| Tiêu chí | Kết quả |
+|---|---|
+| Số UC AI = 2 (UC-ML-01 Dự báo + UC-ML-02 Định giá) | PASS ✅ |
+| Số SD = 9 (6 e-commerce + 3 AI) | PASS ✅ |
+| Số SD AI = 3 (sd-ml-01, sd-ml-02, sd-ml-03) — KHÔNG ghi "5 biểu đồ AI" | PASS ✅ |
+| Safety thứ tự 3→4→1→2→5 (§3.3.4 UC-05, §3.3.5 SD-ML-03, §3.3.6 AD-ML-02) | PASS ✅ |
+| 0 từ cấm (recommender/gợi ý sản phẩm/cross-sell/For-You/collaborative/cosine/content-based/Holt/EWMA/DoW seasonality factor/3 sidecar/port 8001/8002/obs_dim=11/"5 biểu đồ AI") | PASS ✅ |
+| Mọi câu kỹ thuật có citation [ref: path:Lxx] hoặc [ref: ledger <id>] | PASS ✅ |
+| §3.3.7/§3.4/§3.5 còn nguyên comment skeleton (không bị đụng) | PASS ✅ |
+| Số liệu canonical: 13 module · 1 sidecar port 8000 · 3 endpoint · obs_dim=10 · 11 action · Safety 5 quy tắc · 2 CoreML · ≈48 màn hình · ≈79 endpoint (khi đề cập) | PASS ✅ |
+| Dijkstra = fallback demo (graph 10 node HCMC hardcoded, trackingCode GHN-ALGO-F2T-99) — KHÔNG phải routing production | PASS ✅ |
+| "gợi ý giá" cho Farm = THẬT (DDQN advisory) — xuất hiện đúng ở §3.2.1 FF-05, §3.3.3 UC-ML-02, §3.3.4 UC-05 | PASS ✅ |
+| Không có fact mới cần nạp ledger (mọi claim đã có entry ledger từ Task 0/1/2 trước) | PASS ✅ |
+
+### T2.12-T2.16 — VERIFY ĐỐI KHÁNG (agent độc lập, khác agent viết)
+
+**Verifier:** sonnet độc lập, "giả định claim SAI cho tới khi mở file resolve". 30 mục kiểm + quét từ cấm + quét citation thiếu.
+
+**Kết luận: PASS** (0 REJECT). Resolve tại nguồn các điểm rủi ro cao:
+- 1 sidecar port 8000 / đúng 3 endpoint (`app.module.ts:57`, `main.py:263/277/316`) ✅
+- Đúng 2 UC-ML, 0 recommender (`demand-forecasting.service.ts:43`, `main.py:277`, ledger t1.4-no-recommender) ✅
+- Safety 5 quy tắc thứ tự 3→4→1→2→5 + giá trị ngưỡng (`safety.py:1-19`) ✅
+- AD-01 enum 7 trạng thái, không packing/shipping/completed (`order.schema.ts:128-138`) ✅
+- 9 SD trong đó đúng 3 SD AI/ML ✅; cron default "0 * * * *" (`pricing-tick.cron.ts:18`) ✅
+- Dijkstra fallback demo (`delivery.service.ts:131,232`) ✅; interceptor 3 trường (`dynamic-pricing.interceptor.ts:74-77`) ✅
+- bcrypt saltRounds=10 (`users.service.ts:18`), JwtAuthGuard (`jwt-auth.guard.ts:1-5`) ✅
+- Từ cấm: chỉ xuất hiện dạng phủ định trung thực / ledger-id — KHÔNG có khẳng định sai ✅
+
+**Sửa sau verify (controller áp dụng, đã self-resolve tại nguồn):**
+1. SD-06: citation GHN URL `delivery.service.ts:98` → `ghn.provider.ts:73` (dòng 98 là nhánh quyết định fallback, URL `/v2/shipping-order/create` ở provider:73). Giữ :98 cho nhánh logic.
+2. §3.1.2 cron: thêm chú thích "(cấu hình qua `PRICING_CRON_SCHEDULE`)" — "0 * * * *" là default.
+3. §3.3.1: thêm citation cổng 3000 `main.ts:59-60` + NestJS 11 `ledger t2.2-tech-versions`.
+4. §3.2.2 NFR Hiệu năng: thêm citation 2dsphere/compound `ledger t1.11-schema-detail`.
+5. **Sửa trung thực (controller phát hiện thêm):** §3.3.1 trước ghi "Redis để hỗ trợ hàng đợi thông báo" — SAI. Redis thực tế dùng để **cache kết quả dự báo nhu cầu** (`demand-forecasting.service.ts:34,66` get/set EX; inject `RedisModule` `app.module.ts:84`). Đã sửa + citation. Đồng bộ NFR Hiệu năng.
+
+**Done-gate T2.12-T2.16: PASS** → commit task(T2.12-T2.16).
