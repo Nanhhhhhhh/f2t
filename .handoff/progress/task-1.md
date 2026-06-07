@@ -343,3 +343,100 @@ Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry 
 - [x] Outline §3.4.1/3.4.2/3.4.3 giữ nguyên tiêu đề in-nghiêng
 - [x] Không sửa ngoài §3.4
 - [x] Không sửa file source code
+
+## T1.12 — Quét và sửa dư âm recommender + sai số liệu trong §2.5/2.6/3.1.2/3.2/3.5/4.1/4.2/4.4.1 ✅
+
+### Danh sách thay đổi theo mục
+
+**A. §2.5** (dòng 185):
+- Cũ: "chưa hệ thống nào tích hợp **gợi ý** + dự báo + định giá + phân loại tươi"
+- Mới: "chưa hệ thống nào tích hợp dự báo nhu cầu + định giá động + phân loại độ tươi cho nông sản nhỏ trên nền tảng mobile"
+- Citation: [ref: ledger t1.4-no-recommender]
+
+**B. §2.6** (dòng 189):
+- Cũ: "mobile-first, AI trong luồng mua hàng, advisory pricing"
+- Mới: "mobile-first, AI trong luồng mua hàng (dự báo nhu cầu + định giá động + phân loại độ tươi), advisory pricing"
+- Citation: [ref: ledger t1.4-no-recommender]
+- GHI CHÚ: Không có recommender trong §2.6 trước khi sửa; làm rõ định hướng thật.
+
+**C. §3.1.2** (dòng 209):
+- Cũ: "API trả sản phẩm KÈM **gợi ý** + nhãn tươi + giá động. Farm mở dashboard → thấy dự báo + gợi ý giá"
+- Mới: "API trả sản phẩm KÈM nhãn tươi (freshnessScore) + giá động (dynamicPrice) qua DynamicPricingInterceptor. Farm mở dashboard → thấy dự báo nhu cầu + đề xuất giá từ DDQN"
+- Citation: [ref: dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron, t1.4-no-recommender]
+
+**D. §3.2.1** (dòng 223):
+- Cũ: "Consumer: 8 yêu cầu (..., **xem gợi ý**, ...)"
+- Mới: "Consumer: 8 yêu cầu (..., xem sản phẩm theo danh mục + nhãn tươi + giá động, ...)" — GIỮ số 8 (thay 1 yêu cầu bằng 1 yêu cầu thật)
+- GIỮ: "Farm: 7 yêu cầu (..., nhận **gợi ý giá**, ...)" — THẬT (price suggestion từ DDQN) [ref: ledger t1.4-no-recommender]
+- Citation: [ref: dynamic-pricing.interceptor.ts:74-77; ledger t1.4-no-recommender]
+
+**E. §3.2.3** (dòng 234-239):
+- Thêm bullet làm rõ nhóm AI/ML = đúng 3 chức năng thật: Dự báo nhu cầu + Định giá động + Phân loại độ tươi — KHÔNG có gợi ý sản phẩm
+- Citation: [ref: ledger t1.4-no-recommender; pricing-sidecar/main.py:263, 277, 316]
+
+**F. §3.5.1** (dòng 481):
+- Cũ: "Home (gợi ý For-You ★AI), Chi tiết (nhãn tươi ★AI + giá động ★AI + **sản phẩm tương tự** ★AI), Giỏ hàng (**cross-sell** ★AI)"
+- Mới: "Home (sản phẩm nổi bật — query thường, không AI), Chi tiết (nhãn tươi ★AI + giá động ★AI), Giỏ hàng (danh sách sản phẩm đã chọn)"
+- GIỮ: §3.5.2 Farm (Dashboard dự báo, Quét độ tươi camera ★AI, Gợi ý giá ★AI) — THẬT [ref: ledger t1.15-numbers]
+- GIỮ: §3.5.3 Admin giữ nguyên
+- Citation: [ref: ledger t1.4-no-recommender, t1.15-numbers; dynamic-pricing.interceptor.ts:74-77]
+
+**G. §4.1** (dòng 495-499):
+- Cũ: "Bảng thư viện AI/ML (FastAPI, PyTorch/TensorFlow, numpy, sklearn, scipy)"
+- Mới: "FastAPI, PyTorch (DDQN/LSTM), coremltools (CoreML inference), numpy — KHÔNG có sklearn-recommender/statsmodels-Holt"
+- Cũ: "Trình tự khởi động: MongoDB → **3 Sidecar** → NestJS → Expo"
+- Mới: "MongoDB → **1 pricing-sidecar (port 8000)** → NestJS → Expo"
+- Citation: [ref: f2t-backend/src/app.module.ts:57; pricing-sidecar/main.py; ledger t1.4-one-sidecar]
+
+**H. §4.2.1** (dòng 503-508):
+- Cũ: "Backend: **14** module NestJS" → Mới: "**13** module NestJS (danh sách 13 thư mục)"
+- Cũ: "Sidecars: **3** thư mục Python" → Mới: "**1** thư mục Python — pricing-sidecar/ (3 endpoint)"
+- Citation: [ref: f2t-backend/src/modules/ — 13 thư mục; f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]
+
+**I. §4.2.2** (dòng 511-520):
+- Thêm citation inline cho DynamicPricingInterceptor: [ref: dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]
+- Thêm citation + schedule cho PricingTickCron: `"0 * * * *"` [ref: pricing-tick.cron.ts:18; ledger t1.4-interceptor-cron]
+- Sửa vòng đời PriceOverride: shadow → pending_review → accepted/rejected → expired (5 trạng thái thật) [ref: price-override.schema.ts:45-50]
+- Thêm note: 1 sidecar (port 8000) [ref: ledger t1.4-one-sidecar]
+
+**J. §4.4.1** (dòng 537-540):
+- Cũ: "Bảng **14** module × trạng thái" → Mới: "**13** module"
+- Cũ: "**24+** REST endpoints" → Mới: "**≈79** REST endpoint" (đếm từ lệnh grep controller thật)
+- Cũ: "**42** màn hình" → Mới: "**≈48** màn hình route"
+- Thêm chú thích: 10 collection KHÔNG có recommendation_caches/forecast_caches
+- Citation: [ref: ledger t1.15-numbers, t1.4-collections, t1.4-one-sidecar]
+
+**J. §5.1** (dòng 613):
+- Cũ: "**14** module, 54/54 test, **42** màn hình, **3** sidecar AI"
+- Mới: "**13** module, 54/54 test (54 test case trong 21 file spec), **≈48** màn hình route, **1** pricing-sidecar AI (port 8000, 3 endpoint)"
+- Citation: [ref: ledger t1.15-numbers, t1.4-one-sidecar]
+
+**K. §4.4.6** (dòng 609):
+- Cũ: "Home+**ForYou**, Giỏ hàng+**cross-sell**"
+- Mới: "Home+sản phẩm nổi bật, Chi tiết+nhãn tươi+giá động, Giỏ hàng"
+- GIỮ: Farm gợi ý giá ★AI, Farm quét tươi ★AI — THẬT [ref: ledger t1.4-no-recommender, t1.15-numbers]
+
+### Mục GIỮ vì là thật
+- **Farm "nhận gợi ý giá"** (§3.2.1, §3.3.3 UC-ML-02) — THẬT: PricingTickCron → DDQN → PriceOverride → farm accept/reject [ref: ledger t1.4-interceptor-cron; farm/price-suggestions.tsx:439, 473]
+- **Farm "Quét độ tươi camera ★AI"** (§3.5.2) — THẬT: backend `@Post freshness/:productId/scan` + frontend use-scan-freshness.tsx [ref: ledger t1.15-numbers]
+- **Farm "Gợi ý giá ★AI"** (§3.5.2) — THẬT: farm/price-suggestions.tsx accept/reject flow [ref: ledger t1.15-numbers]
+- **Admin "Shadow Report ★AI"** (§3.5.3) — THẬT: price_overrides.mode = shadow/advisory [ref: price-override.schema.ts:45-50; ledger t1.4-collections]
+- **"gợi ý" trong §2.1.2** (dòng 81, lý thuyết chung) — đây là đề cập ứng dụng AI nói chung (recommendation là 1 trong 4 ứng dụng AI phổ biến), không phải claim F2T có recommender → GIỮ
+
+### Verify checklist
+- [x] §2.5: không còn "gợi ý" trong kết luận so sánh hệ thống
+- [x] §2.6: không còn recommender trong định hướng
+- [x] §3.1.2: không còn "gợi ý" trong luồng AI; thêm citation interceptor
+- [x] §3.2.1 Consumer: không còn "xem gợi ý"; Farm "gợi ý giá" GIỮ (thật)
+- [x] §3.2.3: ghi rõ AI/ML = 3 chức năng thật, không có gợi ý sản phẩm
+- [x] §3.5.1: không còn For-You/sản phẩm tương tự/cross-sell ★AI
+- [x] §3.5.2: GIỮ Farm (camera quét tươi ★AI, gợi ý giá ★AI)
+- [x] §4.1: "1 pricing-sidecar (port 8000)", thư viện AI/ML đúng (PyTorch + coremltools)
+- [x] §4.2.1: "13 module", "1 thư mục Python"
+- [x] §4.2.2: citation interceptor:74-77 + cron:18 + vòng đời 5 trạng thái + "1 sidecar"
+- [x] §4.4.1: "13 module", "≈79 endpoint", "≈48 màn hình", không còn "3 sidecar"
+- [x] §5.1: "13 module", "≈48 màn hình", "1 pricing-sidecar"
+- [x] §4.4.6: không còn ForYou/cross-sell; Farm camera/gợi ý giá GIỮ
+- [x] Outline (tiêu đề, thứ tự mục, phong cách dàn ý) giữ nguyên
+- [x] Không sửa dynamic-pricing-final/ hay pricing-sidecar/ source code
+- [x] Không commit

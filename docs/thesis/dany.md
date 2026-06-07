@@ -182,11 +182,11 @@
 
 - Bảng so sánh: chức năng, thanh toán, AI/ML, đối tượng
 
-- ★ Kết luận: chưa hệ thống nào tích hợp gợi ý + dự báo + định giá + phân loại tươi cho nông sản nhỏ
+- ★ Kết luận: chưa hệ thống nào tích hợp dự báo nhu cầu + định giá động + phân loại độ tươi cho nông sản nhỏ trên nền tảng mobile [ref: ledger t1.4-no-recommender]
 
 **2.6. Nhận xét và định hướng giải pháp (~0.5 trang)**
 
-- Hạn chế hệ thống hiện có → F2T định hướng: mobile-first, AI trong luồng mua hàng, advisory pricing
+- Hạn chế hệ thống hiện có → F2T định hướng: mobile-first, AI trong luồng mua hàng (dự báo nhu cầu + định giá động + phân loại độ tươi), advisory pricing [ref: ledger t1.4-no-recommender]
 
 ------------------------------------------------------------------------
 
@@ -206,7 +206,7 @@
 
 - Farm đăng ký → Admin duyệt → Farm đăng sản phẩm → Consumer tìm kiếm → Đặt hàng → Thanh toán Stripe → Giao hàng GHN → Đánh giá
 
-- ★ Luồng AI đan xen: Consumer mở app → API trả sản phẩm KÈM gợi ý + nhãn tươi + giá động. Farm mở dashboard → thấy dự báo + gợi ý giá
+- ★ Luồng AI đan xen: Consumer mở app → API trả sản phẩm KÈM nhãn tươi (freshnessScore) + giá động (dynamicPrice) qua DynamicPricingInterceptor. Farm mở dashboard → thấy dự báo nhu cầu + đề xuất giá từ DDQN [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron, t1.4-no-recommender]
 
 *3.1.3. 3 tác nhân hệ thống*
 
@@ -220,7 +220,7 @@
 
 *3.2.1. Yêu cầu chức năng theo vai trò*
 
-- Consumer: 8 yêu cầu (đăng ký, tìm kiếm geo, xem gợi ý, giỏ hàng, thanh toán, tracking, đánh giá, thông báo)
+- Consumer: 8 yêu cầu (đăng ký, tìm kiếm geo, xem sản phẩm theo danh mục + nhãn tươi + giá động, giỏ hàng, thanh toán, tracking, đánh giá, thông báo) [ref: ledger t1.4-no-recommender; f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77]
 
 - Farm: 7 yêu cầu (đăng ký farm, CRUD sản phẩm, chụp ảnh tươi, xem dự báo, nhận gợi ý giá, thống kê, thông báo)
 
@@ -234,7 +234,9 @@
 
 - Sơ đồ cây: F2T → 4 nhóm (Quản lý người dùng, E-commerce, AI/ML, Quản trị)
 
-- Mỗi nhóm phân rã 3-5 chức năng con
+- Nhóm AI/ML gồm đúng 3 chức năng thật: (1) Dự báo nhu cầu (ForecasterLSTM → /forecast), (2) Định giá động (DDQN + Safety Layer → /predict + PricingTickCron), (3) Phân loại độ tươi (2 model CoreML → /freshness/classify) — KHÔNG có gợi ý sản phẩm [ref: ledger t1.4-no-recommender; pricing-sidecar/main.py:263, 277, 316]
+
+- Các nhóm khác phân rã 3-5 chức năng con
 
 **3.3. Phân tích, thiết kế kiến trúc hệ thống (~15 trang)**
 
@@ -476,7 +478,7 @@ Các chỉ mục thật (đọc từ schema file):
 
 **3.5. Phân tích, thiết kế giao diện chức năng (~2 trang)**
 
-*3.5.1. Consumer:* Home (gợi ý For-You ★AI), Chi tiết (nhãn tươi ★AI + giá động ★AI + sản phẩm tương tự ★AI), Giỏ hàng (cross-sell ★AI), Checkout (Stripe WebView), Tracking (MapView)
+*3.5.1. Consumer:* Home (sản phẩm nổi bật — query thường, không AI), Chi tiết (nhãn tươi ★AI + giá động ★AI), Giỏ hàng (danh sách sản phẩm đã chọn), Checkout (Stripe WebView), Tracking (MapView) [ref: ledger t1.4-no-recommender, t1.15-numbers; f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77]
 
 *3.5.2. Farm:* Dashboard (biểu đồ dự báo 7 ngày ★AI), Quét độ tươi (camera ★AI), Gợi ý giá (chấp nhận/từ chối ★AI), CRUD sản phẩm, Thống kê
 
@@ -492,29 +494,29 @@ Các chỉ mục thật (đọc từ schema file):
 
 - Bảng thư viện Frontend (Expo SDK 53, axios, zustand, mmkv, nativewind...)
 
-- Bảng thư viện AI/ML (FastAPI, PyTorch/TensorFlow, numpy, sklearn, scipy)
+- Bảng thư viện AI/ML: FastAPI, PyTorch (DDQN/LSTM), coremltools (CoreML inference), numpy — KHÔNG có sklearn-recommender/statsmodels-Holt [ref: pricing-sidecar/main.py; ledger t1.4-one-sidecar]
 
-- Trình tự khởi động: MongoDB → 3 Sidecar → NestJS → Expo
+- Trình tự khởi động: MongoDB → 1 pricing-sidecar (port 8000) → NestJS → Expo [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]
 
 **4.2. Cài đặt và triển khai (~3 trang)**
 
 *4.2.1. Cấu trúc mã nguồn*
 
-- Backend: 14 module NestJS
+- Backend: 13 module NestJS (admin, auth, delivery, demand-forecasting, dynamic-pricing, farms, notifications, orders, payments, posts, products, uploads, users) [ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar]
 
 - Frontend: route groups
 
-- Sidecars: 3 thư mục Python
+- Sidecars: 1 thư mục Python — pricing-sidecar/ (3 endpoint: /predict, /forecast, /freshness/classify trên port 8000) [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]
 
 *4.2.2. Tích hợp NestJS ↔ AI Sidecars*
 
-- DynamicPricingInterceptor: đăng ký APP_INTERCEPTOR → chặn response /api/products → tra price_overrides → nhúng dynamicPrice + priceTag → Frontend không cần sửa
+- DynamicPricingInterceptor: đăng ký APP_INTERCEPTOR → chặn response /api/products → tra price_overrides → nhúng dynamicPrice + freshnessScore + priceTag → Frontend không cần sửa [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]
 
-- PricingTickCron: chạy mỗi giờ
+- PricingTickCron: chạy mỗi giờ theo schedule `"0 * * * *"` (configurable qua PRICING_CRON_SCHEDULE) [ref: f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18; ledger t1.4-interceptor-cron]
 
-- Vòng đời PriceOverride: pending → accepted/rejected → expired
+- Vòng đời PriceOverride: shadow → pending_review → accepted/rejected → expired (5 trạng thái enum thật) [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:45-50; ledger t1.4-collections]
 
-- ★ SV tự thiết kế Interceptor — giá AI nhúng tự động vào API mà không sửa controller
+- ★ SV tự thiết kế Interceptor — giá AI nhúng tự động vào API mà không sửa controller; 1 sidecar (port 8000) phục vụ cả 3 chức năng AI [ref: ledger t1.4-one-sidecar]
 
 *4.2.3. Tài khoản seed*
 
@@ -534,9 +536,9 @@ Các chỉ mục thật (đọc từ schema file):
 
 *4.4.1. Đánh giá chức năng tổng quan (~1 trang)*
 
-- Bảng 14 module × trạng thái hoàn thành
+- Bảng 13 module × trạng thái hoàn thành [ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar]
 
-- 24+ REST endpoints, 10 collections, 42 màn hình
+- ≈79 REST endpoint (đếm từ 14 controller: `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" src --include="*.controller.ts" | wc -l` = 79), 10 collection MongoDB (không có recommendation_caches/forecast_caches [ref: ledger t1.4-collections]), ≈48 màn hình route [ref: ledger t1.15-numbers]
 
 *4.4.2. Đánh giá hệ thống gợi ý (~1.5 trang)*
 
@@ -604,13 +606,13 @@ Các chỉ mục thật (đọc từ schema file):
 
 *4.4.6. Demo sản phẩm (~2 trang)*
 
-- 8 screenshots: Home+ForYou, Chi tiết+nhãn tươi, Giỏ hàng+cross-sell, Tracking bản đồ, Farm Dashboard+dự báo, Farm gợi ý giá, Farm quét tươi, Admin Dashboard
+- 8 screenshots: Home+sản phẩm nổi bật, Chi tiết+nhãn tươi+giá động, Giỏ hàng, Tracking bản đồ, Farm Dashboard+dự báo, Farm gợi ý giá ★AI, Farm quét tươi ★AI, Admin Dashboard [ref: ledger t1.4-no-recommender, t1.15-numbers]
 
 **CHƯƠNG 5. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN (~3 trang)**
 
 **5.1. Kết luận (~1.5 trang)**
 
-- Kết quả: 14 module, 54/54 test, 42 màn hình, 3 sidecar AI
+- Kết quả: 13 module, 54/54 test (54 test case trong 21 file spec), ≈48 màn hình route, 1 pricing-sidecar AI (port 8000, 3 endpoint) [ref: ledger t1.15-numbers, t1.4-one-sidecar]
 
 - 6 đóng góp (nhắc lại + kèm số liệu benchmark từ Chương 4)
 
