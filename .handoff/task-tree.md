@@ -58,3 +58,5 @@ Plan: `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md`. Đầu ra:
 | T2.V | Verify toàn văn độc lập → VERIFY-REPORT.md | sonnet/controller | T2.30 | pending |
 
 > Mỗi leaf-task: ledger-first (tái dùng 20 entry sẵn) → prose giữ citation inline → verify đối kháng độc lập (CSDL/AI-ML/diagram 2-lớp) → commit nhỏ. KHÔNG đụng code (chỉ đọc fact-check).
+
+> **CHƯƠNG 4 DONE ✅ (2026-06-07, phiên #3):** T2.23→T2.28 verify đối kháng PASS + RE-VERIFY toàn chương 2 lớp PASS (0 số eval bịa, canonical nhất quán, 26/26 ref tồn tại). 6 commit `19500b6…520664b` + re-verify đã push. **Việc tiếp theo = T2.29 (Chương 5) → T2.30 (TLTK+mục lục) → T2.V (verify toàn văn → VERIFY-REPORT.md → STATE "Task 2 DONE").**

@@ -1100,3 +1100,26 @@ Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **
 **WARN-1 (resolve):** câu "không training script trong repo F2T" có thể bị hiểu nhầm là repo không có script nào → controller làm rõ "không có training script cho mô hình phân loại ẢNH (khác DDQN/LSTM vốn có script trong dynamic-pricing-final/src/)". WARN-2 (vị trí thư mục) chấp nhận.
 
 **Done-gate T2.28 (post-fix): PASS** → commit task(T2.28). **CHƯƠNG 4 HOÀN TẤT (T2.23→T2.28).**
+
+## RE-VERIFY TOÀN CHƯƠNG 4 (theo yêu cầu người dùng) — PASS ✅
+
+**Ngày:** 2026-06-07 (cuối phiên Task 2 #3). 2 lớp: (A) quét cơ học + controller resolve line-ref; (B) verifier đối kháng độc lập agent mới đọc toàn §4.1→§4.4.5.
+
+**(A) Quét cơ học + controller resolve:**
+- 26/26 file trong mọi `[ref: path]` TỒN TẠI ✅
+- 0 skeleton comment; 0 từ cấm khẳng định (recommender/Holt/EWMA/MobileNetV2/4-class/Confusion 4×4/obs_dim=11/8001/8002/3 sidecar) ✅
+- Eval-number sweep: 0 số kết quả eval bịa; 27 ô bảng khung = "—" ✅
+- Canonical nhất quán: 13 module · 1 sidecar 8000 · 3 endpoint · 10 collection · 54/54 (21 spec) · ≈79 endpoint (14 controller) · ≈48 màn · obs_dim=10 · 11 action · Safety 5 rule · 2 CoreML · EPISODE_LEN=91 ✅
+- Controller resolve line-ref tại source: seed.ts 3/5/1/1 (:59/:87/:116/:381); price-override 5 status (:45-50); reward.py 11 action linspace(-0.30,0.20,11) [6]=0.0 (:6-7); market_env EPISODE_LEN=91 (:14,:99); main.py routing fruit/root (:318) + RGB resize 299 (:324) + target/targetProbability (:328-330); safety.py 3→4→1→2→5 + ngưỡng + safety_clipped (:5-21); interceptor 3 trường (:74-77) ✅
+
+**(B) Verifier đối kháng độc lập (8 mục §4.1→§4.4.5 resolve 100% tại source): PASS, 0 REJECT.**
+- (a) 0 số eval bịa — Bảng 4.7/4.8/4.9/4.10/4.11 toàn "—" ✅
+- (b) số liệu canonical nhất quán toàn chương ✅
+- (c) Naive = baseline ĐỀ XUẤT chưa hiện thực trong eval.py (eval.py xác nhận 0 naive) ✅
+- (d) Hình 4.8 Shadow Report = endpoint backend controller.ts:78 CHƯA tích hợp UI mobile (admin/index.tsx chỉ analytics) ✅
+- (e) obs_dim=10 toàn chương (KHÔNG 11/layout mismatch) ✅
+- eval.py compute_demand_mae/compute_waste_auroc/per_category/isotonic; ForecasterLSTM model.py:9-15 dual-head; CoreML 2 model 2×2; Safety thứ tự+ngưỡng; 3 paper [TLTK] định tính ✅
+
+**Sửa duy nhất sau re-verify (WARN-1):** §4.4.1 câu "10 collection không có bảng cache suy luận bổ sung" → SỬA trung thực: "KHÔNG có recommendation_caches/forecast_caches (không có gợi ý sản phẩm; dự báo cache ở tầng Redis, không tạo collection riêng)" [ledger t1.4-collections, t1.4-no-recommender]. WARN-2 (tsc "đặt mục tiêu CI") + WARN-3 (model.py line offset nhỏ, nội dung đúng) chấp nhận không sửa.
+
+**KẾT LUẬN RE-VERIFY: Chương 4 PASS toàn bộ — chân thực 100% với code, 0 số eval bịa.**
