@@ -787,3 +787,53 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 **Sửa duy nhất sau re-verify:** citation webhook Stripe `payments.service.ts:120-133` → `120-138` (để range bao trùm case `checkout.session.completed` ở dòng 136). Không có lỗi nội dung nào khác.
 
 **KẾT LUẬN RE-VERIFY: Chương 3 PASS toàn bộ — chân thực 100% với code.**
+
+## T2.23 — §4.1+§4.2 ✅
+
+**Ngày:** 2026-06-07
+**File đích:** `docs/thesis/final/chuong-4-trien-khai-thuc-nghiem.md` — §4.1, §4.2.1, §4.2.2, §4.2.3 đã có prose học thuật tiếng Việt đầy đủ.
+
+### Bảng citation đã dùng
+
+| Section | Citation | Nội dung |
+|---|---|---|
+| §4.1 (trình tự khởi động) | `[ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]` | 1 sidecar FastAPI port 8000 |
+| §4.1 (bảng backend) | `[ref: ledger t2.2-tech-versions]` | NestJS 11.0.1, mongoose 8.19.1, bcrypt 6.0.0, passport-jwt 4.0.1, stripe ^22.1.1, class-validator 0.14.2, @nestjs/schedule ^6.1.3 |
+| §4.1 (bảng frontend) | `[ref: ledger t2.2-tech-versions]` | expo ~53.0.27, expo-router ~5.1.11, react-native 0.79.6, axios ^1.7.5, zustand ^5.0.5, react-native-mmkv ~3.1.0, nativewind ^4.1.21 |
+| §4.1 (bảng AI/ML) | `[ref: ledger t2.2-tech-versions]` | fastapi>=0.111.0, torch>=2.2.0, coremltools>=7.0, numpy>=1.26.0, pydantic>=2.0.0 |
+| §4.2.1 (13 module) | `[ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar]` | Danh sách 13 module NestJS: admin, auth, delivery, demand-forecasting, dynamic-pricing, farms, notifications, orders, payments, posts, products, uploads, users |
+| §4.2.1 (frontend ≈48 màn hình) | `[ref: ledger t2.2-frontend-routes, t1.15-numbers]` | 8 nhóm route + 5 file gốc, ≈48 màn hình |
+| §4.2.1 (1 sidecar 3 endpoint) | `[ref: f2t-backend/src/app.module.ts:57; pricing-sidecar/main.py:263,277,316; ledger t1.4-one-sidecar]` | 1 sidecar port 8000, /forecast /predict /freshness/classify |
+| §4.2.2 (interceptor 3 trường) | `[ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]` | dynamicPrice, freshnessScore, priceTag |
+| §4.2.2 (cron) | `[ref: f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18; ledger t1.4-interceptor-cron]` | schedule "0 * * * *", configurable PRICING_CRON_SCHEDULE |
+| §4.2.2 (graceful degrade) | `[ref: ledger t2.2-security]` | catch block sidecar không phản hồi, ghi warn không crash |
+| §4.2.2 (5 trạng thái PriceOverride) | `[ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:45-50; ledger t1.4-collections]` | shadow/pending_review/accepted/rejected/expired |
+| §4.2.2 (1 sidecar ★ tự thiết kế) | `[ref: f2t-backend/src/app.module.ts:57; pricing-sidecar/main.py:263,277,316; ledger t1.4-one-sidecar]` | 1 sidecar phục vụ 3 chức năng AI |
+| §4.2.3 (seed 10 user) | `[ref: f2t-backend/src/seed/seed.ts:59,87,116,381; ledger t2.2-seed]` | Admin×1, Farm×3, Consumer×5, Suspended×1 = 10 user |
+| §4.2.3 (bcrypt) | `[ref: f2t-backend/src/modules/users/users.service.ts:18; ledger t2.2-security]` | saltRounds=10 |
+
+### Nguồn ngoài [TLTK] đã dùng:
+- Thông tin phần cứng máy trạm (macOS, RAM, CPU) → `[TLTK]`
+- Trình tự khởi động môi trường dev (MongoDB → sidecar → NestJS → Expo) → `[TLTK]` (convention thực tế)
+
+### Self-review checklist
+
+| Tiêu chí | Kết quả |
+|---|---|
+| 13 module NestJS (đúng danh sách: admin, auth, delivery, demand-forecasting, dynamic-pricing, farms, notifications, orders, payments, posts, products, uploads, users) | ✅ PASS |
+| 1 sidecar port 8000 (không có 8001/8002, không có 3 sidecar) | ✅ PASS |
+| 3 endpoint /forecast, /predict, /freshness/classify | ✅ PASS |
+| 5 trạng thái PriceOverride (shadow/pending_review/accepted/rejected/expired) | ✅ PASS |
+| Seed 10 user (Admin×1/Farm×3/Consumer×5/Suspended×1) | ✅ PASS |
+| 0 từ cấm (recommender/gợi ý sản phẩm/collaborative/cosine/content-based; Holt/EWMA/sklearn-recommender/statsmodels; 3 sidecar/port 8001/8002; obs_dim=11; MobileNetV2/4-class) | ✅ PASS — không xuất hiện trong prose T2.23 |
+| §4.3 comment <!-- T2.24: ... --> còn nguyên | ✅ PASS |
+| §4.4.1 comment <!-- T2.25: ... --> còn nguyên | ✅ PASS |
+| §4.4.2 comment <!-- T2.26 ⭐2-lớp: ... --> còn nguyên | ✅ PASS |
+| §4.4.3 comment <!-- T2.27 ⭐2-lớp: ... --> còn nguyên | ✅ PASS |
+| §4.4.4 comment <!-- T2.28 ⭐2-lớp: ... --> còn nguyên | ✅ PASS |
+| §4.4.5 comment <!-- T2.25: ... --> còn nguyên | ✅ PASS |
+| Mọi câu kỹ thuật có citation [ref: ...] hoặc [TLTK] | ✅ PASS |
+| Bảng version khớp ledger t2.2-tech-versions (NestJS 11.0.1, mongoose 8.19.1, bcrypt 6.0.0, passport-jwt 4.0.1, stripe ^22.1.1, cv 0.14.2; expo ~53.0.27, expo-router ~5.1.11, RN 0.79.6, nativewind ^4.1.21, zustand ^5.0.5, mmkv ~3.1.0; fastapi>=0.111, torch>=2.2, coremltools>=7.0) | ✅ PASS |
+| Văn phong học thuật tiếng Việt, đoạn văn liền mạch + bảng cho phần cứng/thư viện/seed | ✅ PASS |
+
+**Done-gate T2.23: PASS** → §4.1+§4.2.1+§4.2.2+§4.2.3 đầy đủ prose, §4.3/§4.4.* còn nguyên comment.
