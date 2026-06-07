@@ -540,45 +540,43 @@ Các chỉ mục thật (đọc từ schema file):
 
 - ≈79 REST endpoint (đếm từ 14 controller: `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" src --include="*.controller.ts" | wc -l` = 79), 10 collection MongoDB (không có recommendation_caches/forecast_caches [ref: ledger t1.4-collections]), ≈48 màn hình route [ref: ledger t1.15-numbers]
 
-*4.4.2. Đánh giá hệ thống gợi ý (~1.5 trang)*
+*4.4.2. Đánh giá dự báo nhu cầu (~1.5 trang)*
 
-- Hit-Rate@6: % user có ≥1 sản phẩm gợi ý được mua
+- Mô hình đánh giá: **ForecasterLSTM** (LSTM 2 lớp, window=21, dual-head demand + waste_logit) — đánh giá qua script offline `dynamic-pricing-final/src/forecaster/eval.py` trên tập validation [ref: dynamic-pricing-final/src/forecaster/eval.py:28-85; ledger t0.2-forecaster-arch, t0.4-forecaster-parity]
 
-- So sánh: ItemItemCF vs Content-Based vs Random baseline
+- Chỉ số demand: **MAE/day** (mean absolute error per ngày, đơn vị: đơn vị sản phẩm) — hàm `compute_demand_mae(d_pred/7, d_true/7)` [ref: dynamic-pricing-final/src/forecaster/eval.py:18-19]
 
-- Thời gian phản hồi sidecar (ms)
+- Chỉ số waste: **AUROC** (waste_logit vs nhãn nhị phân waste_7d) — hàm `compute_waste_auroc` dùng `roc_auc_score` của sklearn [ref: eval.py:12-15]
 
-- Tỷ lệ cold-start fallback
+- So sánh baseline: LSTM ForecasterLSTM vs **Naive (lấy ngày hôm qua)** trên cùng tập validation — thể hiện giá trị học được của mô hình LSTM so với dự báo đơn giản nhất [ref: eval.py:68-83]
 
-- Bảng kết quả + biểu đồ cột
+- Kết quả theo từng danh mục (leafy/root/fruit/herbs): MAE/day + AUROC + waste_rate cho từng category [ref: eval.py:74-83]
 
-- SV tự đánh giá 3 phương pháp trên cùng dataset
+- ⚠️ **GIỚI HẠN QUAN TRỌNG:** Kết quả `/forecast` khi serve KHÔNG đáng tin cậy — train dùng obs_dim=11 + chuỗi 21 bước thật; serve pad-cuối 10→11 (sai vị trí index 2) rồi tile-21× thay chuỗi thật → LSTM không thấy temporal dynamics (`pricing-sidecar/main.py:L134-135`). **Đánh giá tin cậy phải dựa trên offline eval** `eval.py` với dữ liệu chuỗi thật từ `data/processed/test.parquet`, KHÔNG dùng số từ serve `/forecast` [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations; pricing-sidecar/main.py:L134-135]
 
-*4.4.3. Đánh giá dự báo nhu cầu (~1.5 trang)*
+- BỎ: Holt+DoW vs Holt không DoW, restock warning %, "SV chứng minh DoW cải thiện MAE"
 
-- MAE (sai số trung bình, đơn vị: số bó rau)
+*4.4.3. Đánh giá định giá động (~2 trang)*
 
-- MAPE (% sai số)
+- Phân bố delta_pct: histogram 11 action (CANDIDATES = linspace(-0.30, 0.20, 11)) qua mô phỏng trong `dynamic-pricing-final/src/env/market_env.py` — quan sát action DDQN chọn phân bố theo mức độ tươi và tồn kho [ref: dynamic-pricing-final/src/env/market_env.py:146-158; dynamic-pricing-final/src/rl/reward.py:L6-7; ledger t0.2-action-space]
 
-- So sánh: Holt+DoW vs Holt không DoW vs Naive (lấy hôm qua)
+- Safety clip rate: % lần Safety Layer can thiệp (trả `safety_clipped=True`) khi DDQN đề xuất giá vi phạm ≥1 trong 5 rule [ref: pricing-sidecar/safety.py:1-23; ledger t1.4-safety-5-rules]
 
-- Restock warning: % cảnh báo đúng
+- Simulated revenue + waste reduction: DDQN vs giá cố định vs giảm giá đều — chạy episode mô phỏng trong `market_env.py` (EPISODE_LEN=91 ngày) và đo doanh thu tổng + số lần waste event [ref: dynamic-pricing-final/src/env/market_env.py:79-81, 99; ledger t0.2-action-space]
 
-- Bảng cho 3-5 loại rau phổ biến
+- Safety Layer 5 quy tắc (thứ tự áp 3→4→1→2→5): [ref: pricing-sidecar/safety.py:1-23; ledger t1.4-safety-5-rules]
 
-- SV chứng minh DoW cải thiện MAE bao nhiêu %
+  - Rule 3: clip price ∈ [base×0.70, base×1.20] — giới hạn bước tick tối đa [safety.py:L6]
 
-*4.4.4. Đánh giá định giá động (~2 trang)*
+  - Rule 4: freshness < 0.4 → price ≤ base×0.75 — bắt buộc giảm giá khi sản phẩm sắp hỏng [safety.py:L8-10]
 
-- Phân bố delta_pct (histogram)
+  - Rule 1: price ≥ base×0.55 — sàn chi phí [safety.py:L12-13]
 
-- Safety clip rate: % Safety Layer can thiệp
+  - Rule 2: price ≤ base×2.0 — trần tuyệt đối [safety.py:L15-16]
 
-- Simulated revenue: DDQN vs giá cố định vs giảm giá đều
+  - Rule 5: price ≥ 1 000 VND — giá tối thiểu [safety.py:L18-19]
 
-- Simulated waste reduction: % giảm lãng phí
-
-- So sánh với 3-4 nghiên cứu quốc tế:
+- So sánh với nghiên cứu quốc tế (giữ các tham chiếu paper thật):
 
   - Nassibi et al. (2023): dự báo nhu cầu ML — F2T thêm pricing
 
@@ -590,21 +588,21 @@ Các chỉ mục thật (đọc từ schema file):
 
 - SV tự so sánh F2T với nghiên cứu quốc tế → định vị đóng góp
 
-*4.4.5. Đánh giá phân loại độ tươi (~1 trang)*
+*4.4.4. Đánh giá phân loại độ tươi (~1 trang)*
 
-- Accuracy trên test set
+- Mô hình đánh giá: **2 model CoreML nhị phân** (fresh/rotten) — `MyFreshnessClassifier-fruit.mlmodel` (danh mục fruit) và `MyFreshnessClassifier-root.mlmodel` (danh mục root/leafy/herbs) [ref: pricing-sidecar/main.py:L316-333; ledger t0.6-coreml-freshness, t1.4-freshness-coreml]
 
-- Confusion Matrix 4×4
+- Phân loại **nhị phân** (2 lớp: fresh / rotten) — output: `{target: "fresh"/"rotten", targetProbability: {fresh: float, rotten: float}}` [ref: pricing-sidecar/main.py:L329-330; ledger t0.6-coreml-freshness]
 
-- F1-score trung bình
+- Chỉ số đánh giá: **Confusion Matrix 2×2** (TP/FP/FN/TN theo lớp fresh), accuracy, precision, recall, F1-score nhị phân — BỎ Confusion Matrix 4×4
 
-- So sánh: MobileNetV2 vs đánh giá bằng mắt 3 người
+- Inference time (ms): thời gian `model.predict({"image": img})` cho ảnh 299×299 RGB [ref: pricing-sidecar/main.py:L324-325; ledger t0.6-coreml-freshness]
 
-- Inference time (ms)
+- ⚠️ **GIỚI HẠN:** (a) Chỉ 2/4 danh mục có model riêng (fruit, root) — leafy và herbs dùng chung model root làm xấp xỉ; (b) Không có dataset rau VN tự thu thập — 2 model CoreML được huấn luyện qua Apple Create ML, không có training script trong repo; đánh giá phụ thuộc vào tập test có sẵn [ref: ledger t0.10-thesis-limitations, t1.4-freshness-coreml, t0.6-coreml-freshness; pricing-sidecar/main.py:L316-333]
 
-- Dataset rau VN tự thu thập = đóng góp riêng
+- BỎ: "MobileNetV2", "Confusion Matrix 4×4", "so sánh với mắt người", "dataset rau VN tự thu thập = đóng góp riêng"
 
-*4.4.6. Demo sản phẩm (~2 trang)*
+*4.4.5. Demo sản phẩm (~2 trang)*
 
 - 8 screenshots: Home+sản phẩm nổi bật, Chi tiết+nhãn tươi+giá động, Giỏ hàng, Tracking bản đồ, Farm Dashboard+dự báo, Farm gợi ý giá ★AI, Farm quét tươi ★AI, Admin Dashboard [ref: ledger t1.4-no-recommender, t1.15-numbers]
 

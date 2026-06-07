@@ -440,3 +440,47 @@ Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry 
 - [x] Outline (tiêu đề, thứ tự mục, phong cách dàn ý) giữ nguyên
 - [x] Không sửa dynamic-pricing-final/ hay pricing-sidecar/ source code
 - [x] Không commit
+
+## T1.13 — Viết lại §4.4 "Đánh giá hệ thống" — các mục con AI/ML ✅
+
+### Cấu trúc §4.4 sau khi sửa (mục con + số)
+
+| Mục | Tiêu đề | Trạng thái |
+|---|---|---|
+| 4.4.1 | Đánh giá chức năng tổng quan (~1 trang) | GIỮ NGUYÊN (đã sửa T1.12) |
+| 4.4.2 | Đánh giá dự báo nhu cầu (~1.5 trang) | VIẾT LẠI (cũ là 4.4.3 Holt+DoW → nay ForecasterLSTM offline eval) |
+| 4.4.3 | Đánh giá định giá động (~2 trang) | GIỮ + SỬA Safety Layer citation (cũ là 4.4.4) |
+| 4.4.4 | Đánh giá phân loại độ tươi (~1 trang) | VIẾT LẠI CoreML nhị phân 2×2 (cũ là 4.4.5 MobileNetV2 4×4) |
+| 4.4.5 | Demo sản phẩm (~2 trang) | RE-NUMBER (cũ là 4.4.6) — nội dung không đổi |
+
+**ĐÃ XÓA:** §4.4.2 cũ "Đánh giá hệ thống gợi ý" (Hit-Rate@6, ItemItemCF vs CBF vs Random) — không tồn tại implementation [ledger t1.4-no-recommender]
+
+### Citation bảng
+
+| Thay đổi | File:Dòng | Ledger |
+|---|---|---|
+| §4.4.2 — ForecasterLSTM eval script | dynamic-pricing-final/src/forecaster/eval.py:28-85 | t0.2-forecaster-arch, t0.4-forecaster-parity |
+| §4.4.2 — MAE/day metric | eval.py:18-19 (`compute_demand_mae`) | t0.4-forecaster-parity |
+| §4.4.2 — AUROC waste_logit | eval.py:12-15 (`compute_waste_auroc`) | t0.4-forecaster-parity |
+| §4.4.2 — per-category results | eval.py:74-83 | t0.4-forecaster-parity |
+| §4.4.2 — giới hạn serve mismatch | pricing-sidecar/main.py:L134-135 | t0.4-forecaster-parity, t0.10-thesis-limitations |
+| §4.4.3 — action space 11 (market_env) | dynamic-pricing-final/src/env/market_env.py:146-158 | t0.2-action-space |
+| §4.4.3 — EPISODE_LEN=91 waste events | market_env.py:79-81, 99 | t0.2-action-space |
+| §4.4.3 — Safety Layer 5 rule (thứ tự 3→4→1→2→5) | pricing-sidecar/safety.py:1-23 | t1.4-safety-5-rules |
+| §4.4.4 — 2 model CoreML (fruit/root) | pricing-sidecar/main.py:L316-333 | t0.6-coreml-freshness, t1.4-freshness-coreml |
+| §4.4.4 — output nhị phân | pricing-sidecar/main.py:L329-330 | t0.6-coreml-freshness |
+| §4.4.4 — giới hạn dataset + 2/4 model | pricing-sidecar/main.py:L316-333 | t0.10-thesis-limitations, t1.4-freshness-coreml |
+
+### Verify checklist
+
+- [x] §4.4.2 cũ (recommender) ĐÃ XÓA — không còn Hit-Rate@6, ItemItemCF, cold-start
+- [x] §4.4 re-number liền mạch: 4.4.1 → 4.4.2 → 4.4.3 → 4.4.4 → 4.4.5 (không có gap)
+- [x] §4.4.2 mới: ForecasterLSTM offline eval (MAE/day + AUROC), giới hạn serve nêu rõ, BỎ Holt/DoW
+- [x] §4.4.3: Safety Layer 5 rule với citation từng rule (safety.py:L6, L8-10, L12-13, L15-16, L18-19), mô phỏng market_env.py
+- [x] §4.4.4: nhị phân (2 lớp), Confusion Matrix 2×2, 2 model CoreML, giới hạn dataset + 2/4 category, BỎ MobileNetV2/4-class/mắt người/dataset thu thập
+- [x] §4.4.5 (Demo): re-number từ 4.4.6, nội dung không đổi
+- [x] Mọi phương pháp đánh giá có [ref: file:Lxx / ledger-id]
+- [x] Không bịa số kết quả cụ thể (MAE, AUROC, F1 — chưa chạy eval)
+- [x] Phong cách dàn ý giữ nguyên (tiêu đề in-nghiêng *4.4.x.*, bullets, Tiếng Việt)
+- [x] Không sửa dynamic-pricing-final/ (chỉ đọc eval.py và market_env.py)
+- [x] Không commit
