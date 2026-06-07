@@ -1,0 +1,64 @@
+' @source: dany.md §3.1.1 L197-203
+@startuml business-process-current
+' Quy trình phân phối nông sản hiện tại (thủ công)
+' 5 bước, 4 vấn đề chính
+' Nguồn: dany.md §3.1.1 L197-203
+
+skinparam activityBackgroundColor #FAFAFA
+skinparam activityBorderColor #555555
+skinparam arrowColor #333333
+skinparam defaultFontSize 12
+
+title Quy trình phân phối nông sản HIỆN TẠI (thủ công)
+
+|Nông dân|
+start
+:Thu hoạch nông sản;
+note right
+  Vấn đề 1: BỊ ÉP GIÁ
+  Thương lái nắm quyền định giá,
+  nông dân không có thông tin thị trường.
+  Giá bị ép 30-50% so với giá thị trường.
+end note
+:Bán cho Thương lái\n(trung gian 1);
+
+|Thương lái|
+:Thu gom, vận chuyển\nđến chợ đầu mối;
+note right
+  Vấn đề 2: MẤT ĐỘ TƯƠI
+  Vận chuyển nhiều tầng, không có công nghệ
+  bảo quản → mất 25-30% độ tươi (FAO).
+  Không có hệ thống phân loại tươi.
+end note
+:Bán tại\nChợ đầu mối\n(trung gian 2);
+
+|Cửa hàng / Siêu thị|
+:Mua từ chợ đầu mối;
+note right
+  Vấn đề 3: KHÔNG TRUY XUẤT NGUỒN GỐC
+  Chuỗi qua 4-5 trung gian,
+  không thể truy về trang trại gốc.
+  Không có thông tin canh tác / hữu cơ.
+end note
+:Bày bán, định giá bán lẻ;
+
+|Người tiêu dùng|
+:Mua tại cửa hàng / chợ;
+note right
+  Vấn đề 4: KHÔNG DỰ BÁO
+  Nông dân không biết nhu cầu thực tế,
+  trồng theo cảm tính → dư thừa / thiếu hụt.
+  Không có công cụ hỗ trợ quyết định.
+end note
+:Sử dụng sản phẩm\n(giá cao, chất lượng không đảm bảo);
+stop
+
+legend right
+  |= Vấn đề |= Tác động |
+  | Ép giá | Nông dân mất 30-50% thu nhập |
+  | Mất độ tươi | 25-30% sản phẩm bị hư hỏng |
+  | Không truy xuất | Không biết nguồn gốc sản phẩm |
+  | Không dự báo | Dư thừa / thiếu hụt theo mùa |
+endlegend
+
+@enduml

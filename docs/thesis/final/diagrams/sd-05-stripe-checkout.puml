@@ -1,0 +1,56 @@
+' @source: dany.md L304-305; ledger t2.2-stripe-ghn (payments.service.ts:54,102,120,126)
+
+@startuml sd-05-stripe-checkout
+title SD-05: Thanh toán Stripe Checkout + Webhook
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam maxmessagesize 120
+
+actor "Người mua\n(App)" as App
+participant "PaymentsController\n(NestJS)" as PayCtrl
+participant "PaymentsService" as PaySvc
+participant "OrdersService" as OrderSvc
+database "MongoDB" as DB
+participant "Stripe API" as Stripe
+actor "Stripe\nWebhook" as StripeWH
+
+== Tạo Checkout Session ==
+
+App -> PayCtrl : POST /payments/checkout\n{orderId}
+PayCtrl -> PaySvc : createCheckoutSession(orderId, userId)
+PaySvc -> OrderSvc : findOne(orderId)
+OrderSvc -> DB : orders.findOne({_id: orderId, customerId: userId})
+DB --> OrderSvc : Order {items, total, deliveryFee}
+OrderSvc --> PaySvc : Order
+
+PaySvc -> PaySvc : Build line_items từ order.items\n+ delivery fee line item
+PaySvc -> Stripe : stripe.checkout.sessions.create({\n  mode: 'payment',\n  line_items: [...],\n  success_url, cancel_url,\n  metadata: {orderId}\n})\n[payments.service.ts:102]
+Stripe --> PaySvc : {id: sessionId, url: checkoutUrl}
+PaySvc --> PayCtrl : {sessionId, url}
+PayCtrl --> App : 200 {sessionId, url}
+
+App -> App : Mở WebView với checkoutUrl
+App -> Stripe : Người mua nhập thẻ & xác nhận
+Stripe --> App : Redirect success_url
+
+== Stripe Webhook xử lý kết quả thanh toán ==
+
+Stripe -> PayCtrl : POST /payments/webhook\n(raw body + Stripe-Signature header)
+PayCtrl -> PaySvc : handleWebhook(rawBody, signature)
+PaySvc -> Stripe : stripe.webhooks.constructEvent(\n  rawBody, signature, webhookSecret\n)\n[payments.service.ts:126]
+note right of PaySvc
+  Verify chữ ký HMAC
+  để đảm bảo nguồn gốc hợp lệ
+end note
+
+alt Event: checkout.session.completed
+    PaySvc -> DB : orders.updateOne(\n  {_id: orderId},\n  {paymentStatus:'paid', status:'confirmed'}\n)
+    PaySvc --> PayCtrl : {received: true}
+    PayCtrl --> Stripe : 200 OK
+else Event khác / lỗi chữ ký
+    PaySvc --> PayCtrl : lỗi / bỏ qua
+    PayCtrl --> Stripe : 400 / 200 (bỏ qua)
+end
+
+@enduml

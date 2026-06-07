@@ -1,0 +1,66 @@
+' @source: dany.md L306-307; ledger t2.2-stripe-ghn (ghn.provider.ts:47, delivery.service.ts:98,131,232)
+
+@startuml sd-06-ghn-dijkstra
+title SD-06: Tạo Vận Đơn GHN + Dijkstra Fallback (Demo)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam maxmessagesize 120
+
+actor "Farm / Hệ thống\n(App)" as App
+participant "DeliveryController\n(NestJS)" as DelivCtrl
+participant "DeliveryService" as DelivSvc
+participant "GHNProvider" as GHN
+participant "API GHN\n(bên ngoài)" as GHNAPI
+database "MongoDB" as DB
+
+== Tạo vận đơn ==
+
+App -> DelivCtrl : POST /delivery/create\n{orderId}
+DelivCtrl -> DelivSvc : createDelivery(orderId)
+DelivSvc -> DB : orders.findOne({_id: orderId})
+DB --> DelivSvc : Order {ghnOrderCode?, deliveryAddress, items}
+
+alt Chưa có GHN code (ghnOrderCode == null)
+    DelivSvc -> GHN : createOrder(params)
+    GHN -> GHNAPI : POST /v2/shipping-order/create\n(header: Token, ShopId)\n[ghn.provider.ts:47]
+    GHNAPI --> GHN : {order_code, expected_delivery_time, total_fee}
+    GHN --> DelivSvc : {orderCode, expectedDeliveryTime, totalFee}
+    DelivSvc -> DB : orders.updateOne({_id}, {ghnOrderCode, deliveryFee})
+    DelivSvc --> DelivCtrl : {trackingCode: orderCode, ...}
+else GHN thất bại / môi trường demo
+    note over DelivSvc
+      Dijkstra fallback — MINH HỌA THUẬT TOÁN
+      Không phải routing production
+      [delivery.service.ts:131]
+    end note
+    DelivSvc -> DelivSvc : Dijkstra trên graph 10 node\nHCMC hardcoded\n(delivery.service.ts:131)
+    DelivSvc -> DelivSvc : Tính route ngắn nhất\ntừ farm → địa chỉ giao
+    DelivSvc -> DelivSvc : Tạo trackingCode demo:\n'GHN-ALGO-F2T-99'\n[delivery.service.ts:232]
+    DelivSvc --> DelivCtrl : {trackingCode:'GHN-ALGO-F2T-99', route, estimatedTime}
+end
+
+DelivCtrl --> App : 201 {trackingCode, expectedDeliveryTime}
+
+== Tra cứu trạng thái vận đơn ==
+
+App -> DelivCtrl : GET /delivery/track/{orderId}
+DelivCtrl -> DelivSvc : trackDelivery(orderId)
+DelivSvc -> DB : orders.findOne({_id: orderId})
+DB --> DelivSvc : Order {ghnOrderCode}
+alt ghnOrderCode có thật
+    DelivSvc -> GHN : getTracking(ghnOrderCode)
+    GHN -> GHNAPI : GET tracking info
+    GHNAPI --> GHN : tracking steps
+    GHN --> DelivSvc : tracking
+else GHN tracking lỗi / graceful degrade
+    note over DelivSvc
+      [delivery.service.ts:255-278]
+      Trả dữ liệu DB, không throw
+    end note
+    DelivSvc -> DB : lấy order data
+    DelivSvc --> DelivCtrl : DB data + ghnOrderCode
+end
+DelivCtrl --> App : 200 {status, trackingSteps}
+
+@enduml

@@ -1,0 +1,60 @@
+' @source: dany.md L314-315; ledger t1.4-safety-5-rules (safety.py:1-19); main.py:277
+
+@startuml sd-ml-03-pricing-detail
+title SD-ML-03: Chu kỳ Định giá Chi tiết\n(State → DDQN → Safety Layer → PriceOverride)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam maxmessagesize 120
+
+participant "PricingTickCron" as Cron
+participant "DynamicPricingService" as DPSvc
+participant "Sidecar\n/predict (port 8000)\n[main.py:277]" as Sidecar
+participant "SharedMLPDuelingQNet\n(DDQN, obs_dim=10, n_actions=11)" as DDQN
+participant "compute_mask()" as MaskFn
+participant "apply_safety()\n[safety.py:1-19]" as Safety
+database "MongoDB\n(price_overrides)" as DB
+
+== Chu kỳ định giá chi tiết ==
+
+Cron -> DPSvc : runPricingTick()
+DPSvc -> DPSvc : Thu thập state vector sản phẩm\n(freshness, inventory_ratio, base_price,\ncompetitor_ref_price, days_to_restock,\nprev_delta, demand_7d, category)\n[dynamic-pricing.service.ts:503-513]
+
+DPSvc -> Sidecar : POST /predict\n{state_vectors: [...]}
+note over Sidecar
+  [main.py:286-302]
+end note
+
+Sidecar -> Sidecar : _build_obs()\n→ 10 chiều:\n[0] freshness (clip 0–1)\n[1] inventory_ratio (min 2.0)\n[2] sin(2π×dow/7)\n[3] cos(2π×dow/7)\n[4] days_to_restock/30 (clip 0–1)\n[5] demand_ratio (clip 0–3)\n[6] prev_delta (clip -0.30,0.20)\n[7] comp_ratio=competitor/(base×(1+prev_delta))\n[8] days_to_waste/14\n[9] inv_coverage/3
+
+Sidecar -> MaskFn : compute_mask(freshness, category)\n→ mask (11,) bool
+MaskFn --> Sidecar : mask_t
+
+Sidecar -> DDQN : ddqn_net(obs_t, cat_t, mask_t)\n→ Q(s,a) cho 11 action
+note right of DDQN
+  SharedMLPDuelingQNet
+  Dueling V+A heads
+  argmax trên Q masked
+end note
+DDQN --> Sidecar : Q-values (1×11)
+Sidecar -> Sidecar : action_idx = argmax Q.squeeze()\ndelta = CANDIDATES[action_idx]\n(CANDIDATES = linspace(-0.30,0.20,11))\ntarget_price = base_price × (1 + delta)
+
+Sidecar -> Safety : apply_safety(target_price, base_price, freshness)
+note over Safety
+  Thứ tự áp: 3 → 4 → 1 → 2 → 5
+  Rule3: clip [base×0.70, base×1.20]
+  Rule4: freshness<0.4 → ≤ base×0.75
+  Rule1: ≥ base×0.55
+  Rule2: ≤ base×2.0
+  Rule5: ≥ 1000 VND
+end note
+Safety --> Sidecar : (final_price, safety_clipped)
+
+Sidecar -> Sidecar : delta_pct = (final_price/base_price - 1) × 100\nfreshness_tag = fresh|aging|critical
+Sidecar --> DPSvc : [{productId, targetPrice, delta_pct,\nsafety_clipped, freshness_tag}]
+
+DPSvc -> DB : price_overrides.insertOne({\n  productId, targetPrice, delta_pct,\n  status: 'shadow',\n  safety_clipped, freshness_tag\n})
+DB --> DPSvc : PriceOverride._id
+DPSvc --> Cron : tick hoàn tất
+
+@enduml

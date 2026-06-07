@@ -1,0 +1,80 @@
+' @source: dany.md §3.1.2 L205-209; ledger t1.4-interceptor-cron, t1.4-one-sidecar
+@startuml business-process-f2t
+' Quy trình F2T đề xuất
+' Farm đăng ký → ... → Đánh giá
+' Luồng AI đan xen qua DynamicPricingInterceptor
+' Nguồn: dany.md §3.1.2 L205-209; ledger t1.4-interceptor-cron
+
+skinparam activityBackgroundColor #E8F4FD
+skinparam activityBorderColor #2196F3
+skinparam arrowColor #1976D2
+skinparam defaultFontSize 12
+
+title Quy trình F2T ĐỀ XUẤT (có AI đan xen)
+
+|Farm Owner|
+start
+:Farm đăng ký tài khoản\n(role: farm, status: pending);
+:Cung cấp thông tin trang trại\n(tên, địa chỉ, GeoJSON location,\nrestockSchedule);
+
+|Admin|
+:Admin duyệt đăng ký Farm\n(verificationStatus: pending → verified);
+
+|Farm Owner|
+if (Được duyệt?) then (verified)
+  :Farm đăng sản phẩm\n(category, pricePerUnit,\navailableQuantity, images);
+  note right
+    ★ AI đan xen 1:
+    Farm chụp ảnh → CoreML /freshness/classify
+    → freshnessScore (fresh/rotten)
+    PricingTickCron (mỗi giờ):
+    DDQN → Safety Layer → PriceOverride
+    Farm chấp nhận/từ chối giá đề xuất
+    Ref: pricing-tick.cron.ts:18; safety.py
+  end note
+else (rejected)
+  :Yêu cầu bổ sung hồ sơ;
+  stop
+endif
+
+|Consumer|
+:Consumer tìm kiếm sản phẩm\n(geo $near, theo danh mục, từ khóa);
+note right
+  ★ AI đan xen 2:
+  DynamicPricingInterceptor chặn /products
+  → nhúng dynamicPrice + freshnessScore + priceTag
+  Consumer thấy nhãn tươi + giá động
+  Ref: dynamic-pricing.interceptor.ts:16-18
+end note
+:Consumer xem sản phẩm\n(freshnessScore + dynamicPrice\nhiển thị tự động);
+:Thêm vào giỏ hàng\nvà tạo đơn hàng\n(embedded snapshot giá);
+
+|Hệ thống (Stripe)|
+:Tạo Stripe Checkout Session\n(line_items từ order items + deliveryFee);
+:Consumer thanh toán\n(Stripe Checkout URL);
+:Stripe Webhook → handleWebhook\n(cập nhật paymentStatus: paid);
+
+|Hệ thống (GHN)|
+:Tạo vận đơn GHN\n(POST /v2/shipping-order/create);
+note right
+  Dijkstra fallback:
+  Nếu GHN không khả dụng →
+  delivery.service.ts:98
+  Graph 10 node HCMC, tính route ước tính
+  Ref: ledger t2.2-stripe-ghn
+end note
+
+|Consumer|
+:Theo dõi đơn hàng\n(trackingSteps, timeline);
+:Nhận hàng và đánh giá;
+stop
+
+legend right
+  |= Luồng AI đan xen |= Vị trí |
+  | CoreML freshness scan | Farm upload ảnh |
+  | DDQN đề xuất giá | Cron mỗi giờ |
+  | DynamicPricingInterceptor | /products response |
+  | ForecasterLSTM dự báo | Farm dashboard |
+endlegend
+
+@enduml

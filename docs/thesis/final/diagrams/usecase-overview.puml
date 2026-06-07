@@ -1,0 +1,99 @@
+' @source: dany.md §3.3.2 L255-267; ledger t1.4-no-recommender
+@startuml usecase-overview
+' Biểu đồ Use Case tổng quan F2T
+' 3 tác nhân: Consumer, Farm Owner, Admin
+' Nguồn: dany.md §3.3.2 L255-267
+
+left to right direction
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "Consumer" as consumer
+actor "Farm Owner" as farm
+actor "Admin" as admin
+
+rectangle "F2T Platform" {
+
+  package "UC-01: Quản lý tài khoản" {
+    usecase "UC-01.1\nĐăng ký tài khoản" as uc011
+    usecase "UC-01.2\nĐăng nhập / Đăng xuất" as uc012
+    usecase "UC-01.3\nCập nhật hồ sơ" as uc013
+    usecase "UC-01.4\nXác minh email/phone" as uc014
+  }
+
+  package "UC-02: Đặt hàng & Thanh toán" {
+    usecase "UC-02.1\nTìm kiếm sản phẩm (geo)" as uc021
+    usecase "UC-02.2\nXem sản phẩm + nhãn tươi\n+ giá động" as uc022
+    usecase "UC-02.3\nThêm vào giỏ hàng" as uc023
+    usecase "UC-02.4\nTạo đơn hàng\n(embedded snapshot)" as uc024
+    usecase "UC-02.5\nThanh toán Stripe\n(Checkout + Webhook)" as uc025
+  }
+
+  package "UC-03: Quản lý sản phẩm" {
+    usecase "UC-03.1\nThêm / Sửa sản phẩm" as uc031
+    usecase "UC-03.2\nQuét ảnh tươi\n(CoreML → freshnessScore)" as uc032
+    usecase "UC-03.3\nXem đề xuất giá DDQN\n(chấp nhận / từ chối)" as uc033
+    usecase "UC-03.4\nCập nhật tồn kho" as uc034
+  }
+
+  package "UC-04: Quản lý trang trại" {
+    usecase "UC-04.1\nĐăng ký trang trại" as uc041
+    usecase "UC-04.2\nCập nhật thông tin farm\n(lịch tái cung ứng, địa chỉ)" as uc042
+    usecase "UC-04.3\nXem dự báo nhu cầu 7 ngày\n(ForecasterLSTM)" as uc043
+  }
+
+  package "UC-05: Theo dõi giao hàng" {
+    usecase "UC-05.1\nTạo vận đơn GHN" as uc051
+    usecase "UC-05.2\nTheo dõi trạng thái đơn" as uc052
+    usecase "UC-05.3\nDijkstra fallback\n(khi GHN không khả dụng)" as uc053
+  }
+
+  package "UC-06: Quản lý Admin" {
+    usecase "UC-06.1\nDuyệt đăng ký Farm" as uc061
+    usecase "UC-06.2\nQuản lý người dùng\n(ban, role, status)" as uc062
+    usecase "UC-06.3\nQuản lý đơn hàng" as uc063
+    usecase "UC-06.4\nXem thống kê" as uc064
+  }
+
+}
+
+' Consumer associations
+consumer --> uc011
+consumer --> uc012
+consumer --> uc013
+consumer --> uc014
+consumer --> uc021
+consumer --> uc022
+consumer --> uc023
+consumer --> uc024
+consumer --> uc025
+consumer --> uc052
+
+' Farm Owner associations
+farm --> uc011
+farm --> uc012
+farm --> uc013
+farm --> uc014
+farm --> uc031
+farm --> uc032
+farm --> uc033
+farm --> uc034
+farm --> uc041
+farm --> uc042
+farm --> uc043
+farm --> uc051
+farm --> uc052
+
+' Admin associations
+admin --> uc012
+admin --> uc061
+admin --> uc062
+admin --> uc063
+admin --> uc064
+
+' Include / Extend
+uc025 ..> uc024 : <<include>>
+uc053 ..> uc051 : <<extend>>\n(khi GHN lỗi)
+uc033 ..> uc032 : <<include>>
+
+@enduml

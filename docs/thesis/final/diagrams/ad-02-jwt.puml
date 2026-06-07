@@ -1,0 +1,37 @@
+' @source: dany.md L324-325; ledger t2.2-security (jwt-auth.guard.ts:5); auth.service.ts:104-112
+
+@startuml ad-02-jwt
+title AD-02: Luồng Xác thực JWT
+
+skinparam activityArrowThickness 2
+skinparam roundcorner 10
+
+(*) --> "App gửi request\nvới Authorization: Bearer <accessToken>"
+
+--> "JwtAuthGuard\nxác thực access token\n[jwt-auth.guard.ts]"
+
+if "Access token\nhợp lệ?" then
+  -->[Có] "Tiếp tục xử lý request"
+  --> (*)
+else
+  -->[Hết hạn / Không hợp lệ] "Token hết hạn?"
+  if "Token hết hạn?" then
+    -->[Có] "App gửi\nPOST /auth/refresh\n{refreshToken, userId}"
+    --> "AuthService.refresh()\nkiểm tra refreshToken\nvới DB\n[auth.service.ts:104]"
+    if "Refresh token\nhợp lệ?" then
+      -->[Có] "Cấp accessToken + refreshToken mới"
+      --> "App lưu token mới\nvà gửi lại request"
+      --> "JwtAuthGuard\nxác thực access token\n[jwt-auth.guard.ts]"
+    else
+      -->[Không hợp lệ] "Trả 401 Unauthorized"
+      --> "App chuyển về\nmàn hình đăng nhập"
+      --> (*)
+    end if
+  else
+    -->[Không hợp lệ (sai / giả mạo)] "Trả 401 Unauthorized"
+    --> "App chuyển về\nmàn hình đăng nhập"
+    --> (*)
+  end if
+end if
+
+@enduml

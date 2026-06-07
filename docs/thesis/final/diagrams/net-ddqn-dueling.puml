@@ -1,0 +1,86 @@
+' @source: ledger t0.2-ddqn-arch, t0.2-action-space, t1.4-ddqn-dims; dany.md §3.3.7(b) L351-369
+@startuml net-ddqn-dueling
+' Kiến trúc SharedMLPDuelingQNet (Double DQN + Dueling)
+' obs_dim=10, n_cats=4, cat_embed_dim=8, hidden=128, n_actions=11
+' Nguồn: dynamic-pricing-final/src/rl/network.py:51-81
+' CANDIDATES = linspace(-0.30, 0.20, 11), bước 0.05
+
+skinparam componentStyle rectangle
+skinparam defaultFontSize 11
+
+title SharedMLPDuelingQNet — Kiến trúc Dueling DDQN\n(obs 10D → 11 action ∈ [-0.30, +0.20])
+
+rectangle "INPUT" #E8F4FD {
+  component "obs\nshape: (batch, obs_dim=10)\n\n[freshness, inv_ratio, sin_dow, cos_dow,\n days_to_restock/30, demand_ratio,\n prev_delta, comp_ratio,\n days_to_waste/14, inv_coverage/3]" as obs_input
+  component "category_ids\nshape: (batch,)\ngiá trị ∈ {0,1,2,3}" as cat_ids
+  component "action_mask\nshape: (batch, 11)\nbool — compute_mask(freshness, category)" as mask_input
+}
+
+rectangle "CATEGORY EMBEDDING" #E8F5E9 {
+  component "nn.Embedding\nn_cats=4, cat_embed_dim=8\nshape out: (batch, 8)" as cat_embed
+}
+
+rectangle "GHÉP (CONCAT)" #F3E5F5 {
+  component "torch.cat([obs, cat_emb], dim=-1)\nshape: (batch, 10+8=18)" as concat
+}
+
+rectangle "SHARED MLP" #FFF3E0 {
+  component "Linear(18 → 128) → ReLU\n→ Linear(128 → 128) → ReLU\nshape out: (batch, 128)" as shared_mlp
+}
+
+rectangle "DUELING HEADS" #FFE0E0 {
+  rectangle "V-stream (Value)" {
+    component "Linear(128 → 64) → ReLU\n→ Linear(64 → 1)\nV(s): (batch, 1)" as v_stream
+  }
+  rectangle "A-stream (Advantage)" {
+    component "Linear(128 → 64) → ReLU\n→ Linear(64 → 11)\nA(s,a): (batch, 11)" as a_stream
+  }
+}
+
+rectangle "Q-VALUE AGGREGATION" #E0F7FA {
+  component "Q = V + A − mean(A)\n(Dueling formula — loại bỏ bias)\nshape: (batch, 11)" as q_values
+  component "Áp mask:\nQ[~mask] = -inf\n(loại action vi phạm Safety)\nArgmax → action_idx ∈ [0..10]" as masked_q
+}
+
+rectangle "OUTPUT" #E0FFE0 {
+  component "action_idx → delta = CANDIDATES[action_idx]\n\nCANDIDATES = linspace(-0.30, 0.20, 11)\n[-0.30, -0.25, -0.20, -0.15, -0.10,\n -0.05,  0.00, +0.05, +0.10, +0.15, +0.20]\n(11 phần tử, bước 0.05, idx[6]=0.0)" as output
+}
+
+' Luồng
+obs_input --> concat
+cat_ids --> cat_embed
+cat_embed --> concat
+concat --> shared_mlp
+shared_mlp --> v_stream
+shared_mlp --> a_stream
+v_stream --> q_values
+a_stream --> q_values
+mask_input --> masked_q
+q_values --> masked_q
+masked_q --> output
+
+note right of shared_mlp
+  Ref: dynamic-pricing-final/src/rl/network.py:51-57
+  SharedMLPDuelingQNet(
+    obs_dim=10, n_cats=4,
+    cat_embed_dim=8, hidden=128,
+    n_actions=11
+  )
+  Checkpoint: rl_shared_best.pt
+  Load OK: q.shape=(1,11), missing=[]
+  Ref: ledger t0.2-ddqn-arch, t0.5-checkpoint-load
+end note
+
+note right of output
+  targetPrice = basePrice × (1 + delta)
+  Sau đó Safety Layer 5 quy tắc clip:
+  Rule3: price ∈ [base×0.70, base×1.20]
+  Rule4: freshness<0.4 → price≤base×0.75
+  Rule1: price≥base×0.55 (sàn tuyệt đối)
+  Rule2: price≤base×2.0 (trần tuyệt đối)
+  Rule5: price≥1000 VNĐ
+  Ref: pricing-sidecar/safety.py:1-19
+  Ref: ledger t1.4-safety-5-rules
+end note
+
+@enduml

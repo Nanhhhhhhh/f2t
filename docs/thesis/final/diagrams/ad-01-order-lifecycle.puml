@@ -1,0 +1,36 @@
+' @source: dany.md L319-323; ledger t1.11-schema-detail (order.schema.ts:128-138 enum status)
+
+@startuml ad-01-order-lifecycle
+title AD-01: Vòng đời Đơn Hàng
+
+skinparam activityArrowThickness 2
+skinparam roundcorner 10
+
+note
+  Enum status thật từ order.schema.ts:128-138:
+  pending | confirmed | preparing |
+  ready_for_pickup | shipped | delivered | cancelled
+end note
+
+(*) --> "Tạo đơn hàng\n(POST /orders)"
+--> "**pending**\n(Chờ xác nhận)"
+
+if "Farm xác nhận?" then
+  -->[Có] "**confirmed**\n(Đã xác nhận)"
+  --> "**preparing**\n(Đang chuẩn bị)"
+  --> "**ready_for_pickup**\n(Sẵn sàng lấy hàng)"
+  --> "**shipped**\n(Đang vận chuyển)"
+  --> "**delivered**\n(Đã giao)"
+  --> (*)
+else
+  -->[Không / Hủy] "**cancelled**\n(Đã hủy)"
+  --> (*)
+end if
+
+note left of "**confirmed**\n(Đã xác nhận)"
+  Farm có thể hủy
+  ở bất kỳ bước nào
+  trước khi shipped
+end note
+
+@enduml

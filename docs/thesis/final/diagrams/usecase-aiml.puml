@@ -1,0 +1,72 @@
+' @source: dany.md §3.3.3 L269-275; ledger t1.4-no-recommender, t1.4-forecaster-not-holt, t1.4-one-sidecar
+@startuml usecase-aiml
+' Biểu đồ Use Case module AI/ML
+' ĐÚNG 2 UC: UC-ML-01 Dự báo nhu cầu + UC-ML-02 Định giá động
+' KHÔNG có UC recommender / gợi ý sản phẩm
+' Nguồn: dany.md §3.3.3 L269-275; ledger t1.4-no-recommender
+
+left to right direction
+skinparam actorStyle awesome
+
+actor "Farm Owner" as farm
+
+rectangle "Hệ thống F2T — Module AI/ML" {
+
+  package "UC-ML-01: Dự báo nhu cầu" {
+    usecase "UC-ML-01.1\nFarm yêu cầu dự báo\n7 ngày tới" as ucml011
+    usecase "UC-ML-01.2\nDemandForecastingService\ngọi sidecar POST /forecast" as ucml012
+    usecase "UC-ML-01.3\n_run_forecaster\n→ ForecasterLSTM\nwindow=21, obs_dim=10\noutput: {demand, waste_logit}" as ucml013
+    usecase "UC-ML-01.4\nTrả kết quả dự báo\ndemand_7d về Farm" as ucml014
+  }
+
+  package "UC-ML-02: Định giá động (advisory)" {
+    usecase "UC-ML-02.1\nFarm chụp ảnh sản phẩm\n→ POST /freshness/classify" as ucml021
+    usecase "UC-ML-02.2\nCoreMl phân loại\nfresh/rotten (fruit/root model)" as ucml022
+    usecase "UC-ML-02.3\nDDQN POST /predict\nobs 10 chiều\n→ delta ∈ [-0.30, +0.20]" as ucml023
+    usecase "UC-ML-02.4\nSafety Layer 5 quy tắc\n(thứ tự 3→4→1→2→5)\nclip nếu vi phạm" as ucml024
+    usecase "UC-ML-02.5\nFarm nhận gợi ý giá\n(PriceOverride mode=advisory)\nChấp nhận / Từ chối" as ucml025
+  }
+
+}
+
+' Actor → UC
+farm --> ucml011
+farm --> ucml021
+farm --> ucml025
+
+' Flow UC-ML-01
+ucml011 --> ucml012
+ucml012 --> ucml013
+ucml013 --> ucml014
+
+' Flow UC-ML-02
+ucml021 --> ucml022
+ucml022 --> ucml023
+ucml023 --> ucml024
+ucml024 --> ucml025
+
+note right of ucml013
+  ForecasterLSTM
+  f2t-backend: DemandForecastingService.ts:43
+  Sidecar: pricing-sidecar/main.py:263
+  (port 8000 — cùng sidecar với /predict)
+  obs_dim=10 (sau retrain T0.13)
+  Giới hạn: serve tile-21× (steady-state)
+end note
+
+note right of ucml023
+  SharedMLPDuelingQNet
+  obs 10 chiều (freshness, inv_ratio,
+  sin/cos dow, days_to_restock, demand_ratio,
+  prev_delta, comp_ratio, days_to_waste, inv_coverage)
+  11 action: CANDIDATES = linspace(-0.30, 0.20, 11)
+  Ref: dynamic-pricing-final/src/rl/network.py:51-57
+end note
+
+note bottom of ucml025
+  KHÔNG có UC recommender / gợi ý sản phẩm.
+  grep -rliE 'recommend' f2t-backend/src = 0 file.
+  Ref: ledger t1.4-no-recommender
+end note
+
+@enduml

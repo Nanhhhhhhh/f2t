@@ -1,0 +1,94 @@
+' @source: dany.md §1.5 L47-61; ledger t1.4-one-sidecar, t1.4-interceptor-cron, t1.4-no-recommender
+@startuml contribution-map
+' Bản đồ 6 đóng góp khoa học định vị trên kiến trúc hệ thống
+' Nguồn: dany.md §1.5 L47-61
+
+skinparam defaultFontSize 11
+skinparam componentStyle rectangle
+
+title Bản đồ 6 đóng góp (ĐG1–ĐG6) trên kiến trúc F2T
+
+actor "Consumer\n/ Farm\n/ Admin" as users
+
+rectangle "Expo App\n(iOS/Android)" as mobile
+
+rectangle "NestJS Backend\nport 3000" {
+  component "DynamicPricingInterceptor\n«APP_INTERCEPTOR»\nchặn /products → nhúng\ndynamicPrice + freshnessScore + priceTag" as interceptor #FFD700
+  component "DemandForecastingService\n→ /forecast" as demandSvc
+  component "DynamicPricingService\n→ /predict\n+ PricingTickCron (mỗi giờ)" as pricingSvc
+  component "Stripe Checkout\n+ Webhook" as stripe
+  component "GHN Provider\n+ Dijkstra fallback" as ghn
+  component "Orders (embedded snapshot)" as orders #90EE90
+}
+
+rectangle "pricing-sidecar\nFastAPI port 8000\n«1 sidecar duy nhất»" as sidecar #E6F3FF {
+  component "DDQN\nSharedMLPDuelingQNet\nobs 10D → 11 action" as ddqn #FFB347
+  component "Safety Layer\n5 quy tắc thứ tự 3→4→1→2→5" as safety #FFB347
+  component "ForecasterLSTM\nwindow=21, obs_dim=10\noutput: demand + waste_logit" as forecaster #98FB98
+  component "CoreML Freshness\nfruit.mlmodel + root.mlmodel\nnhị phân: fresh/rotten" as coreml #DDA0DD
+}
+
+database "MongoDB\n10 collections" as mongodb
+
+' Luồng chính
+users --> mobile
+mobile --> interceptor : "HTTP"
+interceptor --> pricingSvc
+interceptor --> mobile : "sản phẩm + AI labels"
+demandSvc --> forecaster
+pricingSvc --> ddqn
+ddqn --> safety
+pricingSvc --> orders
+ghn --> orders
+
+' Đóng góp annotations
+note top of sidecar
+  ĐG1: Kiến trúc Monolith + 1 Sidecar
+  Tách AI Python ra khỏi Node.js
+  1 FastAPI duy nhất (port 8000, 3 endpoint)
+  Graceful degradation khi sidecar lỗi
+  [ref: f2t-backend/src/app.module.ts:57]
+end note
+
+note right of interceptor
+  ĐG2: DynamicPricingInterceptor
+  NestJS APP_INTERCEPTOR
+  Chặn /products response, nhúng
+  dynamicPrice + freshnessScore + priceTag
+  KHÔNG sửa controller
+  [ref: dynamic-pricing.interceptor.ts:16-18]
+end note
+
+note right of forecaster
+  ĐG3: ForecasterLSTM
+  LSTM 2 lớp, window=21, obs_dim=10
+  output: {demand, waste_logit}
+  Phục vụ qua sidecar /forecast
+  [ref: dynamic-pricing-final/src/forecaster/model.py]
+end note
+
+note right of ddqn
+  ĐG4: DDQN + Safety Layer
+  SharedMLPDuelingQNet đa-category
+  Obs 10D, 11 action ∈ [-0.30, +0.20]
+  Safety 5 quy tắc (clip + advisory mode)
+  [ref: src/rl/network.py:51-57; safety.py]
+end note
+
+note right of coreml
+  ĐG5: 2 CoreML Freshness
+  fruit.mlmodel + root.mlmodel
+  Nhị phân fresh/rotten
+  Non-fruit → root model (fallback)
+  [ref: freshnessmodels/; main.py:314]
+end note
+
+note bottom of orders
+  ĐG6: Tích hợp end-to-end
+  Dijkstra fallback (khi GHN không khả dụng)
+  Embedded Snapshot giá vào orders
+  (chống sai giá lịch sử)
+  [ref: delivery.service.ts:131; order.schema.ts:105]
+end note
+
+@enduml

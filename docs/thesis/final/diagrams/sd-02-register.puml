@@ -1,0 +1,48 @@
+' @source: dany.md L298-299; ledger t2.2-security (users.service.ts:18 bcrypt); auth.service.ts:95-101
+
+@startuml sd-02-register
+title SD-02: Đăng ký Tài khoản
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam maxmessagesize 120
+
+actor "Người dùng\n(App)" as App
+participant "AuthController\n(NestJS)" as AuthCtrl
+participant "AuthService" as AuthSvc
+participant "UsersService" as UserSvc
+database "MongoDB" as DB
+participant "EmailService" as Email
+
+== Đăng ký ==
+
+App -> AuthCtrl : POST /auth/register\n{email, password, role, firstName, lastName}
+AuthCtrl -> AuthSvc : register(registerDto)
+AuthSvc -> UserSvc : findByEmail(email)
+UserSvc -> DB : users.findOne({email})
+DB --> UserSvc : kết quả
+alt Email đã tồn tại
+    UserSvc --> AuthSvc : UserDocument (có rồi)
+    AuthSvc --> AuthCtrl : ConflictException
+    AuthCtrl --> App : 409 User already exists
+else Email chưa tồn tại
+    UserSvc --> AuthSvc : null
+    AuthSvc -> UserSvc : create(registerDto)
+    UserSvc -> UserSvc : bcrypt.hash(password, 10)\n[users.service.ts:18]
+    UserSvc -> DB : users.insertOne({...hashedPassword,\nrole: 'consumer'|'farm', emailVerified: false})
+    DB --> UserSvc : UserDocument
+    UserSvc --> AuthSvc : user
+
+    opt Gửi OTP xác thực email
+        AuthSvc -> AuthSvc : generateOtp()
+        AuthSvc -> AuthSvc : bcrypt.hash(otp, 10)
+        AuthSvc -> DB : verification_tokens.insertOne\n({userId, token, type:'email', expiresAt})
+        AuthSvc -> Email : sendOtpEmail(user.email, otp)
+    end
+
+    AuthSvc -> AuthSvc : login(user)\n→ cấp accessToken + refreshToken
+    AuthSvc --> AuthCtrl : {user, accessToken, refreshToken}
+    AuthCtrl --> App : 201 {accessToken, refreshToken}
+end
+
+@enduml

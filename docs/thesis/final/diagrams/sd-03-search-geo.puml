@@ -1,0 +1,41 @@
+' @source: dany.md L300-301; ledger t1.11-schema-detail (farm.schema.ts:113 index 2dsphere)
+
+@startuml sd-03-search-geo
+title SD-03: Tìm kiếm theo Vị trí (Geospatial 2dsphere)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam maxmessagesize 120
+
+actor "Người dùng\n(App)" as App
+participant "ProductsController\n/ FarmsController\n(NestJS)" as Ctrl
+participant "ProductsService\n/ FarmsService" as Svc
+database "MongoDB\n(Atlas)" as DB
+
+== Tìm kiếm nông trại gần vị trí ==
+
+App -> Ctrl : GET /farms?lat=10.762&lng=106.660&radius=5000
+Ctrl -> Svc : findNearby(lat, lng, radius)
+Svc -> DB : farms.find({\n  "location": {\n    $near: {\n      $geometry: {type:"Point", coordinates:[lng,lat]},\n      $maxDistance: radius\n    }\n  },\n  status: "active"\n})
+note right of DB
+  Index 2dsphere trên farms.location
+  [farm.schema.ts:113]
+  location: {type: "Point",
+  coordinates: [lng, lat]}
+end note
+DB --> Svc : [Farm] — sắp xếp theo khoảng cách
+Svc --> Ctrl : danh sách nông trại
+Ctrl --> App : 200 [{id, name, location, distance, ...}]
+
+== Tìm kiếm sản phẩm theo vị trí ==
+
+App -> Ctrl : GET /products?lat=10.762&lng=106.660&category=fruit
+Ctrl -> Svc : findByLocation(lat, lng, category)
+Svc -> DB : farms.find({$near ...})\n→ lấy farmIds gần nhất
+DB --> Svc : [farmId]
+Svc -> DB : products.find({\n  farmId: {$in: farmIds},\n  category: category,\n  status: "active"\n})
+DB --> Svc : [Product]
+Svc --> Ctrl : danh sách sản phẩm (có dynamicPrice từ interceptor)
+Ctrl --> App : 200 [{product, dynamicPrice, freshnessScore, priceTag}]
+
+@enduml

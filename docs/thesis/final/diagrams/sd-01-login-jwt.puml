@@ -1,0 +1,57 @@
+' @source: dany.md L293-297; ledger t2.2-security (jwt-auth.guard.ts:5, users.service.ts:18 bcrypt)
+
+@startuml sd-01-login-jwt
+title SD-01: Đăng nhập & JWT Refresh
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam maxmessagesize 120
+
+actor "Người dùng\n(App)" as App
+participant "AuthController\n(NestJS)" as AuthCtrl
+participant "AuthService" as AuthSvc
+participant "UsersService" as UserSvc
+participant "JwtService" as JWT
+database "MongoDB" as DB
+
+== Đăng nhập ==
+
+App -> AuthCtrl : POST /auth/login\n{email, password}
+AuthCtrl -> AuthSvc : validateUser(email, password)
+AuthSvc -> UserSvc : findByEmail(email)
+UserSvc -> DB : users.findOne({email})
+DB --> UserSvc : UserDocument
+UserSvc --> AuthSvc : user
+AuthSvc -> AuthSvc : bcrypt.compare(password, user.password)\n[auth.service.ts:62]
+alt Mật khẩu đúng
+    AuthSvc -> JWT : sign(payload)\n→ accessToken
+    AuthSvc -> JWT : sign(payload, {secret: REFRESH_SECRET})\n→ refreshToken
+    AuthSvc -> UserSvc : updateRefreshToken(userId, refreshToken)
+    UserSvc -> DB : users.updateOne({_id}, {refreshToken})
+    AuthSvc --> AuthCtrl : {user, accessToken, refreshToken, farm?}
+    AuthCtrl --> App : 201 {accessToken, refreshToken}
+else Mật khẩu sai
+    AuthSvc --> AuthCtrl : null
+    AuthCtrl --> App : 401 Unauthorized
+end
+
+== Access Token hết hạn → Refresh ==
+
+App -> AuthCtrl : POST /auth/refresh\n{refreshToken, userId}
+AuthCtrl -> AuthSvc : refresh(refreshToken, userId)
+AuthSvc -> UserSvc : getUserIfRefreshTokenMatches(refreshToken, userId)
+UserSvc -> DB : users.findOne({_id: userId})
+DB --> UserSvc : UserDocument
+UserSvc -> UserSvc : so khớp refreshToken trong DB
+alt Refresh token hợp lệ
+    UserSvc --> AuthSvc : user
+    AuthSvc -> JWT : sign(payload) → accessToken mới
+    AuthSvc -> JWT : sign(payload, REFRESH_SECRET) → refreshToken mới
+    AuthSvc --> AuthCtrl : {accessToken, refreshToken}
+    AuthCtrl --> App : 201 {accessToken, refreshToken}
+else Refresh token không hợp lệ
+    AuthSvc --> AuthCtrl : UnauthorizedException
+    AuthCtrl --> App : 401 Invalid refresh token
+end
+
+@enduml

@@ -1,0 +1,45 @@
+' @source: dany.md L312-313; ledger t1.4-forecaster-not-holt; demand-forecasting.service.ts:43; pricing-sidecar/main.py:263
+
+@startuml sd-ml-02-forecast
+title SD-ML-02: Dự báo Nhu cầu (ForecasterLSTM)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam maxmessagesize 120
+
+actor "Farm / Cron\n(NestJS)" as Caller
+participant "DemandForecastingService\n[demand-forecasting.service.ts:43]" as DFSvc
+participant "Sidecar\n/forecast\n(port 8000)" as Sidecar
+participant "_run_forecaster()\n[main.py:128-145]" as RunForecaster
+participant "ForecasterLSTM\n(LSTM 2 lớp, hidden=128)" as LSTM
+database "Redis Cache" as Redis
+
+== Yêu cầu dự báo ==
+
+Caller -> DFSvc : getForecast(productId, category, freshness,\ninventoryRatio, basePrice, competitorRefPrice,\ndaysToRestock, prevDelta)
+DFSvc -> Redis : GET forecast:{productId}
+alt Cache hit
+    Redis --> DFSvc : ForecastResultDto (cached)
+    DFSvc --> Caller : {demand7d, pWaste, computedAt}
+else Cache miss
+    Redis --> DFSvc : null
+    DFSvc -> Sidecar : POST /forecast\n{state_vector: {\n  productId, category, freshness,\n  inventory_ratio, base_price,\n  competitor_ref_price, days_to_restock,\n  prev_delta, demand_7d: 0.0\n}}\n[demand-forecasting.service.ts:54]
+    Sidecar -> Sidecar : _build_obs(...)\n→ vector 10 chiều\n[main.py:268-272]
+    Sidecar -> RunForecaster : _run_forecaster(obs, category)
+    RunForecaster -> RunForecaster : obs_padded = obs[:forecaster_obs_dim]\nwindow = np.tile(obs_padded, (21, 1))\n[main.py:134-135]
+    note right of RunForecaster
+      Serve: tile obs hiện tại 21×
+      (steady-state — backend chưa
+      cung cấp chuỗi 21 ngày thật)
+      [ledger t0.10-conclusion]
+    end note
+    RunForecaster -> LSTM : forecaster_net(feat, cidx)\n→ {demand, waste_logit}
+    LSTM --> RunForecaster : out["demand"], out["waste_logit"]
+    RunForecaster -> RunForecaster : d_hat = max(0, out["demand"])\np_waste = sigmoid(out["waste_logit"])
+    RunForecaster --> Sidecar : (demand7d, p_waste)
+    Sidecar --> DFSvc : {productId, demand7d, pWaste}\n[main.py:274]
+    DFSvc -> Redis : SET forecast:{productId} {result} EX TTL
+    DFSvc --> Caller : {demand7d, pWaste, computedAt}
+end
+
+@enduml

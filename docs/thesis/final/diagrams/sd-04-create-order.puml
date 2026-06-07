@@ -1,0 +1,42 @@
+' @source: dany.md L302-303; ledger t1.11-schema-detail (order.schema.ts:105 embedded snapshot OrderItem)
+
+@startuml sd-04-create-order
+title SD-04: Tạo Đơn Hàng (Embedded Snapshot Giá)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam maxmessagesize 120
+
+actor "Người mua\n(App)" as App
+participant "OrdersController\n(NestJS)" as OrderCtrl
+participant "OrdersService" as OrderSvc
+database "MongoDB" as DB
+
+== Tạo đơn hàng ==
+
+App -> OrderCtrl : POST /orders\n{farmId, items:[{productId, quantity}],\ndeliveryAddress, paymentMethod}
+OrderCtrl -> OrderSvc : create(createOrderDto, customerId)
+
+loop Với mỗi item trong đơn
+    OrderSvc -> DB : products.findOne({_id: productId, status:'active'})
+    DB --> OrderSvc : Product {pricePerUnit, productName, availableQuantity, ...}
+    OrderSvc -> OrderSvc : Snapshot giá tại thời điểm mua:\nOrderItem {\n  productId, productName, productImage,\n  quantity, pricePerUnit, unit,\n  totalPrice, farmId, farmName\n}
+    note right of OrderSvc
+      [order.schema.ts:7-34]
+      pricePerUnit = giá snapshot
+      tại thời điểm đặt hàng
+      (không thay đổi sau này)
+    end note
+end
+
+OrderSvc -> OrderSvc : Tính toán:\nsubtotal = Σ(item.totalPrice)\ndeliveryFee, tax, total
+OrderSvc -> OrderSvc : Tạo orderNumber (unique)
+OrderSvc -> DB : orders.insertOne({\n  customerId, farmId, items: [OrderItem…],\n  subtotal, deliveryFee, tax, total,\n  status: 'pending',\n  paymentStatus: 'pending',\n  paymentMethod,\n  deliveryAddress\n})
+DB --> OrderSvc : Order._id
+
+OrderSvc -> DB : products.updateMany(\n  {_id: {$in: productIds}},\n  {$inc: {availableQuantity: -qty}}\n)
+
+OrderSvc --> OrderCtrl : Order
+OrderCtrl --> App : 201 {orderId, orderNumber, total, status:'pending'}
+
+@enduml

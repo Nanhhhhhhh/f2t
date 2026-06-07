@@ -1,0 +1,68 @@
+' @source: ledger t0.2-forecaster-arch, t0.10-conclusion; dany.md §3.3.7(a) L337-349
+@startuml net-forecaster-lstm
+' Kiến trúc mạng ForecasterLSTM
+' obs_dim=10 (sau retrain T0.13 — KHÔNG phải 11)
+' Nguồn: dynamic-pricing-final/src/forecaster/model.py:8-49
+' Checkpoint: forecaster_v4_best.pt (lstm.weight_ih_l0=(512,10))
+
+skinparam componentStyle rectangle
+skinparam defaultFontSize 11
+
+title ForecasterLSTM — Kiến trúc mạng\n(obs_dim=10, window=21, hidden=128)
+
+rectangle "INPUT" #E8F4FD {
+  component "Chuỗi quan sát\nshape: (batch, window=21, obs_dim=10)\n\n10 chiều obs:\n[freshness, inv_ratio, sin_dow, cos_dow,\n days_to_restock/30, demand_ratio,\n prev_delta, comp_ratio,\n days_to_waste/14, inv_coverage/3]" as input
+  component "category_id\nshape: (batch,)\ngiá trị ∈ {0,1,2,3}\n(leafy/root/fruit/herbs)" as cat_input
+}
+
+rectangle "LSTM ENCODER" #FFF3E0 {
+  component "nn.LSTM\ninput_size=10\nhidden_size=128\nnum_layers=2\ndropout=0.2\nbatch_first=True" as lstm
+  component "Lấy hidden state\n cuối cùng (timestep -1)\nshape: (batch, 128)" as last_hidden
+}
+
+rectangle "CATEGORY EMBEDDING" #E8F5E9 {
+  component "nn.Embedding\nn_categories=4\ncat_embed_dim=8\nshape out: (batch, 8)" as cat_embed
+}
+
+rectangle "GHÉP (CONCAT)" #F3E5F5 {
+  component "torch.cat([hidden, cat_emb], dim=-1)\nshape: (batch, 128+8=136)" as concat
+}
+
+rectangle "DUAL HEAD OUTPUT" #FFE0E0 {
+  component "demand_head\nLinear(136 → 1)\noutput: demand dự báo" as demand_head
+  component "waste_head\nLinear(136 → 64) → ReLU\n→ Dropout(0.2)\n→ Linear(64 → 1)\noutput: waste_logit" as waste_head
+}
+
+rectangle "OUTPUT" #E0FFE0 {
+  component "{\n  \"demand\": Tensor(batch,)\n  \"waste_logit\": Tensor(batch,)\n}" as output
+}
+
+' Luồng
+input --> lstm : "obs_window\n(batch, 21, 10)"
+cat_input --> cat_embed
+lstm --> last_hidden : "output[:, -1, :]"
+last_hidden --> concat
+cat_embed --> concat
+concat --> demand_head
+concat --> waste_head
+demand_head --> output
+waste_head --> output
+
+note bottom of lstm
+  Checkpoint: forecaster_v4_best.pt
+  lstm.weight_ih_l0.shape = (512, 10)
+  (4 × hidden=128 = 512 gates, input=10)
+  Best epoch: 41, val_loss: 3.114
+  Ref: ledger t0.2-forecaster-arch, t0.5-checkpoint-load
+end note
+
+note bottom of output
+  Backend: DemandForecastingService → sidecar /forecast
+  Sidecar: pricing-sidecar/main.py:128-137
+  demand_7d = out["demand"] (tổng 7 ngày dự báo)
+  GIỚI HẠN SERVE: sidecar tile-21× obs hiện tại
+  (backend chưa cung cấp chuỗi 21 ngày thật)
+  Ref: ledger t0.10-thesis-limitations; main.py:135
+end note
+
+@enduml

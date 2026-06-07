@@ -1,0 +1,71 @@
+' @source: dany.md §3.2.3 L233-239; ledger t1.4-no-recommender; pricing-sidecar/main.py:263,277,316
+@startuml fdd-functional-decomposition
+' Sơ đồ phân rã chức năng (Functional Decomposition Diagram)
+' F2T → 4 nhóm chính
+' Nhóm AI/ML: CHỈ 3 chức năng thật (KHÔNG có gợi ý sản phẩm)
+' Nguồn: dany.md §3.2.3; ledger t1.4-no-recommender
+
+rectangle "F2T\n(Farm-to-Table Platform)" as root
+
+rectangle "Quản lý\nngười dùng" as qlnd
+rectangle "E-commerce" as ec
+rectangle "AI / ML" as aiml
+rectangle "Quản trị" as qt
+
+rectangle "Đăng ký tài khoản\n(Consumer / Farm)" as qlnd1
+rectangle "Xác minh\nemail/phone\n(VerificationToken)" as qlnd2
+rectangle "Đăng nhập & JWT\n(access + refresh token)" as qlnd3
+rectangle "Cập nhật hồ sơ\n(avatar, địa chỉ)" as qlnd4
+rectangle "Quản lý thông báo\n(NotificationPreferences)" as qlnd5
+
+rectangle "Tìm kiếm sản phẩm\n(geo \$near, danh mục)" as ec1
+rectangle "Quản lý\ngiỏ hàng\n(client-side)" as ec2
+rectangle "Đặt hàng\n(embedded\nsnapshot giá)" as ec3
+rectangle "Thanh toán\n(Stripe Checkout\n+ Webhook)" as ec4
+rectangle "Theo dõi giao hàng\n(GHN + Dijkstra\nfallback)" as ec5
+rectangle "Đánh giá &\nBài đăng\n(posts, comments)" as ec6
+
+rectangle "Dự báo nhu cầu\n(ForecasterLSTM\n→ /forecast)" as aiml1
+rectangle "Định giá động\n(DDQN + Safety Layer\n→ /predict\n+ PricingTickCron\nmỗi giờ)" as aiml2
+rectangle "Phân loại độ tươi\n(2 CoreML fruit/root\n→ /freshness/classify)" as aiml3
+
+rectangle "Duyệt đăng ký Farm\n(verificationStatus)" as qt1
+rectangle "Quản lý người dùng\n(ban, role, status)" as qt2
+rectangle "Quản lý đơn hàng\n(xem, cập nhật\ntrạng thái)" as qt3
+rectangle "Thống kê &\nBáo cáo\n(admin dashboard)" as qt4
+
+root --> qlnd
+root --> ec
+root --> aiml
+root --> qt
+
+qlnd --> qlnd1
+qlnd --> qlnd2
+qlnd --> qlnd3
+qlnd --> qlnd4
+qlnd --> qlnd5
+
+ec --> ec1
+ec --> ec2
+ec --> ec3
+ec --> ec4
+ec --> ec5
+ec --> ec6
+
+aiml --> aiml1
+aiml --> aiml2
+aiml --> aiml3
+
+qt --> qt1
+qt --> qt2
+qt --> qt3
+qt --> qt4
+
+note bottom of aiml
+  Đúng 3 chức năng AI/ML thật.
+  KHÔNG có "Gợi ý sản phẩm"
+  (grep recommender f2t-backend/src = 0 file)
+  Ref: ledger t1.4-no-recommender
+end note
+
+@enduml

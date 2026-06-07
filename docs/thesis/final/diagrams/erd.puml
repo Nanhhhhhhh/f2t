@@ -1,0 +1,229 @@
+' @source: ledger t1.11-schema-detail, t1.4-collections; dany.md §3.4.1 L397-421, §3.4.2 L423-447
+@startuml erd
+' ERD 10 collection MongoDB thật của F2T
+' Nguồn: f2t-backend/src/modules/**/schemas/*.schema.ts
+
+!define PK <u>
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor #FAFAFA
+  BorderColor #555555
+}
+
+entity "users" as users {
+  PK _id : ObjectId
+  --
+  email : String (unique, lowercase)
+  password : String (bcrypt, select:false)
+  firstName : String
+  lastName : String
+  phoneNumber : String
+  avatarUrl : String
+  role : enum[consumer/farm/admin]
+  status : enum[active/suspended/pending]
+  location.coordinates.latitude : Number
+  location.coordinates.longitude : Number
+  location.address.street : String
+  location.address.city : String
+  location.address.zipCode : String
+  location.address.country : String
+  refreshToken : String
+  pushToken : String
+  emailVerified : Boolean
+  phoneVerified : Boolean
+  isBanned : Boolean
+}
+
+entity "farms" as farms {
+  PK _id : ObjectId
+  --
+  FK ownerId : ref→users
+  name : String
+  description : String
+  location.type : "Point"
+  location.coordinates : [lng, lat]
+  address.street : String
+  address.city : String
+  contactEmail : String
+  contactPhone : String
+  deliveryMethods : Array
+  deliveryZones : Array
+  restockSchedule : [{category, intervalDays}]
+  isActive : Boolean
+  verificationStatus : enum[pending/verified/rejected]
+  ' INDEX: 2dsphere(location) — hỗ trợ $near
+  ' INDEX: text(name, description)
+}
+
+entity "products" as products {
+  PK _id : ObjectId
+  --
+  FK farmId : ref→farms
+  name : String
+  description : String
+  category : enum[leafy/root/fruit/herbs/\nmushrooms/grains/dairy/eggs/honey/other]
+  pricePerUnit : Number
+  unit : enum[kg/g/piece/bunch/box/bag/liter]
+  availableQuantity : Number
+  minimumOrder : Number
+  status : enum[available/sold_out/\nunavailable/seasonal]
+  images : Array
+  isOrganic : Boolean
+  tags : Array
+  estimatedShelfLife : Number
+  lastRestockedAt : Date
+  ' INDEX: text(name, description, tags)
+}
+
+entity "orders" as orders {
+  PK _id : ObjectId
+  --
+  orderNumber : String (unique)
+  FK customerId : ref→users
+  FK farmId : ref→farms
+  subtotal : Number
+  deliveryFee : Number
+  tax : Number
+  total : Number
+  status : enum[pending/confirmed/preparing/\nready_for_pickup/shipped/\ndelivered/cancelled]
+  paymentStatus : enum[pending/paid/failed/refunded]
+  paymentMethod : enum[cash/stripe]
+  stripeSessionId : String
+  timeline : Array
+  trackingSteps : Array
+  ' INDEX: customerId; farmId; status
+}
+
+entity "OrderItem\n«embedded trong orders»" as orderitem {
+  productId : ObjectId
+  productName : String
+  productImage : String
+  quantity : Number
+  pricePerUnit : Number (SNAPSHOT — chống sai giá lịch sử)
+  unit : String
+  totalPrice : Number
+  farmId : ObjectId
+  farmName : String
+}
+
+entity "posts" as posts {
+  PK _id : ObjectId
+  --
+  FK authorId : ref→users
+  authorRole : enum[consumer/farm]
+  FK farmId : ref→farms (optional)
+  title : String
+  body : String
+  media : [{url, type, thumbnailUrl}]
+  tags : [{id, type, name}]
+  hashtags : Array
+  comments : [{authorId, authorName, content}] (embedded)
+  likesCount : Number
+  commentsCount : Number
+}
+
+entity "notifications" as notifications {
+  PK _id : ObjectId
+  --
+  FK userId : ref→users
+  type : NotificationType (enum)
+  title : String
+  message : String
+  isRead : Boolean
+  referenceId : String
+  referenceType : String
+  data : Object
+  pushSent : Boolean
+  ' INDEX: compound(userId, createdAt desc)
+}
+
+entity "notification_preferences" as notif_prefs {
+  PK _id : ObjectId
+  --
+  FK userId : ref→users (UNIQUE)
+  emailNotifications : Boolean
+  smsNotifications : Boolean
+  pushNotifications : Boolean
+  orderUpdates : Boolean
+  promotions : Boolean
+  newsletter : Boolean
+  ' INDEX: unique(userId)
+}
+
+entity "verification_tokens" as verif_tokens {
+  PK _id : ObjectId
+  --
+  FK userId : ref→users
+  token : String
+  type : enum[email/phone]
+  expiresAt : Date (TTL index)
+  used : Boolean
+  ' INDEX: TTL(expiresAt); compound(userId, type)
+}
+
+entity "freshness_cache" as freshness_cache {
+  PK _id : ObjectId
+  --
+  FK productId : ref→products (UNIQUE)
+  readings : [{score: Number, scannedAt: Date}]
+  medianScore : Number
+  updatedAt : Date
+  expiresAt : Date (TTL index)
+  ' INDEX: unique(productId); TTL(expiresAt)
+}
+
+entity "price_overrides" as price_overrides {
+  PK _id : ObjectId
+  --
+  FK productId : ref→products
+  FK farmId : ref→farms
+  basePrice : Number
+  targetPrice : Number
+  deltaPct : Number
+  freshnessScore : Number
+  freshnessTag : enum[fresh/aging/critical]
+  safetyClipped : Boolean
+  mode : enum[shadow/advisory]
+  status : enum[shadow/pending_review/\naccepted/rejected/expired]
+  reviewedAt : Date
+  reviewedBy : ObjectId
+  computedAt : Date
+  expiresAt : Date (TTL index)
+  ' INDEX: compound(productId, status); TTL(expiresAt)
+}
+
+' ===== QUAN HỆ (10 quan hệ thật) =====
+users ||--o{ farms : "ownerId\n(1 user → N farms)"
+farms ||--o{ products : "farmId\n(1 farm → N products)"
+users ||--o{ orders : "customerId\n(1 user → N orders)"
+orders ||--|| orderitem : "items[]\n«EMBEDDED — snapshot»"
+products ||--|| freshness_cache : "productId unique\n«1-1 cache CoreML»"
+products ||--o{ price_overrides : "productId\n(1 product → N đề xuất giá)"
+users ||--o{ notifications : "userId\n(1 user → N thông báo)"
+users ||--|| notif_prefs : "userId unique\n«1-1 tùy chọn»"
+users ||--o{ posts : "authorId\n(1 user → N bài đăng)"
+users ||--o{ verif_tokens : "userId\n(1 user → N token xác minh)"
+
+note bottom of orderitem
+  Embedded (không phải collection riêng).
+  Snapshot giá tại thời điểm mua —
+  không tham chiếu products sau này.
+end note
+
+note bottom of freshness_cache
+  TTL: MongoDB tự xóa khi expiresAt.
+  Unique: 1 cache per productId.
+end note
+
+note bottom of price_overrides
+  TTL: tự xóa đề xuất hết hạn.
+  Trạng thái khởi đầu = shadow.
+end note
+
+note top of farms
+  2dsphere index: location
+  Hỗ trợ $near truy vấn bán kính 10km
+  (tính competitor_ref_price cho DDQN)
+end note
+
+@enduml

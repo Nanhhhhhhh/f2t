@@ -1,0 +1,65 @@
+' @source: dany.md §3.3.1 L243-253; ledger t1.4-one-sidecar; f2t-backend/src/app.module.ts:57
+@startuml deployment-architecture
+' Kiến trúc triển khai F2T
+' 1 sidecar duy nhất (pricing-sidecar, port 8000, 3 endpoint)
+' Nguồn: f2t-backend/src/app.module.ts:57; pricing-sidecar/main.py; ledger t1.4-one-sidecar
+
+skinparam componentStyle rectangle
+skinparam defaultFontSize 12
+
+cloud "Thiết bị người dùng" {
+  component "Expo App\n(iOS / Android)\nReact Native + Expo 53\nExpo Router" as mobileApp
+}
+
+node "Backend Server" {
+  component "NestJS Backend\nport 3000\n13 module nghiệp vụ\nTypeScript" as nestjs
+  component "pricing-sidecar\nFastAPI\nport 8000\nPython + PyTorch + CoreML" as sidecar
+}
+
+database "MongoDB" as mongodb {
+  collections "10 collections\n(users, farms, products,\norders, posts, ...)" as cols
+}
+
+cloud "Dịch vụ bên thứ ba" {
+  component "Stripe\nCheckout + Webhook\nThanh toán trực tuyến" as stripe
+  component "GHN\n(Giao Hàng Nhanh)\nVận đơn + Theo dõi" as ghn
+}
+
+frame "pricing-sidecar (port 8000)\n«1 sidecar — KHÔNG phải 3»" as sidecarFrame {
+  component "POST /predict\nDDQN SharedMLPDuelingQNet\nobs 10 chiều → 11 action\nΔ ∈ [-0.30, +0.20]" as predictEp
+  component "POST /forecast\nForecasterLSTM\nwindow=21, obs_dim=10\noutput: {demand, waste_logit}" as forecastEp
+  component "POST /freshness/classify\n2 model CoreML\n(fruit.mlmodel / root.mlmodel)\nnhị phân: fresh / rotten" as freshnessEp
+}
+
+mobileApp --> nestjs : "HTTPS REST API"
+nestjs --> mongodb : "Mongoose ODM"
+nestjs --> sidecar : "HTTP POST (nội bộ)\nDynamicPricingService\nDemandForecastingService"
+nestjs --> stripe : "Stripe SDK\ncreateCheckoutSession\nwebhooks.constructEvent"
+nestjs --> ghn : "GHN REST API\ncreateOrder\ngetTracking"
+
+sidecar --> predictEp
+sidecar --> forecastEp
+sidecar --> freshnessEp
+
+note right of nestjs
+  Graceful degradation:
+  Khi sidecar không phản hồi →
+  NestJS catch & fallback
+  (Weibull freshness / giá cũ)
+  User không thấy lỗi.
+  Ref: dynamic-pricing.service.ts:283-285
+end note
+
+note bottom of sidecarFrame
+  «1 sidecar duy nhất»
+  KHÔNG có port 8001 / 8002
+  Ref: ledger t1.4-one-sidecar
+end note
+
+note bottom of freshnessEp
+  fruit → MyFreshnessClassifier-fruit.mlmodel
+  root/leafy/herbs → MyFreshnessClassifier-root.mlmodel
+  (fallback cố ý — 2 model, không phải 4)
+end note
+
+@enduml

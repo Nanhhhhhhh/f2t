@@ -1,0 +1,53 @@
+' @source: dany.md L327-329; ledger t1.4-forecaster-not-holt; pricing-sidecar/main.py:128-145
+
+@startuml ad-ml-01-forecaster
+title AD-ML-01: Luồng Suy luận ForecasterLSTM
+
+skinparam activityArrowThickness 2
+skinparam roundcorner 10
+
+(*) --> "Backend gọi\nPOST /forecast\n[demand-forecasting.service.ts:43]"
+
+--> "Sidecar nhận ForecastRequest\n{state_vector: {productId, category,\nfreshness, inventory_ratio, ...}}"
+
+--> "_build_obs()\n→ vector 10 chiều\n[main.py:88-125]"
+
+--> "_run_forecaster(obs, category)\n[main.py:128-145]"
+
+if "forecaster_net\nđã load?" then
+  -->[Không] "Trả (0.0, 0.0)\n(mặc định an toàn)"
+  --> (*)
+else
+  -->[Có] "obs_padded = obs[:forecaster_obs_dim]\n[main.py:134]"
+
+  --> "window = np.tile(obs_padded, (21, 1))\n→ shape (21, obs_dim)\n[main.py:135]"
+  note right
+    Serve tile obs hiện tại 21×
+    (steady-state limitation —
+    backend chưa cung cấp
+    chuỗi 21 ngày thật)
+    [ledger t0.10-conclusion]
+  end note
+
+  --> "feat = torch.tensor(window)\n.unsqueeze(0) → (1, 21, obs_dim)\ncidx = CAT_TO_IDX[category]"
+
+  --> "ForecasterLSTM\n(LSTM 2 lớp, hidden=128,\nwindow=21, obs_dim=10)\n[main.py:139]"
+  note right
+    forward(feat, cidx)
+    → demand_head(z): demand
+    → waste_head(z): waste_logit
+  end note
+
+  --> "d_hat = max(0, out['demand'])\np_waste = sigmoid(out['waste_logit'])\n[main.py:140-141]"
+
+  if "Lỗi inference?" then
+    -->[Có] "Log warning\nTrả (0.0, 0.0)"
+    --> (*)
+  else
+    -->[Không] "Trả (demand7d, p_waste)"
+    --> "ForecastResponse:\n{productId, demand7d, pWaste}\n[main.py:274]"
+    --> (*)
+  end if
+end if
+
+@enduml
