@@ -274,3 +274,54 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
   - **"0 lỗi TypeScript build"**: KHÔNG chạy `tsc` (ngoài phạm vi, tốn thời gian) → thesis nên nói "build TypeScript thành công" mà không cam kết "0 lỗi" tuyệt đối, HOẶC bỏ.
 - **Verified by:** controller T1.15 (lệnh đếm trực tiếp) — 2026-06-07
 - **Dùng ở:** dany.md §4.3 (test), §4.4.1 (endpoint/màn hình), §3.5.2/§4.4.6 (camera), §5.1
+
+---
+
+## Nhóm: Task 2 — fact-pack prose
+
+### t2.2-tech-versions: Version thư viện thật — Backend NestJS 11 / Frontend Expo 53 / Sidecar FastAPI + PyTorch
+- **Evidence:**
+  - **Backend** (`f2t-backend/package.json:29-51`): `@nestjs/common` 11.0.1, `@nestjs/core` 11.0.1, `@nestjs/mongoose` 11.0.3, `@nestjs/schedule` ^6.1.3, `mongoose` 8.19.1, `bcrypt` 6.0.0, `passport-jwt` 4.0.1, `stripe` ^22.1.1, `class-validator` 0.14.2.
+  - **Frontend** (`f2t-frontend/package.json:53-97`): `expo` ~53.0.27, `expo-router` ~5.1.11, `react-native` 0.79.6, `nativewind` ^4.1.21, `zustand` ^5.0.5, `react-native-mmkv` ~3.1.0, `axios` ^1.7.5, `@tanstack/react-query` ^5.52.1.
+  - **Sidecar** (`pricing-sidecar/requirements.txt:1-9`): `fastapi>=0.111.0`, `uvicorn[standard]>=0.29.0`, `torch>=2.2.0`, `numpy>=1.26.0`, `pydantic>=2.0.0`, `coremltools>=7.0`, `Pillow>=10.0.0`.
+- **Verified by:** implementer T2.2 (đọc 3 file trực tiếp) — 2026-06-07
+- **Dùng ở:** thesis §4.2.1 (stack công nghệ), §4.1 (môi trường triển khai)
+
+### t2.2-frontend-routes: Route groups frontend — 8 groups + 5 file gốc, tổng ≈48 màn hình
+- **Evidence:** `ls f2t-frontend/src/app` (đọc trực tiếp):
+  - Route groups: `(app)`, `admin`, `checkout`, `farms`, `feed`, `notifications`, `products`, `settings`
+  - File gốc tại `src/app/`: `login.tsx`, `register.tsx`, `register-customer.tsx`, `verification.tsx`, `onboarding.tsx`
+  - File phụ: `+html.tsx`, `[...messing].tsx`, `_layout.tsx`
+  - Tổng màn hình ≈48: reference ledger `t1.15-numbers` (`find src/app -name "*.tsx" | grep -vE "_layout" | wc -l` = 48).
+- **Verified by:** implementer T2.2 (ls trực tiếp) — 2026-06-07
+- **Dùng ở:** thesis §4.2.1 (frontend Expo Router), §3.3.2 (kiến trúc frontend)
+
+### t2.2-seed: Tài khoản seed thật — Admin×1, Farm×3, Consumer×5, Suspended×1 — KHỚP dany.md §4.2.3
+- **Evidence:** `f2t-backend/src/seed/seed.ts`:
+  - **Farm×3**: `seed.ts:59-84` — `for (let i = 1; i <= 3; i++)` tạo user role `'farm'`, status `'active'` → emails `farm1@f2t.vn`, `farm2@f2t.vn`, `farm3@f2t.vn`.
+  - **Consumer×5**: `seed.ts:87-114` — `for (let i = 1; i <= 5; i++)` tạo user role `'consumer'`, status `'active'` → emails `consumer1@f2t.vn` … `consumer5@f2t.vn`.
+  - **Suspended×1**: `seed.ts:116-135` — `userModel.create({..., role: 'consumer', status: 'suspended'})` → email `suspended@f2t.vn`.
+  - **Admin×1**: `seed.ts:381-401` — `userModel.create({..., role: 'admin', status: 'active', emailVerified: true})` → email `admin@f2t.com`, password `AdminF2T2026!`.
+  - Tổng: 1 admin + 3 farm + 5 consumer + 1 suspended = **10 user seed**. Con số dany.md §4.2.3 "Admin×1, Farm×3, Consumer×5, Suspended×1" **ĐÚNG**.
+- **Verified by:** implementer T2.2 (đọc seed.ts trực tiếp, đếm vòng lặp) — 2026-06-07
+- **Dùng ở:** thesis §4.2.3 (dữ liệu mẫu / seed), §4.3 (kiểm thử tích hợp)
+
+### t2.2-stripe-ghn: Điểm tích hợp Stripe Checkout + webhook; GHN tạo vận đơn + Dijkstra fallback
+- **Evidence:**
+  - **Stripe createCheckoutSession**: `f2t-backend/src/modules/payments/payments.service.ts:54-118` — `async createCheckoutSession(orderId, userId)`: build line_items từ order items + deliveryFee, gọi `this.stripe.checkout.sessions.create({mode:'payment', ...})` tại `payments.service.ts:102`; trả `{sessionId, url}`.
+  - **Stripe webhook handler**: `f2t-backend/src/modules/payments/payments.service.ts:120-133` — `async handleWebhook(rawBody, signature)`: `this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret)` tại `payments.service.ts:126`; controller expose tại `payments.controller.ts:49` `@Post('webhook')`.
+  - **GHN createOrder**: `f2t-backend/src/modules/delivery/providers/ghn.provider.ts:47-89` — `async createOrder(params)`: POST `${apiUrl}/v2/shipping-order/create` với header Token + ShopId; trả `{orderCode, expectedDeliveryTime, totalFee}`.
+  - **Dijkstra fallback** (khi order chưa có GHN code): `f2t-backend/src/modules/delivery/delivery.service.ts:98-232` — `if (!order.ghnOrderCode)` tại `delivery.service.ts:98`; graph 10 node HCMC; `const dijkstra = (startId, endId) => {...}` tại `delivery.service.ts:131`; trả mock route với `trackingCode: 'GHN-ALGO-F2T-99'` tại `delivery.service.ts:232`.
+  - **Graceful degrade GHN tracking fail**: `delivery.service.ts:255-278` — `catch` khi `ghnProvider.getTracking` lỗi → trả DB data với `ghnOrderCode` (không throw).
+- **Verified by:** implementer T2.2 (grep + đọc file trực tiếp) — 2026-06-07
+- **Dùng ở:** thesis §3.3.5 (thanh toán Stripe), §3.3.6 (giao hàng GHN), §4.4.4 (tích hợp bên thứ ba)
+
+### t2.2-security: NFR bảo mật — JwtAuthGuard, bcrypt hash, graceful degradation sidecar
+- **Evidence:**
+  - **JwtAuthGuard**: `f2t-backend/src/modules/auth/guards/jwt-auth.guard.ts:1-5` — `export class JwtAuthGuard extends AuthGuard('jwt') {}` (extends `@nestjs/passport`); được dùng trên controller (ví dụ `payments.controller.ts:40` `@UseGuards(JwtAuthGuard)`).
+  - **bcrypt hash password**: `f2t-backend/src/modules/users/users.service.ts:18` — `const hashedPassword = await bcrypt.hash(password, 10)` (saltRounds=10) khi tạo user mới; `auth.service.ts:62` — `bcrypt.compare(pass, user.password)` khi login; `auth.service.ts:135` — `bcrypt.hash(otp, 10)` cho verification token.
+  - **Graceful degradation khi sidecar lỗi (predict)**: `f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:283-285` — `catch (err) { this.logger.warn(...); return null; }` → generateSuggestionForProduct trả null thay vì crash khi sidecar `/predict` không phản hồi.
+  - **Graceful degradation khi sidecar lỗi (freshness)**: `dynamic-pricing.service.ts:154-161` — `catch (err) { ... score = this.computeWeibullFallback(category); ... confidence = 0; }` → fallback Weibull estimate khi sidecar `/freshness/classify` lỗi.
+  - **Graceful degrade batch tick**: `dynamic-pricing.service.ts:522-524` — `catch (err) { this.logger.warn(...); return; }` → runPricingTick không crash khi sidecar `/predict` batch lỗi. (Cron đã có ledger `t1.4-interceptor-cron`.)
+- **Verified by:** implementer T2.2 (grep + đọc file trực tiếp) — 2026-06-07
+- **Dùng ở:** thesis §3.3.8 (bảo mật / NFR), §4.2.2 (authentication), §3.3.7 (graceful degradation AI)
