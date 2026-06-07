@@ -27,27 +27,27 @@ const mockSearchProducts = [
   {
     name: 'Organic Tomatoes',
     description: 'Fresh red tomatoes',
-    category: 'vegetables',
+    category: 'leafy',
   },
   {
     name: 'Apple Juice',
     description: 'Sweet apple juice',
     category: 'beverages',
   },
-  { name: 'Carrots', description: 'Orange carrots', category: 'vegetables' },
+  { name: 'Carrots', description: 'Orange carrots', category: 'leafy' },
 ];
 
 const mockFilterProducts = [
   {
     name: 'Organic Tomatoes',
-    category: 'vegetables',
+    category: 'leafy',
     price: 5.99,
     organicCertified: true,
     stockQuantity: 10,
   },
   {
     name: 'Regular Apples',
-    category: 'fruits',
+    category: 'fruit',
     price: 3.5,
     organicCertified: false,
     stockQuantity: 0,
@@ -239,7 +239,7 @@ describe('Product Utility Functions', () => {
   describe('filterProducts', () => {
     it('filters by category', () => {
       const result = filterProducts(mockFilterProducts, {
-        category: 'vegetables',
+        category: 'leafy',
       });
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Organic Tomatoes');

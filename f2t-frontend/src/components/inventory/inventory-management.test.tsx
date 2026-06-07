@@ -56,7 +56,7 @@ const createMockProducts = () => [
     farmId: 'farm_123',
     name: 'Organic Tomatoes',
     description: 'Fresh organic cherry tomatoes',
-    category: 'vegetables' as const,
+    category: 'leafy' as const,
     subcategory: 'cherry',
     pricePerUnit: 4.99,
     unit: 'kg' as const,
@@ -81,7 +81,7 @@ const createMockProducts = () => [
     farmId: 'farm_123',
     name: 'Fresh Carrots',
     description: 'Fresh carrots from the farm',
-    category: 'vegetables' as const,
+    category: 'leafy' as const,
     pricePerUnit: 2.99,
     unit: 'kg' as const,
     availableQuantity: 3, // Low stock
@@ -105,7 +105,7 @@ const createMockProducts = () => [
     farmId: 'farm_123',
     name: 'Sweet Corn',
     description: 'Sweet and fresh corn',
-    category: 'vegetables' as const,
+    category: 'leafy' as const,
     pricePerUnit: 1.99,
     unit: 'piece' as const,
     availableQuantity: 0, // Out of stock
@@ -266,7 +266,7 @@ describe('Inventory Management Components', () => {
       const activeFilters = {
         ...mockFilters,
         search: 'test',
-        category: 'vegetables',
+        category: 'leafy',
       };
 
       render(

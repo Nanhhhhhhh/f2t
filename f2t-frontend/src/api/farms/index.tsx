@@ -10,6 +10,9 @@ export type {
   FarmAnalytics,
   FarmAnalyticsRequest,
   FarmAnalyticsResponse,
+  FarmForecastItem,
+  FarmForecastsRequest,
+  FarmForecastsResponse,
   FarmResponse,
   FarmsResponse,
   GetFarmRequest,
@@ -37,6 +40,7 @@ export { getMockFarm, getMockFarms, MOCK_FARMS } from './mock-farms';
 
 // Farm Management Operations
 export { useFarmAnalytics } from './use-farm-analytics';
+export { useFarmForecasts } from './use-farm-forecasts';
 export { useUpdateBusinessHours } from './use-update-business-hours';
 export { useUpdateDeliveryZones } from './use-update-delivery-zones';
 

@@ -23,7 +23,7 @@ const createMockProduct = (overrides = {}) => ({
   farmId: 'farm_123',
   name: 'Organic Tomatoes',
   description: 'Fresh, juicy organic tomatoes grown with care',
-  category: 'vegetables' as const,
+  category: 'leafy' as const,
   subcategory: 'nightshades',
   pricePerUnit: 4.99,
   unit: 'kg' as const,

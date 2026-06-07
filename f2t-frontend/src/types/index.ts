@@ -228,8 +228,9 @@ export type DaySchedule = {
 
 // Product types
 export type ProductCategory =
-  | 'vegetables'
-  | 'fruits'
+  | 'leafy'
+  | 'root'
+  | 'fruit'
   | 'herbs'
   | 'mushrooms'
   | 'grains'

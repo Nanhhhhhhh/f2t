@@ -121,3 +121,17 @@ export type FarmAnalytics = {
 };
 
 export type FarmAnalyticsResponse = ApiResponse<FarmAnalytics>;
+
+// Farm Forecast Types
+export type FarmForecastItem = {
+  productId: string;
+  demand7d: number;
+  pWaste: number;
+  computedAt?: string;
+};
+
+export type FarmForecastsRequest = {
+  farmId: string;
+};
+
+export type FarmForecastsResponse = FarmForecastItem[];

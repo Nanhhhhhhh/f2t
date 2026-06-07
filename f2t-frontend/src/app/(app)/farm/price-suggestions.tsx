@@ -156,7 +156,7 @@ function FreshnessScanner({
   reviewingId: string | null;
 }) {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('vegetables');
+  const [selectedCategory, setSelectedCategory] = useState<string>('leafy');
   const [selectedPreset, setSelectedPreset] = useState<number>(0);
   const [lastResult, setLastResult] = useState<{
     score: number;

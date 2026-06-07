@@ -270,6 +270,27 @@ function AnalyticsContent() {
           </View>
         )}
 
+        {/* Forecast Insights shortcut */}
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/farm/forecast-insights')}
+          className="mb-3 flex-row items-center justify-between rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800 dark:bg-violet-900/10"
+        >
+          <View className="flex-row items-center gap-3">
+            <View className="size-10 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40">
+              <TrendingUp size={20} className="text-violet-600 dark:text-violet-400" />
+            </View>
+            <View>
+              <Text className="font-semibold text-violet-900 dark:text-violet-200">
+                Dự báo nhu cầu
+              </Text>
+              <Text className="text-xs text-violet-600 dark:text-violet-400">
+                Demand 7 ngày · waste risk từng sản phẩm
+              </Text>
+            </View>
+          </View>
+          <ArrowLeft size={16} className="rotate-180 text-violet-500" />
+        </TouchableOpacity>
+
         {/* AI Price Suggestions shortcut */}
         <TouchableOpacity
           onPress={() => router.push('/(app)/farm/price-suggestions')}

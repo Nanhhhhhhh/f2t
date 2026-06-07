@@ -88,20 +88,10 @@ export default function HomeScreen() {
   };
 
   const categories = [
-    {
-      id: 'vegetables',
-      label: 'Vegetables',
-      icon: '🥬',
-      value: PRODUCT_CATEGORY.VEGETABLES,
-    },
-    {
-      id: 'fruits',
-      label: 'Fruits',
-      icon: '🍎',
-      value: PRODUCT_CATEGORY.FRUITS,
-    },
-    { id: 'dairy', label: 'Sữa', icon: '🥛', value: PRODUCT_CATEGORY.DAIRY },
-    { id: 'mushrooms', label: 'Nấm', icon: '🍄', value: PRODUCT_CATEGORY.MUSHROOMS },
+    { id: 'leafy', label: 'Rau lá', icon: '🥬', value: PRODUCT_CATEGORY.LEAFY },
+    { id: 'root', label: 'Rau củ', icon: '🥕', value: PRODUCT_CATEGORY.ROOT },
+    { id: 'fruit', label: 'Trái cây', icon: '🍎', value: PRODUCT_CATEGORY.FRUIT },
+    { id: 'herbs', label: 'Rau thơm', icon: '🌿', value: PRODUCT_CATEGORY.HERBS },
   ];
 
   return (

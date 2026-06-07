@@ -50,7 +50,7 @@ export class DynamicPricingService {
 
   private computeWeibullFallback(category: string): number {
     let lambda = 0.995;
-    if (category === "vegetables" || category === "leafy") {
+    if (category === "leafy" || category === "root" || category === "vegetables") {
       lambda = 0.97;
     } else if (category === "herbs") {
       lambda = 0.96;
@@ -61,9 +61,10 @@ export class DynamicPricingService {
   }
 
   private mapProductCategoryToAgent(category: string): string {
-    if (category === "vegetables") return "leafy";
+    if (category === "leafy" || category === "vegetables") return "leafy";
+    if (category === "root") return "root";
+    if (category === "fruit" || category === "fruits") return "fruit";
     if (category === "herbs") return "herbs";
-    if (category === "fruits") return "fruit";
     return "root";
   }
 

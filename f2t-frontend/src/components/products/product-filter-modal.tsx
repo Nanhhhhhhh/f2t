@@ -68,8 +68,9 @@ const SORT_OPTIONS: {
 ];
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  vegetables: '🥦',
-  fruits: '🍓',
+  leafy: '🥬',
+  root: '🥕',
+  fruit: '🍓',
   herbs: '🌿',
   mushrooms: '🍄',
   grains: '🌾',
@@ -80,8 +81,9 @@ const CATEGORY_EMOJI: Record<string, string> = {
 };
 
 const CATEGORY_SHORT_LABELS: Record<string, string> = {
-  vegetables: 'Rau củ',
-  fruits: 'Trái cây',
+  leafy: 'Rau lá',
+  root: 'Rau củ',
+  fruit: 'Trái cây',
   herbs: 'Rau thơm',
   mushrooms: 'Nấm',
   grains: 'Ngũ cốc',

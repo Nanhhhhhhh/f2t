@@ -72,8 +72,9 @@ export const formatPricePerUnit = (price: number, unit: string): string => {
 
 export const getCategoryLabel = (category: string): string => {
   const categoryLabels: Record<string, string> = {
-    vegetables: 'Rau củ',
-    fruits: 'Trái cây',
+    leafy: 'Rau lá',
+    root: 'Rau củ',
+    fruit: 'Trái cây',
     herbs: 'Rau thơm & Thảo mộc',
     mushrooms: 'Nấm',
     grains: 'Ngũ cốc & Hạt',

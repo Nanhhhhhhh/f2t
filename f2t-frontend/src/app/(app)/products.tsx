@@ -20,14 +20,14 @@ import type { Product } from '@/types';
 
 const CATEGORY_TABS = [
   { label: 'Tất cả', value: 'all', emoji: '' },
-  { label: 'Rau củ', value: PRODUCT_CATEGORY.VEGETABLES, emoji: '🥦' },
-  { label: 'Trái cây', value: PRODUCT_CATEGORY.FRUITS, emoji: '🍓' },
+  { label: 'Rau lá', value: PRODUCT_CATEGORY.LEAFY, emoji: '🥬' },
+  { label: 'Rau củ', value: PRODUCT_CATEGORY.ROOT, emoji: '🥕' },
+  { label: 'Trái cây', value: PRODUCT_CATEGORY.FRUIT, emoji: '🍓' },
   { label: 'Rau thơm', value: PRODUCT_CATEGORY.HERBS, emoji: '🌿' },
   { label: 'Nấm', value: PRODUCT_CATEGORY.MUSHROOMS, emoji: '🍄' },
   { label: 'Ngũ cốc', value: PRODUCT_CATEGORY.GRAINS, emoji: '🌾' },
   { label: 'Sữa', value: PRODUCT_CATEGORY.DAIRY, emoji: '🥛' },
   { label: 'Trứng', value: PRODUCT_CATEGORY.EGGS, emoji: '🥚' },
-  { label: 'Mật ong', value: PRODUCT_CATEGORY.HONEY, emoji: '🍯' },
   { label: 'Khác', value: PRODUCT_CATEGORY.OTHER, emoji: '📦' },
 ];
 

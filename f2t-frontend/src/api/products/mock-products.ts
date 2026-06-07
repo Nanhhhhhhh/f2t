@@ -9,7 +9,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Cà chua bi hữu cơ',
     description:
       'Cà chua bi tươi ngon, ngọt tự nhiên, trồng hoàn toàn hữu cơ. Phù hợp cho salad và ăn tươi.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'tomatoes',
     pricePerUnit: 45000,
     unit: 'kg',
@@ -58,7 +58,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Xà lách xoong hữu cơ',
     description:
       'Xà lách xoong tươi mới, giòn ngọt, giàu vitamin. Lý tưởng cho salad và sandwich.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'leafy_greens',
     pricePerUnit: 35000,
     unit: 'kg',
@@ -108,7 +108,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Xoài cát Hòa Lộc',
     description:
       'Xoài cát Hòa Lộc ngọt đậm, thơm nức mũi, múi mềm. Sản phẩm đặc sản của vùng Tiền Giang.',
-    category: 'fruits',
+    category: 'fruit',
     subcategory: 'tropical',
     pricePerUnit: 85000,
     unit: 'kg',
@@ -150,7 +150,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Thanh long ruột đỏ',
     description:
       'Thanh long ruột đỏ tươi ngon, ngọt mát, giàu chất chống oxi hóa. Trái to, đều.',
-    category: 'fruits',
+    category: 'fruit',
     subcategory: 'tropical',
     pricePerUnit: 42000,
     unit: 'kg',
@@ -193,7 +193,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Rau cải ngọt',
     description:
       'Rau cải ngọt tươi non, giòn ngọt, không thuốc trừ sâu. Thu hoạch mỗi ngày.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'leafy_greens',
     pricePerUnit: 25000,
     unit: 'kg',
@@ -242,7 +242,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Rau muống hữu cơ',
     description:
       'Rau muống tươi giòn, bổ dưỡng, trồng theo tiêu chuẩn hữu cơ. Lá xanh đậm, thân giòn.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'leafy_greens',
     pricePerUnit: 20000,
     unit: 'kg',
@@ -292,7 +292,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Cà rót tím',
     description:
       'Cà rót tím tươi, mềm mịn, phù hợp cho nhiều món ăn. Trồng theo tiêu chuẩn VietGAP.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'eggplants',
     pricePerUnit: 30000,
     unit: 'kg',
@@ -333,7 +333,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Ớt hiểm',
     description:
       'Ớt hiểm cay nồng, thơm đặc trưng, dùng làm gia vị hoặc chế biến tương ớt.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'peppers',
     pricePerUnit: 55000,
     unit: 'kg',
@@ -376,7 +376,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Dưa leo hữu cơ',
     description:
       'Dưa leo hữu cơ giòn ngọt, mát lạnh, không hóa chất. Lý tưởng cho salad và làm đẹp.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'cucumbers',
     pricePerUnit: 38000,
     unit: 'kg',
@@ -424,7 +424,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Cải kale hữu cơ',
     description:
       'Cải kale siêu thực phẩm, giàu dinh dưỡng, trồng hoàn toàn hữu cơ. Lý tưởng cho sinh tố và salad.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'leafy_greens',
     pricePerUnit: 65000,
     unit: 'kg',
@@ -474,7 +474,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Bí đỏ Nhật Bản',
     description:
       'Bí đỏ Nhật Bản ngọt bùi, thịt dày, giàu vitamin A. Phù hợp làm súp, bánh và nhiều món khác.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'squash',
     pricePerUnit: 32000,
     unit: 'kg',
@@ -560,7 +560,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Cà rốt Đà Lạt hữu cơ',
     description:
       'Cà rốt Đà Lạt hữu cơ ngọt tự nhiên, giòn, giàu beta-carotene. Trái to đều, màu cam đậm.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'root_vegetables',
     pricePerUnit: 42000,
     unit: 'kg',
@@ -609,7 +609,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Bông cải xanh hữu cơ',
     description:
       'Bông cải xanh hữu cơ tươi non, giàu chất chống oxy hóa và vitamin. Siêu thực phẩm cho sức khỏe.',
-    category: 'vegetables',
+    category: 'leafy',
     subcategory: 'cruciferous',
     pricePerUnit: 58000,
     unit: 'kg',
@@ -657,7 +657,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Dâu tây Đà Lạt hữu cơ',
     description:
       'Dâu tây Đà Lạt hữu cơ ngọt thơm, màu đỏ tươi, trái to mọng nước. Sản phẩm cao cấp.',
-    category: 'fruits',
+    category: 'fruit',
     subcategory: 'berries',
     pricePerUnit: 180000,
     unit: 'kg',

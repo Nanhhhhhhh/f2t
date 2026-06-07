@@ -196,7 +196,7 @@ async function bootstrap() {
     farms.forEach((f) =>
 
     // 4. Seed Products
-    const categories = ['vegetables', 'fruits', 'herbs', 'dairy'];
+    const categories = ['leafy', 'fruit', 'herbs', 'dairy'];
     const products = [];
     const productNames = [
       [

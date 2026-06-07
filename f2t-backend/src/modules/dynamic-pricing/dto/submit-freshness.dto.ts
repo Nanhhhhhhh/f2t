@@ -7,6 +7,6 @@ export class SubmitFreshnessDto {
   score!: number;
 
   @IsString()
-  @IsIn(['vegetables', 'fruits', 'herbs', 'mushrooms', 'grains', 'dairy', 'eggs', 'honey', 'other'])
+  @IsIn(['leafy', 'root', 'fruit', 'herbs', 'mushrooms', 'grains', 'dairy', 'eggs', 'honey', 'other'])
   category!: string;
 }

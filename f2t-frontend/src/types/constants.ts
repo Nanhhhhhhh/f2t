@@ -100,8 +100,9 @@ export const DELIVERY_METHOD_LABELS = {
 
 // Product Category Constants
 export const PRODUCT_CATEGORY = {
-  VEGETABLES: 'vegetables',
-  FRUITS: 'fruits',
+  LEAFY: 'leafy',
+  ROOT: 'root',
+  FRUIT: 'fruit',
   HERBS: 'herbs',
   MUSHROOMS: 'mushrooms',
   GRAINS: 'grains',
@@ -112,8 +113,9 @@ export const PRODUCT_CATEGORY = {
 } as const;
 
 export const PRODUCT_CATEGORY_LABELS = {
-  [PRODUCT_CATEGORY.VEGETABLES]: 'Rau củ',
-  [PRODUCT_CATEGORY.FRUITS]: 'Trái cây',
+  [PRODUCT_CATEGORY.LEAFY]: 'Rau lá',
+  [PRODUCT_CATEGORY.ROOT]: 'Rau củ',
+  [PRODUCT_CATEGORY.FRUIT]: 'Trái cây',
   [PRODUCT_CATEGORY.HERBS]: 'Rau thơm & Thảo mộc',
   [PRODUCT_CATEGORY.MUSHROOMS]: 'Nấm',
   [PRODUCT_CATEGORY.GRAINS]: 'Ngũ cốc & Hạt',
@@ -124,9 +126,9 @@ export const PRODUCT_CATEGORY_LABELS = {
 } as const;
 
 export const PRODUCT_CATEGORY_DESCRIPTIONS = {
-  [PRODUCT_CATEGORY.VEGETABLES]:
-    'Rau lá xanh, rau củ, và rau theo mùa từ trang trại sạch',
-  [PRODUCT_CATEGORY.FRUITS]:
+  [PRODUCT_CATEGORY.LEAFY]: 'Rau lá xanh, xà lách, cải và rau theo mùa từ trang trại sạch',
+  [PRODUCT_CATEGORY.ROOT]: 'Cà rốt, khoai tây, củ cải và các loại rau củ sạch',
+  [PRODUCT_CATEGORY.FRUIT]:
     'Trái cây tươi theo mùa, trái cây nhiệt đới và các loại berry',
   [PRODUCT_CATEGORY.HERBS]: 'Rau thơm tươi, thảo mộc dùng trong ẩm thực và y học cổ truyền',
   [PRODUCT_CATEGORY.MUSHROOMS]: 'Các loại nấm tươi và khô từ trang trại sạch',
@@ -196,25 +198,15 @@ export const HERB_SUBCATEGORY_LABELS = {
 
 // Common product examples by category
 export const PRODUCT_EXAMPLES = {
-  [PRODUCT_CATEGORY.VEGETABLES]: [
-    'Lettuce',
-    'Spinach',
-    'Kale',
-    'Carrots',
-    'Potatoes',
-    'Tomatoes',
-    'Cucumbers',
-    'Bell Peppers',
-    'Broccoli',
-    'Cauliflower',
-    'Onions',
-    'Garlic',
-    'Zucchini',
-    'Eggplant',
-    'Peas',
-    'Beans',
+  [PRODUCT_CATEGORY.LEAFY]: [
+    'Lettuce', 'Spinach', 'Kale', 'Cabbage', 'Broccoli',
+    'Cauliflower', 'Bok Choy', 'Watercress', 'Arugula',
   ],
-  [PRODUCT_CATEGORY.FRUITS]: [
+  [PRODUCT_CATEGORY.ROOT]: [
+    'Carrots', 'Potatoes', 'Sweet Potatoes', 'Radish',
+    'Turnips', 'Beets', 'Onions', 'Garlic',
+  ],
+  [PRODUCT_CATEGORY.FRUIT]: [
     'Apples',
     'Oranges',
     'Bananas',

@@ -63,7 +63,9 @@ export class DemandForecastingService {
         pWaste: data.pWaste,
         computedAt: new Date().toISOString(),
       };
-      await this.redis.set(key, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS);
+      this.redis.set(key, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS).catch((e) => {
+        this.logger.warn(`Redis cache write failed for ${productId}: ${String(e)}`);
+      });
       return result;
     } catch (e) {
       this.logger.warn(`Forecast sidecar error for ${productId}: ${String(e)}`);

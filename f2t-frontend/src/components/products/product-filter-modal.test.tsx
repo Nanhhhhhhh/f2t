@@ -209,7 +209,7 @@ describe('ProductFilterModal', () => {
 
   it('should initialize with provided initial filters', () => {
     const initialFilters: Partial<ProductFilterOptions> = {
-      categories: ['vegetables', 'fruits'],
+      categories: ['leafy', 'fruit'],
       organicOnly: true,
       priceRange: { min: 10, max: 25 },
     };

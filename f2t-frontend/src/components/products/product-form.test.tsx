@@ -68,7 +68,7 @@ const createMockProduct = () => ({
   farmId: 'farm_123',
   name: 'Organic Tomatoes',
   description: 'Fresh organic tomatoes',
-  category: 'vegetables' as const,
+  category: 'leafy' as const,
   subcategory: 'cherry',
   pricePerUnit: 4.99,
   unit: 'kg' as const,

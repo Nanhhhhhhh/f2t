@@ -29,8 +29,9 @@ export class CreateProductDto {
   @ApiProperty() @IsString() @IsNotEmpty() description!: string;
   @ApiProperty({
     enum: [
-      'vegetables',
-      'fruits',
+      'leafy',
+      'root',
+      'fruit',
       'herbs',
       'mushrooms',
       'grains',
@@ -41,8 +42,9 @@ export class CreateProductDto {
     ],
   })
   @IsEnum([
-    'vegetables',
-    'fruits',
+    'leafy',
+    'root',
+    'fruit',
     'herbs',
     'mushrooms',
     'grains',

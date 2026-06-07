@@ -40,7 +40,7 @@ const createMockProduct = (overrides: Partial<Product> = {}): Product => ({
   farmId: 'farm-1',
   name: 'Fresh Tomatoes',
   description: 'Organic, locally grown tomatoes',
-  category: 'vegetables',
+  category: 'leafy',
   subcategory: 'nightshades',
   pricePerUnit: 4.99,
   unit: 'kg',

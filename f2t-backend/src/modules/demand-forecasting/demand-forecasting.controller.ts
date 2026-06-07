@@ -8,6 +8,15 @@ import { Farm, FarmDocument } from '@modules/farms/schemas/farm.schema';
 import { FreshnessCache, FreshnessCacheDocument } from '@modules/dynamic-pricing/schemas/freshness-cache.schema';
 import { DemandForecastingService } from './demand-forecasting.service';
 
+const SIDECAR_CATEGORIES = ['leafy', 'root', 'fruit', 'herbs'] as const;
+
+function toSidecarCategory(raw: string): string {
+  if ((SIDECAR_CATEGORIES as readonly string[]).includes(raw)) return raw;
+  if (raw === 'vegetables') return 'leafy';
+  if (raw === 'fruits') return 'fruit';
+  return 'leafy';
+}
+
 @ApiTags('demand-forecasting')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -40,7 +49,7 @@ export class DemandForecastingController {
 
     return this.service.getForecast(
       productId,
-      product.category,
+      toSidecarCategory(product.category),
       freshness,
       Math.min((product.availableQuantity ?? 0) / 100, 2.0),
       product.pricePerUnit,
@@ -68,9 +77,10 @@ export class DemandForecastingController {
         const scheduleItem = (farm?.restockSchedule as { category: string; intervalDays: number }[] | undefined)
           ?.find((s) => s.category === p.category);
         const freshness = cacheMap.get(p._id.toString()) ?? 0.7;
+        const mappedCat = toSidecarCategory(p.category);
         return this.service.getForecast(
           p._id.toString(),
-          p.category,
+          mappedCat,
           freshness,
           Math.min((p.availableQuantity ?? 0) / 100, 2.0),
           p.pricePerUnit,

@@ -47,8 +47,9 @@ export class Product {
   @Prop({
     required: true,
     enum: [
-      'vegetables',
-      'fruits',
+      'leafy',
+      'root',
+      'fruit',
       'herbs',
       'mushrooms',
       'grains',

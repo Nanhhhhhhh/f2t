@@ -30,23 +30,23 @@ export type CreateProductRequest = {
   isActive: boolean;
 };
 
-export type UpdateProductRequest = {
+export type UpdateProductRequest = Partial<Omit<CreateProductRequest, 'farmId'>> & {
   id: string;
-  name?: string;
-  description?: string;
-  category?: string;
-  price?: number;
-  unit?: string;
-  stockQuantity?: number;
-  images?: string[];
-  harvestDate?: string;
-  expiryDate?: string;
-  organicCertified?: boolean;
-  seasonalAvailability?: {
-    startMonth: number;
-    endMonth: number;
-  };
-  nutritionInfo?: {
+  pricePerUnit?: number;
+  availableQuantity?: number;
+  minimumOrder?: number;
+  subcategory?: string;
+  deliveryDate?: string;
+  estimatedShelfLife?: number;
+  isOrganic?: boolean;
+  farmingMethods?: string[];
+  qualityGrade?: string;
+  freshnessLevel?: string;
+  storageRequirements?: string;
+  packagingType?: string;
+  tags?: string[];
+  allergenInfo?: string[];
+  nutritionalInfo?: {
     calories?: number;
     protein?: number;
     carbs?: number;
@@ -54,9 +54,7 @@ export type UpdateProductRequest = {
     fiber?: number;
     vitamins?: string[];
   };
-  storageInstructions?: string;
-  preparationTips?: string;
-  isActive?: boolean;
+  status?: 'available' | 'sold_out' | 'unavailable' | 'seasonal';
 };
 
 export type GetProductRequest = {
@@ -128,8 +126,9 @@ export type ProductSearchFilters = {
 
 // Product Categories (can be extended)
 export const PRODUCT_CATEGORIES = {
-  VEGETABLES: 'vegetables',
-  FRUITS: 'fruits',
+  LEAFY: 'leafy',
+  ROOT: 'root',
+  FRUIT: 'fruit',
   HERBS: 'herbs',
   MUSHROOMS: 'mushrooms',
   GRAINS: 'grains',

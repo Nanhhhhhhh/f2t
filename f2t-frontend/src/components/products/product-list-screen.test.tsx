@@ -30,7 +30,7 @@ jest.mock('@/api/products', () => ({
               {
                 id: 'prod_1',
                 name: 'Organic Tomatoes',
-                category: 'vegetables',
+                category: 'leafy',
                 pricePerUnit: 4.99,
                 unit: 'kg',
                 availableQuantity: 25,
@@ -122,7 +122,7 @@ const createMockProducts = () => [
     farmId: 'farm_1',
     name: 'Organic Tomatoes',
     description: 'Fresh organic tomatoes',
-    category: 'vegetables' as const,
+    category: 'leafy' as const,
     subcategory: 'cherry',
     pricePerUnit: 4.99,
     unit: 'kg' as const,
