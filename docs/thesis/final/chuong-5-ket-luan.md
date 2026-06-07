@@ -1,12 +1,63 @@
 # CHƯƠNG 5. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
 
 ## 5.1. Kết luận
-<!-- T2.29 ⭐2-lớp: dany.md L607-619; số liệu + 6 đóng góp thật; ledger t1.15-numbers, t1.4-* -->
+
+Khoá luận đã trình bày quá trình thiết kế, xây dựng và tích hợp hệ thống thương mại điện tử nông sản F2T (Farm to Table) theo kiến trúc Monolith NestJS kết hợp một sidecar AI FastAPI chạy trên cổng 8000. Hệ thống backend được tổ chức thành 13 module NestJS với 14 controller, phủ khoảng 79 REST endpoint và 10 collection MongoDB; toàn bộ logic nghiệp vụ được kiểm tra bởi 54 test case phân bổ trong 21 file spec, tất cả đều pass [ref: ledger t1.15-numbers, t1.4-one-sidecar; f2t-backend/src/app.module.ts:57]. Phía giao diện người dùng bao gồm khoảng 48 màn hình route trên nền React Native + Expo Router. Sidecar duy nhất (port 8000) cung cấp ba endpoint: `/predict` (định giá động), `/forecast` (dự báo nhu cầu) và `/freshness/classify` (phân loại độ tươi), đủ để khép kín vòng lặp AI mà không cần nhân thêm tiến trình riêng biệt. Mô hình DDQN hoạt động với không gian quan sát 10 chiều và 11 hành động phân bổ đều trong khoảng [−0,30; +0,20]; mô hình ForecasterLSTM dùng cửa sổ 21 bước với đầu vào `obs_dim=10`; hệ thống phân loại độ tươi triển khai 2 model CoreML nhị phân (fruit/root). Những con số này là kết quả đo đạc trực tiếp từ mã nguồn và được giữ nhất quán xuyên suốt toàn bộ tài liệu.
+
+Về đóng góp cụ thể, khoá luận đạt được sáu đóng góp chính như sau:
+
+1. **ĐG1 — Kiến trúc Monolith + 1 Sidecar FastAPI:** Thiết kế tổng thể tách biệt rõ ràng giữa lõi nghiệp vụ (NestJS) và lõi suy diễn AI (FastAPI), giao tiếp nội bộ qua HTTP, cho phép phát triển và triển khai độc lập mà không ảnh hưởng tới uptime của backend chính [ref: ledger t1.4-one-sidecar].
+
+2. **ĐG2 — DynamicPricingInterceptor:** Một NestJS interceptor toàn cục tự động đọc giá đề xuất đã được sidecar tính trước (lưu trong `price_overrides`) và gắn ba trường `dynamicPrice` (giá AI đề xuất), `freshnessScore` (điểm tươi) và `priceTag` (nhãn `flash_discount`/`standard`) vào mọi response của endpoint `/products`, thực hiện tích hợp giá AI minh bạch không cần sửa từng controller [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron].
+
+3. **ĐG3 — ForecasterLSTM dự báo nhu cầu:** Mô hình LSTM hai lớp với `obs_dim=10`, cửa sổ 21 bước, đầu ra kép gồm `demand` và `waste_logit`; kiến trúc mạng được định nghĩa rõ ràng trong mã nguồn huấn luyện, sử dụng luồng dữ liệu từ `market_env` tổng hợp [ref: dynamic-pricing-final/src/forecaster/model.py:18-49; ledger t1.4-forecaster-not-holt].
+
+4. **ĐG4 — Định giá động DDQN với Safety Layer:** Mạng `SharedMLPDuelingQNet` (Dueling DQN) huấn luyện trên không gian obs 10 chiều và 11 action rời rạc phân bổ tuyến tính trong [−0,30; +0,20]; một Safety Layer gồm 5 quy tắc cứng (floor giá tối thiểu, ceiling giá tối đa, biên độ thay đổi tối đa một bước, chặn âm giá trị, bảo vệ biên lợi nhuận) lọc mọi đề xuất trước khi ghi vào `price_overrides`; toàn bộ vận hành ở chế độ advisory/shadow [ref: dynamic-pricing-final/src/rl/network.py:51-57; pricing-sidecar/safety.py:1-19; ledger t1.4-ddqn-dims, t1.4-safety-5-rules].
+
+5. **ĐG5 — Phân loại độ tươi CoreML:** Hai model CoreML nhị phân (nhãn fresh/rotten) được phục vụ qua endpoint `/freshness/classify`, hỗ trợ danh mục fruit và root; đây là tính năng chạy hoàn toàn on-device-compatible và không phụ thuộc vào dịch vụ đám mây bên ngoài [ref: pricing-sidecar/main.py:316-318; ledger t1.4-freshness-coreml].
+
+6. **ĐG6 — Tích hợp end-to-end:** Luồng đặt hàng sử dụng Embedded Snapshot để sao chép tên, đơn giá và đơn vị tại thời điểm tạo đơn vào bản ghi `Order`, tránh không nhất quán dữ liệu khi sản phẩm cập nhật sau; dịch vụ giao hàng sử dụng Dijkstra mock làm fallback khi chưa có token GHN thực; xác thực thanh toán đặt tại Stripe webhook thay vì URL redirect [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:105; ledger t1.4-interceptor-cron].
+
+Nhìn lại quá trình thực hiện, khoá luận rút ra một số bài học kiến trúc có giá trị. Mẫu Sidecar giúp tách mối quan tâm (separation of concerns) hiệu quả: nhóm AI có thể thay thế model mà không cần recompile backend. Embedded Snapshot là lựa chọn đúng cho dữ liệu thương mại vì giá sản phẩm có thể thay đổi bất kỳ lúc nào sau khi đơn hàng được tạo. Webhook là điểm duy nhất xác nhận sự kiện thanh toán, loại bỏ các trạng thái giả từ browser redirect. Safety Layer bảo vệ hệ thống khỏi các đề xuất cực đoan của mô hình RL trong khi model vẫn đang trong giai đoạn phát triển. Đáng lưu ý, phương pháp đánh giá định lượng đã được thiết kế đầy đủ — bao gồm script `eval.py` offline cho ForecasterLSTM, môi trường `market_env` mô phỏng cho DDQN, và confusion matrix 2×2 cho phân loại độ tươi — tuy nhiên các kết quả số cụ thể (MAE, AUROC, accuracy, doanh thu mô phỏng) chưa được thu thập trong phạm vi khoá luận này và được để dưới dạng bảng khung trong Chương 4.
 
 ## 5.2. Hạn chế
-<!-- T2.29 ⭐2-lớp: dany.md L621-639; PHẢI có 3 GIỚI HẠN BẮT BUỘC trạng thái post-retrain:
-     (a) forecaster tile-21× steady-state obs_dim=10 (KHÔNG layout mismatch);
-     (b) dow lệch pha <6.2%; (c) freshness 2/4 model CoreML; ledger t0.10-thesis-limitations -->
+
+Bên cạnh những kết quả đạt được, hệ thống F2T còn tồn tại một số hạn chế cần thẳng thắn thừa nhận để người đọc có bức tranh trung thực về trạng thái hiện tại của sản phẩm.
+
+Thứ nhất, luồng xác minh tài khoản qua email và SMS chưa được kích hoạt trong môi trường demo. Schema `VerificationToken` đã được định nghĩa đầy đủ và migration tồn tại trong codebase, song hàm `needsVerification()` phía frontend luôn trả về `false`, đồng nghĩa với việc OTP thực sự không được gửi đi [ref: f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:8-26]. Đây là quyết định chủ động nhằm giảm phụ thuộc vào dịch vụ email/SMS ngoài trong quá trình phát triển, nhưng sẽ cần bật lại trước khi đưa lên production.
+
+Thứ hai, tích hợp dịch vụ giao hàng GHN chưa dùng token thực. Module `DeliveryService` phát hiện sự vắng mặt của biến `GHN_TOKEN` và tự động chuyển sang thuật toán Dijkstra trên đồ thị mẫu, đủ để demo luồng tính phí và thời gian giao hàng nhưng không phản ánh mạng lưới thực tế [ref: f2t-backend/src/modules/delivery/delivery.service.ts; ledger t1.4-interceptor-cron].
+
+Thứ ba, chế độ định giá động hiện chỉ vận hành ở trạng thái advisory/shadow. Biến môi trường `PRICING_MODE` chấp nhận giá trị `"shadow"` hoặc `"advisory"` (mặc định là `"shadow"`); không có mode `"live"` nào được triển khai, và giá được ghi vào trường `price_overrides` chưa được áp dụng tự động vào giá bán [ref: f2t-backend/src/app.module.ts:58; pricing-sidecar/main.py]. Điều này có nghĩa là toàn bộ vòng lặp AI hiện là quan sát, chưa phải hành động.
+
+Thứ tư, hệ thống chưa có module đánh giá và xếp hạng sản phẩm. Không tồn tại collection `ratings`, không có endpoint đánh giá nào trong API, và không có dữ liệu lịch sử xếp hạng để hỗ trợ các tính năng gợi ý sau này.
+
+Thứ năm, sidecar AI chưa được đóng gói bằng Docker. Hiện tại quá trình khởi động sidecar yêu cầu kích hoạt thủ công môi trường Python `venv` và chạy `uvicorn`, điều này tạo thêm bước vận hành và tăng nguy cơ lỗi cấu hình khi triển khai trên máy mới [ref: pricing-sidecar/].
+
+Thứ sáu, khoá luận chưa thu thập kết quả đánh giá định lượng cho các mô hình AI. Phương pháp đánh giá đã được thiết kế và script đã sẵn sàng, nhưng các con số thực tế về MAE theo ngày, AUROC hiệu chỉnh, accuracy phân loại độ tươi và doanh thu mô phỏng chưa được chạy trong phạm vi công việc này; các bảng tương ứng trong Chương 4 được để khung chờ kết quả.
+
+Ngoài các hạn chế thực tế trên, có ba **HẠN CHẾ BẮT BUỘC** về tính trung thực kỹ thuật cần được ghi nhận minh bạch:
+
+**[HẠN CHẾ BẮT BUỘC — tính trung thực] (a) ForecasterLSTM serve theo chế độ tiling steady-state:** Sau khi retrain ở giai đoạn T0.13, checkpoint `forecaster_v4_best.pt` đã có `obs_dim=10` khớp với không gian quan sát của `market_env`, nghĩa là vấn đề layout mismatch 11≠10 đã được khắc phục hoàn toàn và các bước pad/slice trong serve là no-op. Tuy nhiên, hạn chế vẫn còn tồn tại ở cấp độ phục vụ online: khi nhận request `/forecast`, sidecar nhân bản (tile) cùng một vector quan sát hiện tại 21 lần để tạo đầu vào cho LSTM (`main.py:135`) thay vì cung cấp chuỗi lịch sử 21 ngày thực tế. Hệ quả là LSTM nhận đầu vào steady-state, không khai thác được khả năng mô hình hoá chuỗi thời gian — vốn là lý do chọn kiến trúc LSTM. Dự báo từ endpoint `/forecast` do đó chỉ là xấp xỉ; số liệu đáng tin cậy phải đến từ offline eval sử dụng `dynamic-pricing-final/src/forecaster/eval.py` với dữ liệu chuỗi thời gian thực [ref: pricing-sidecar/main.py:135; dynamic-pricing-final/checkpoints/forecaster_v4_best.pt (obs_dim=10, window=21); ledger t0.4-forecaster-parity, t0.10-thesis-limitations].
+
+**[HẠN CHẾ BẮT BUỘC — tính trung thực] (b) Lệch pha day-of-week giữa train và serve:** Trong quá trình huấn luyện, `market_env.py` tính ngày trong tuần bằng công thức `t % 7` (bước mô phỏng modulo 7), trong khi sidecar serve sử dụng `datetime.now().weekday()` (ngày thực tế từ đồng hồ hệ thống). Hai cách tính này lệch pha nhau một lượng tùy ý tùy theo thời điểm chạy, tạo ra sự không nhất quán trong đặc trưng `sin_weekly`/`cos_weekly` đưa vào mô hình. Ảnh hưởng về mặt độ lớn là nhỏ (nhỏ hơn 6,2% biên độ đặc trưng vì các hệ số `sin_weekly`/`cos_weekly` trong `demand_params.json` rất nhỏ, tối đa ±0,023), nhưng sai lệch này là thật, có hệ thống và không thể kiểm soát được trong trạng thái hiện tại [ref: pricing-sidecar/main.py:98; dynamic-pricing-final/src/env/market_env.py:132; ledger t0.9-fixes, t0.10-thesis-limitations].
+
+**[HẠN CHẾ BẮT BUỘC — tính trung thực] (c) Freshness chỉ có 2/4 model CoreML:** Hệ thống phân loại độ tươi hiện chỉ có model riêng biệt cho hai danh mục `fruit` và `root`; các danh mục `leafy` và `herbs` chưa có model được huấn luyện riêng và phải dùng chung model `root` làm fallback. Đây không phải giải pháp lý tưởng vì đặc điểm thị giác của rau lá và thảo mộc khác đáng kể so với củ quả [ref: pricing-sidecar/main.py:318; ledger t0.6-coreml-freshness, t0.10-thesis-limitations].
 
 ## 5.3. Hướng phát triển
-<!-- T2.29 ⭐2-lớp: dany.md L641-659; recommender = tương lai (không overclaim); ledger t0.10, t1.4-no-recommender -->
+
+Dựa trên nền tảng đã xây dựng và các hạn chế đã xác định, khoá luận đề xuất các hướng phát triển tiếp theo có thể triển khai trong các giai đoạn tiếp theo của dự án.
+
+Ưu tiên trực tiếp nhất là chuyển chế độ định giá động từ advisory/shadow sang live với A/B testing. Việc này đòi hỏi bổ sung giá trị `"live"` cho biến môi trường `PRICING_MODE`, xây dựng cơ chế tự động áp giá từ `price_overrides` vào bảng giá bán thực tế, và thiết lập pipeline theo dõi conversion rate và doanh thu để so sánh giữa giá AI-gợi ý và giá thủ công. A/B testing theo cụm sản phẩm sẽ cho phép đo lường tác động kinh doanh thực tế trước khi mở rộng toàn diện.
+
+Bước tiếp theo cho mô-đun dự báo là khắc phục hạn chế tiling: backend cần lưu trữ và cung cấp chuỗi lịch sử 21 ngày thật cho endpoint `/forecast` thay vì tile cùng một vector quan sát hiện tại. Khi dữ liệu chuỗi thời gian thực được bơm vào, LSTM mới có thể khai thác đúng kiến trúc của mình; giai đoạn này cũng cần chạy eval offline chuẩn với `dynamic-pricing-final/src/forecaster/eval.py` để có số MAE và AUROC đáng tin cậy [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations].
+
+Về phân loại độ tươi, hướng phát triển tự nhiên là thu thập dataset ảnh rau lá và thảo mộc Việt Nam thực tế, huấn luyện model CoreML riêng cho hai danh mục `leafy` và `herbs`, từ đó mở rộng độ bao phủ lên 4/4 danh mục và loại bỏ sự phụ thuộc vào fallback model `root` hiện tại.
+
+Về kiến trúc AI, mô hình DDQN đơn tác tử hiện tại có thể được nâng cấp thành khung Multi-Agent Reinforcement Learning (MARL), trong đó mỗi tác tử quản lý một nhóm sản phẩm, cho phép mô hình hóa cross-elasticity (ảnh hưởng của giá sản phẩm này lên nhu cầu sản phẩm khác) — một yếu tố quan trọng trong bối cảnh thị trường nông sản đa chủng loại.
+
+Về hạ tầng, đóng gói sidecar AI bằng Docker Compose cùng backend NestJS sẽ chuẩn hoá quy trình triển khai, giảm bước cấu hình thủ công và tạo điều kiện cho CI/CD tự động chạy toàn bộ 54 test trên mỗi pull request. Đồng thời, tích hợp token GHN production và webhook hai chiều sẽ cho phép hệ thống nhận callback trạng thái giao hàng thời gian thực thay vì chỉ dựa vào Dijkstra mock.
+
+Về mặt sản phẩm, khoá luận xác định hai hướng mở rộng tính năng đáng đầu tư: (i) Web portal dành cho Farm Owner, cung cấp giao diện quản lý kho và phân tích doanh thu trên trình duyệt mà không cần ứng dụng di động; (ii) Chatbot AI tư vấn nông nghiệp sử dụng mô hình ngôn ngữ lớn (LLM), hỗ trợ nông dân trả lời câu hỏi về thị trường, giá cả và kỹ thuật bảo quản theo ngữ cảnh hội thoại. Cần nhấn mạnh rằng hệ thống gợi ý sản phẩm (collaborative filtering, content-based hay cosine similarity) **hiện chưa tồn tại** trong codebase — không có module recommender, không có endpoint gợi ý, không có collection dữ liệu tương tác người dùng; đây là hướng phát triển thuần tuý trong tương lai, không phải tính năng hiện tại [ref: ledger t1.4-no-recommender].
+
+Tổng thể, hệ thống F2T đã đặt nền móng kỹ thuật vững chắc với kiến trúc có thể mở rộng, bộ test đầy đủ và vòng lặp AI đã khép kín ở cấp độ thiết kế. Các hướng phát triển trên sẽ chuyển hệ thống từ trạng thái prototype học thuật sang sản phẩm sẵn sàng thị trường, với ưu tiên rõ ràng: kích hoạt live pricing, hoàn thiện chuỗi thời gian cho forecaster, mở rộng freshness 4/4 danh mục, và chuẩn hóa hạ tầng Docker.

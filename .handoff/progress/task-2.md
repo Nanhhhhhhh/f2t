@@ -1123,3 +1123,19 @@ Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **
 **Sửa duy nhất sau re-verify (WARN-1):** §4.4.1 câu "10 collection không có bảng cache suy luận bổ sung" → SỬA trung thực: "KHÔNG có recommendation_caches/forecast_caches (không có gợi ý sản phẩm; dự báo cache ở tầng Redis, không tạo collection riêng)" [ledger t1.4-collections, t1.4-no-recommender]. WARN-2 (tsc "đặt mục tiêu CI") + WARN-3 (model.py line offset nhỏ, nội dung đúng) chấp nhận không sửa.
 
 **KẾT LUẬN RE-VERIFY: Chương 4 PASS toàn bộ — chân thực 100% với code, 0 số eval bịa.**
+
+## T2.29 — Chương 5 (Kết luận + Hạn chế + Hướng phát triển) ✅
+
+**Ngày:** 2026-06-08. **File:** `docs/thesis/final/chuong-5-ket-luan.md` (skeleton → prose học thuật, 3 mục §5.1/§5.2/§5.3).
+**Quy trình:** implementer sonnet → verifier đối kháng độc lập (khác agent) → controller fix → done.
+
+### Verify đối kháng (10 mục) — VERDICT: REJECT(1 lỗi) → FIX → PASS
+- Mục 1 **REJECT**: ĐG2 ghi interceptor gắn trường `suggested_price` — BỊA, không tồn tại trong codebase. Source thật `dynamic-pricing.interceptor.ts:74-76`: 3 trường `dynamicPrice`/`freshnessScore`/`priceTag`. → **CONTROLLER FIX**: viết lại ĐG2 = interceptor đọc giá đề xuất đã lưu `price_overrides` (cron gọi /predict) + gắn 3 trường `dynamicPrice`/`freshnessScore`/`priceTag`, citation đổi `:16-18`→`:74-77` [ledger t1.4-interceptor-cron]. Trung thực hơn bản gốc (interceptor KHÔNG tự gọi sidecar — đó là việc của cron).
+- Mục 2–10 **PASS** với bằng chứng source: Safety 5 rule (safety.py:5-19), tile-21× (main.py:135, OBS_WINDOW=21), DoW (main.py:98 vs market_env.py:132), freshness 2/4 (main.py:318), verification-token schema, PRICING_MODE no "live" (app.module.ts:58), false-claim sweep (3 hit đều phủ định/ledger-id), 4× "HẠN CHẾ BẮT BUỘC", số canonical đúng (obs_dim=10, 11 action, 2 CoreML, 13 module, 54/21 test), 0 số eval bịa.
+
+### Kết quả grep cổng (post-fix)
+- `grep -c "HẠN CHẾ BẮT BUỘC" chuong-5-ket-luan.md` = 4 (≥3 ✅)
+- 3 HẠN CHẾ BẮT BUỘC trạng thái post-retrain: (a) forecaster tile-21× steady-state obs_dim=10 — KHÔNG layout mismatch; (b) DoW lệch pha <6.2%; (c) freshness 2/4 model.
+- 6 ĐG1–ĐG6 đầy đủ; recommender chỉ ở §5.3 dạng "hiện chưa tồn tại / tương lai".
+
+**KẾT LUẬN T2.29: PASS — Chương 5 chân thực 100% với code.**
