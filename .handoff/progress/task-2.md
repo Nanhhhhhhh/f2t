@@ -281,3 +281,44 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 - `model.py:9-15` (ForecasterConfig obs_dim=10, window=21, hidden=128, layers=2, n_cats=4, embed=8)
 - `network.py:51-81` (SharedMLPDuelingQNet obs_dim=10, n_cats=4, embed=8, hidden=128, n_actions=11, Dueling V+A)
 - `delivery.service.ts:99,131,232` (Dijkstra demo fallback, không phải production)
+
+## T2.4+T2.5 — Chương 1 ✅
+
+**File đích:** `docs/thesis/final/chuong-1-gioi-thieu.md` — GHI ĐÈ đầy đủ (xóa comment skeleton, thay bằng prose học thuật tiếng Việt).
+
+### Citation đã dùng (mỗi câu kỹ thuật):
+
+| Section | Citation | Nội dung |
+|---|---|---|
+| §1.2 MT2 | `[ref: f2t-backend/src/modules/ — 13 thư mục: admin, auth, delivery, demand-forecasting, dynamic-pricing, farms, notifications, orders, payments, posts, products, uploads, users]` | 13 module NestJS |
+| §1.2 MT2 | `[ref: ledger t1.15-numbers]` | ≈79 REST endpoint |
+| §1.2 MT3 | `[ref: dynamic-pricing-final/src/forecaster/model.py:18-49; ledger t1.4-forecaster-not-holt, t0.2-forecaster-arch]` | ForecasterLSTM 2 lớp, window=21, obs_dim=10 |
+| §1.2 MT4 | `[ref: dynamic-pricing-final/src/rl/network.py:51-57; pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules]` | DDQN + Safety 5 quy tắc |
+| §1.2 MT5 | `[ref: pricing-sidecar/main.py:316-318; freshnessmodels/MyFreshnessClassifier-fruit.mlmodel; ledger t1.4-freshness-coreml, t0.6]` | 2 CoreML model |
+| §1.2 MT6 | `[ref: ledger t1.15-numbers]` | 54/54 test case, 21 spec |
+| §1.3 | `[ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]` | 1 sidecar port 8000, 3 endpoint |
+| §1.5 ĐG1 | `[ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:9; ledger t1.4-one-sidecar]` | Monolith+1Sidecar graceful degrade |
+| §1.5 ĐG2 | `[ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:16-18; ledger t1.4-interceptor-cron]` | DynamicPricingInterceptor + cron |
+| §1.5 ĐG3 | `[ref: dynamic-pricing-final/src/forecaster/model.py:18-49; ledger t1.4-forecaster-not-holt, t0.2-forecaster-arch]` | ForecasterLSTM dual-head |
+| §1.5 ĐG4 | `[ref: dynamic-pricing-final/src/rl/network.py:51-57; pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules, t1.4-ddqn-dims]` | DDQN SharedMLPDuelingQNet + Safety |
+| §1.5 ĐG5 | `[ref: pricing-sidecar/main.py:316-318; freshnessmodels/MyFreshnessClassifier-fruit.mlmodel; ledger t1.4-freshness-coreml, t0.6]` | 2 CoreML fruit/root |
+| §1.5 ĐG6 | `[ref: f2t-backend/src/modules/delivery/delivery.service.ts; ledger t1.4-interceptor-cron]` + `[ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:105]` | Dijkstra fallback + Embedded Snapshot |
+| §1.6 | `[ref: ledger t1.15-numbers]` | 54/54 trong chương 4 |
+
+### Nguồn ngoài [TLTK] đã dùng:
+- >60% dân số nông nghiệp → `[TLTK]`
+- Mất 25-30% độ tươi sau thu hoạch (FAO) → `[TLTK]`
+- TMĐT di động +18%/năm (e-Conomy SEA 2023) → `[TLTK]`
+
+### Checklist tự kiểm tra (self-review):
+
+| Tiêu chí | Kết quả |
+|---|---|
+| 6 đóng góp ĐG1–ĐG6 đúng tên + nội dung | ✅ PASS |
+| §1.5 tham chiếu `diagrams/contribution-map.puml` | ✅ PASS (ghi "Hình 1.1 — diagrams/contribution-map.puml") |
+| 0 từ cấm (recommender, Holt EWMA, MobileNetV2, 4-class, 14 module, 3 sidecar, obs_dim=11) | ✅ PASS |
+| Mọi câu kỹ thuật có citation `[ref: ...]` hoặc `[TLTK]` | ✅ PASS |
+| Số liệu canonical đúng: 13 module, 1 sidecar port 8000, 3 endpoint, 54/54 test, window=21, obs_dim=10, 11 action, Safety 5 quy tắc, 2 CoreML | ✅ PASS |
+| §1.6 mô tả đúng 5 chương khớp STRUCTURE.md | ✅ PASS |
+| Văn phong học thuật tiếng Việt, đoạn văn liền mạch (không bullet trừ MT/ĐG đánh số) | ✅ PASS |
+| Độ dài ~5 trang (ước lượng) | ✅ PASS (~5 trang khi in A4 font 13) |
