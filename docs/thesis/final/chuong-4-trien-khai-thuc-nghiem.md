@@ -206,7 +206,67 @@ Cột "Trạng thái chức năng" phản ánh mức độ tích hợp luồng n
 Về giao diện người dùng, ứng dụng Consumer không có màn hình gợi ý sản phẩm [ref: ledger t1.4-no-recommender]; các tính năng AI/ML hiển thị với người dùng cuối bao gồm: nhãn độ tươi và giá động được nhúng vào phản hồi danh sách sản phẩm bởi `DynamicPricingInterceptor` [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron], biểu đồ dự báo nhu cầu trên Farm Dashboard, tính năng gợi ý giá DDQN dành cho Farm owner, và tính năng quét độ tươi bằng CoreML cũng dành cho Farm owner [ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml].
 
 ### 4.4.2. Đánh giá dự báo nhu cầu
-<!-- T2.26 ⭐2-lớp: dany.md L543-555; eval.py offline + giới hạn tile-21×; KHÔNG bịa số; ledger t0.4-forecaster-parity, t0.10 -->
+
+#### Mô hình và tập dữ liệu đánh giá
+
+Thành phần dự báo nhu cầu trong hệ thống F2T được hiện thực bởi **ForecasterLSTM** — mạng LSTM hai lớp với `obs_dim=10`, `window=21`, `lstm_hidden=128`, và hai đầu ra song song (`demand_head` cho dự báo cầu 7 ngày, `waste_head` cho xác suất hàng tồn bị hỏng) [ref: dynamic-pricing-final/src/forecaster/model.py:9-15,31-49; ledger t0.2-forecaster-arch]. Đánh giá hiệu năng mô hình được thực hiện hoàn toàn **offline** thông qua script `dynamic-pricing-final/src/forecaster/eval.py`, chạy trên tập kiểm tra `data/processed/test.parquet` [ref: dynamic-pricing-final/src/forecaster/eval.py:28-44]. Dữ liệu được tải qua `PerishableForecastDataset`, đưa vào mô hình theo lô 512 mẫu, và toàn bộ suy luận diễn ra trong chế độ `torch.no_grad()` [ref: dynamic-pricing-final/src/forecaster/eval.py:43-57].
+
+#### Định nghĩa chỉ số đánh giá
+
+Hai chỉ số chính được sử dụng để đánh giá ForecasterLSTM:
+
+**MAE/day (Mean Absolute Error per ngày)** đo lường sai số tuyệt đối trung bình của dự báo cầu, tính trên đơn vị *ngày* (không phải 7 ngày). Hàm `compute_demand_mae` tính bằng công thức [ref: dynamic-pricing-final/src/forecaster/eval.py:18-19]:
+
+$$\text{MAE/day} = \frac{1}{N} \sum_{i=1}^{N} \left| \frac{\hat{d}_i}{7} - \frac{d_i}{7} \right|$$
+
+trong đó $\hat{d}_i$ là cầu dự báo 7 ngày và $d_i$ là cầu thực tế 7 ngày của mẫu $i$. Phép chia 7 chuyển đổi đơn vị từ tổng 7 ngày sang trung bình ngày, đảm bảo chỉ số có ý nghĩa trực quan về số đơn vị sản phẩm sai lệch mỗi ngày [ref: dynamic-pricing-final/src/forecaster/eval.py:69].
+
+**AUROC (Area Under the ROC Curve)** đánh giá khả năng phân biệt của đầu ra `waste_logit` so với nhãn nhị phân `waste_7d` (1 nếu hàng tồn bị hỏng trong 7 ngày, 0 nếu không). Hàm `compute_waste_auroc` gọi trực tiếp `roc_auc_score` của scikit-learn; trường hợp tập dữ liệu chỉ có một lớp (toàn 0 hoặc toàn 1), hàm trả về `NaN` thay vì báo lỗi [ref: dynamic-pricing-final/src/forecaster/eval.py:12-15]:
+
+```python
+def compute_waste_auroc(logits: np.ndarray, labels: np.ndarray) -> float:
+    if labels.sum() == 0 or labels.sum() == len(labels):
+        return float("nan")
+    return float(roc_auc_score(labels, logits))
+```
+
+#### Phương pháp so sánh baseline
+
+Ở trạng thái hiện tại, script `eval.py` tính trực tiếp các chỉ số của **ForecasterLSTM** trên tập `test.parquet` (MAE/day tổng thể và AUROC waste), kèm phân rã theo danh mục [ref: dynamic-pricing-final/src/forecaster/eval.py:68-83]. Ngoài ra, `eval.py` còn hiệu chỉnh xác suất waste bằng hồi quy đơn điệu (Isotonic Regression) khớp trên tập kiểm tra để dùng khi phục vụ [ref: dynamic-pricing-final/src/forecaster/eval.py:22-25,66]. Để định vị giá trị học được của mô hình, phương pháp đánh giá **đề xuất** đối chiếu thêm với một baseline **Naive** (dự báo ngây thơ: lấy giá trị ngày hôm qua làm dự báo cho ngày hôm nay) trên cùng tập `test.parquet` và cùng hai chỉ số. Cần lưu ý baseline Naive này **chưa được hiện thực trong `eval.py`** (script hiện chỉ chấm điểm ForecasterLSTM); việc bổ sung Naive là một mở rộng nhỏ của quy trình đánh giá, được trình bày ở đây như một khung so sánh tham chiếu [ref: dynamic-pricing-final/src/forecaster/eval.py:28-85].
+
+#### Kết quả đánh giá theo danh mục (bảng khung)
+
+Script `eval.py` phân rã kết quả theo bốn danh mục sản phẩm: `leafy` (rau lá), `root` (củ), `fruit` (trái cây), và `herbs` (thảo mộc), tương ứng với `n_categories=4` trong `ForecasterConfig` [ref: dynamic-pricing-final/src/forecaster/eval.py:74-83; dynamic-pricing-final/src/forecaster/model.py:11]. Với mỗi danh mục, ba chỉ số được ghi nhận: MAE/day (sai số cầu trung bình ngày), AUROC (khả năng phân biệt waste), và `waste_rate` (tỉ lệ mẫu thực sự bị hỏng trong tập kiểm tra).
+
+**Bảng 4.7 — Kết quả đánh giá ForecasterLSTM trên tập test.parquet (bảng khung)**
+*(Bảng khung — giá trị được điền khi chạy `eval.py`. Hàng ForecasterLSTM do `eval.py` sinh trực tiếp; hàng Naive là baseline đề xuất, cần mở rộng `eval.py` mới tính được — xem ghi chú.)*
+
+| Danh mục | Mô hình | MAE/day (đơn vị SP) | AUROC | Waste rate |
+|---|---|---|---|---|
+| `leafy` (rau lá) | ForecasterLSTM | — | — | — |
+| `leafy` (rau lá) | Naive (đề xuất) | — | — | — |
+| `root` (củ) | ForecasterLSTM | — | — | — |
+| `root` (củ) | Naive (đề xuất) | — | — | — |
+| `fruit` (trái cây) | ForecasterLSTM | — | — | — |
+| `fruit` (trái cây) | Naive (đề xuất) | — | — | — |
+| `herbs` (thảo mộc) | ForecasterLSTM | — | — | — |
+| `herbs` (thảo mộc) | Naive (đề xuất) | — | — | — |
+| **Tổng thể** | ForecasterLSTM | — | — | — |
+| **Tổng thể** | Naive (đề xuất) | — | — | — |
+
+*Ghi chú: Hàng ForecasterLSTM được điền bằng lệnh `python -m src.forecaster.eval --ckpt <path> --test data/processed/test.parquet` từ thư mục `dynamic-pricing-final/` [ref: dynamic-pricing-final/src/forecaster/eval.py:28-97]. Hàng Naive (đề xuất) hiện CHƯA có trong `eval.py` — chỉ được điền sau khi bổ sung hàm tính baseline ngây thơ. Ngưỡng tham khảo in trong báo cáo của `eval.py`: MAE/day < 3.0 và AUROC > 0.85 [ref: dynamic-pricing-final/src/forecaster/eval.py:90-92].*
+
+[ref: dynamic-pricing-final/src/forecaster/eval.py:74-83,88-97]
+
+#### Giới hạn của đánh giá khi phục vụ trực tuyến
+
+Một hạn chế quan trọng cần lưu ý khi diễn giải kết quả là sự khác biệt giữa đánh giá offline và phục vụ trực tuyến. Trong môi trường phục vụ (serving), hàm `_run_forecaster` tại `pricing-sidecar/main.py` hiện thực cơ chế **tile-21×**: thay vì nhận chuỗi lịch sử 21 ngày thật, sidecar lấy vector quan sát hiện tại (10 chiều) và nhân bản nó thành ma trận `(21, 10)` trước khi đưa vào ForecasterLSTM [ref: pricing-sidecar/main.py:135]:
+
+```python
+window = np.tile(obs_padded, (OBS_WINDOW, 1))  # (21, 10)
+```
+
+Hệ quả là LSTM nhận đầu vào ở trạng thái steady-state — tất cả 21 bước thời gian đều giống hệt nhau — và không nhìn thấy được các biến động chuỗi thời gian thật (xu hướng, chu kỳ, bất thường). Cơ chế này là một xấp xỉ thực dụng khi chưa có pipeline lưu trữ và cung cấp chuỗi lịch sử 21 ngày trên môi trường phục vụ. Hạn chế này không ảnh hưởng đến đánh giá offline, vốn sử dụng chuỗi dữ liệu thật từ `test.parquet`; do đó, **đánh giá tin cậy về hiệu năng mô hình phải dựa trên kết quả offline từ `eval.py`**, không nên dùng số liệu từ endpoint `/forecast` trong môi trường phục vụ [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations].
 
 ### 4.4.3. Đánh giá định giá động
 <!-- T2.27 ⭐2-lớp: dany.md L557-587; market_env sim + Safety + 3 paper [TLTK]; KHÔNG bịa số; ledger t0.2-action-space, t1.4-safety-5-rules -->

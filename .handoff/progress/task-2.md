@@ -947,3 +947,55 @@ Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **
 **1 WARN (resolve):** câu tile-21× §4.4.1 thiếu citation → controller thêm [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations].
 
 **Done-gate T2.25 (post-fix): PASS** → commit task(T2.25).
+
+## T2.26 — §4.4.2 Eval dự báo ✅
+
+**Ngày:** 2026-06-07
+**File đích:** `docs/thesis/final/chuong-4-trien-khai-thuc-nghiem.md` — §4.4.2 Đánh giá dự báo nhu cầu: comment `<!-- T2.26 -->` → prose học thuật tiếng Việt đầy đủ.
+
+### Bảng citation — resolve eval.py dòng thật
+
+| Claim | Citation (dòng thật đọc từ eval.py) | Trạng thái |
+|---|---|---|
+| ForecasterLSTM obs_dim=10, window=21, lstm_hidden=128, lstm_layers=2, n_categories=4 | `[ref: dynamic-pricing-final/src/forecaster/model.py:9-15; ledger t0.2-forecaster-arch]` | PASS — model.py:9 `obs_dim: int = 10`, :10 `window: int = 21`, :12 `lstm_hidden: int = 128`, :14 `lstm_layers: int = 2`, :11 `n_categories: int = 4` |
+| ForecasterLSTM dual-head (demand_head + waste_head) | `[ref: dynamic-pricing-final/src/forecaster/model.py:31-49]` | PASS — model.py:31 `self.demand_head = nn.Linear(z_dim, 1)`, :32-37 waste_head Sequential |
+| Tập kiểm tra test.parquet, DataLoader batch=512, torch.no_grad() | `[ref: dynamic-pricing-final/src/forecaster/eval.py:28-57]` | PASS — eval.py:28 `def evaluate_checkpoint`, :39 `pd.read_parquet(test_parquet)`, :44 `DataLoader(ds, batch_size=512)`, :50 `torch.no_grad()` |
+| compute_demand_mae: `np.mean(np.abs(preds - trues))` | `[ref: dynamic-pricing-final/src/forecaster/eval.py:18-19]` | PASS — eval.py:18 `def compute_demand_mae(preds, trues)`, :19 `return float(np.mean(np.abs(preds - trues)))` |
+| Chuyển đổi 7-day → MAE/day (chia 7) | `[ref: dynamic-pricing-final/src/forecaster/eval.py:69]` | PASS — eval.py:69 `"demand_mae_day": compute_demand_mae(d_pred / 7, d_true / 7)` |
+| compute_waste_auroc dùng roc_auc_score sklearn; NaN khi 1 lớp | `[ref: dynamic-pricing-final/src/forecaster/eval.py:12-15]` | PASS — eval.py:12 `def compute_waste_auroc`, :13-14 guard NaN, :15 `return float(roc_auc_score(labels, logits))` |
+| Per-category loop: leafy/root/fruit/herbs (n=4) | `[ref: dynamic-pricing-final/src/forecaster/eval.py:74-83]` | PASS — eval.py:74 `cat_names = ["leafy", "root", "fruit", "herbs"]`, :75-83 loop per category |
+| Per-category results: demand_mae_day + waste_auroc + waste_rate | `[ref: dynamic-pricing-final/src/forecaster/eval.py:79-83]` | PASS — eval.py:80 `demand_mae_day`, :81 `waste_auroc`, :82 `waste_rate: float(w_true[mask].mean())` |
+| Ngưỡng tham khảo MAE/day < 3.0, AUROC > 0.85 | `[ref: dynamic-pricing-final/src/forecaster/eval.py:90-92]` | PASS — eval.py:90 `"threshold: < 3.0"`, :92 `"threshold: > 0.85"` |
+| Giới hạn tile-21×: np.tile(obs_padded, (OBS_WINDOW, 1)) | `[ref: pricing-sidecar/main.py:135]` | PASS — main.py:135 `window = np.tile(obs_padded, (OBS_WINDOW, 1))` (steady-state, không thấy temporal dynamics) |
+| obs_dim=10 post-retrain T0.13 (hết layout mismatch) | `[ref: ledger t0.4-forecaster-parity]` | PASS — KHÔNG ghi obs_dim=11 |
+
+### Self-review T2.26
+
+| Tiêu chí | Kết quả |
+|---|---|
+| 0 con số eval cụ thể bịa (0 "MAE = x.xx", "AUROC = 0.xx", v.v.) | ✅ PASS — bảng khung chỉ có "—" (dấu gạch ngang) |
+| obs_dim=10 TUYỆT ĐỐI (không ghi obs_dim=11) | ✅ PASS — "obs_dim=10" trong tất cả đề cập |
+| Giới hạn ghi đúng tile-21× steady-state (KHÔNG layout mismatch 11≠10 — đã giải quyết) | ✅ PASS — prose ghi "tile-21×... steady-state", không đề cập layout mismatch |
+| Bảng khung có chú thích rõ "điền khi chạy eval.py trên test.parquet" | ✅ PASS — ghi chú rõ ràng dưới bảng 4.7 |
+| Mọi citation resolve được tại dòng thật của eval.py (12-15, 18-19, 28-57, 69, 74-83, 90-92) | ✅ PASS |
+| main.py:135 xác nhận np.tile (OBS_WINDOW=21, ndim=obs_dim) | ✅ PASS |
+| 3 paper [TLTK] (Nassibi/Xue/Kayikci) KHÔNG xuất hiện trong §4.4.2 (thuộc §4.4.3) | ✅ PASS |
+| 0 từ cấm: recommender/Holt/EWMA/3 sidecar/8001/8002/obs_dim=11/MobileNetV2/4-class | ✅ PASS |
+| §4.4.3/4.4.4 còn nguyên comment T2.27/T2.28 | ✅ PASS — không đụng dòng nào ngoài §4.4.2 |
+| Văn phong học thuật tiếng Việt, đoạn văn học thuật + công thức LaTeX + bảng khung | ✅ PASS |
+
+**Done-gate T2.26: PASS** — §4.4.2 đầy đủ prose = phương pháp đánh giá offline + định nghĩa 2 chỉ số (MAE/day + AUROC với công thức) + bảng khung 10 dòng (ô giá trị "—") + giới hạn tile-21× steady-state; 0 con số eval bịa; obs_dim=10; tất cả citation resolve tại dòng thật.
+
+### T2.26 — VERIFY 2-LỚP AI/ML (agent độc lập) → PASS với WARN-1 → controller fix → PASS
+
+**Verifier:** sonnet độc lập, lớp 2 AI/ML. KẾT QUẢ tiêu chí #1: **0 con số eval bịa** — toàn bộ ô Bảng 4.7 = "—", grep "MAE = "/"AUROC = " = 0. ✅
+- obs_dim=10 (model.py:9; main.py:72,256) — KHÔNG obs_dim=11/layout mismatch ✅
+- Giới hạn = tile-21× steady-state (main.py:135 np.tile) ✅
+- eval.py resolve: compute_waste_auroc roc_auc_score (12-15), compute_demand_mae (18-19), /7 MAE/day (69), per_category cat_names leafy/root/fruit/herbs (74-83), ngưỡng MAE<3.0/AUROC>0.85 (90-92) ✅
+- ForecasterLSTM arch model.py:9-15 + dual-head 31-49 ✅; 0 từ cấm; 3 paper không lọt vào §4.4.2 ✅
+
+**1 WARN-1 NGHIÊM TRỌNG (resolve):** prose ban đầu khẳng định "baseline Naive được đánh giá trên eval.py:68-83" — SAI: controller mở `dynamic-pricing-final/src/forecaster/eval.py` đọc toàn bộ → eval.py CHỈ chấm ForecasterLSTM (MAE/day + AUROC + per_category + isotonic calibration L66), KHÔNG có code Naive baseline. dany.md L551 cũng claim sai citation này. → Controller SỬA: (1) §"Phương pháp so sánh baseline" reframe — eval.py hiện chỉ chấm ForecasterLSTM + isotonic (eval.py:22-25,66); Naive là baseline ĐỀ XUẤT, CHƯA hiện thực trong eval.py; (2) Bảng 4.7 đổi tiêu đề + hàng "Naive (đề xuất)" + ghi chú rõ Naive chưa có trong eval.py, cần mở rộng mới tính được. Bổ sung citation isotonic (eval.py:22-25,66) — fact thật chưa nêu.
+
+**WARN-2/3 (chấp nhận):** comment `# (21,10)` trong snippet = chú thích minh hoạ đúng shape; no_grad citation range 43-57 bao trùm L50. Không sửa.
+
+**Done-gate T2.26 (post-fix): PASS** → commit task(T2.26). Chân thực 100%: Naive = đề xuất, không overclaim đã hiện thực.
