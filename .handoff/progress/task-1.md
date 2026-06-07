@@ -542,3 +542,10 @@ Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry 
 - [x] Không sửa §1–§4, TÀI LIỆU THAM KHẢO
 - [x] Không sửa dynamic-pricing-final/
 - [x] Không commit
+
+## T1.V — verify pass độc lập toàn văn ✅ — Task 1 DONE
+- Báo cáo: `docs/thesis/dany.verify-report.md`. Verifier = controller (đối kháng, khác implementer).
+- PASS: outline bảo toàn; 0 false-claim residue; 3 giới hạn bắt buộc ở §5.2; citation lấy mẫu resolve.
+- Fix khi verify: §5.2(a) main.py 130→134-135 (drift số dòng); ADVISORY_MODE→PRICING_MODE; §2.4.3 BGR→RGB; §1.5 5→6 đóng góp; strip 2 dòng "BỎ:".
+- Số liệu: 13 module, 54/54 test, ~79 endpoint, ~48 màn hình, 10 collection, 1 sidecar.
+- ⚠️ KHÔNG ghi STATE.md (session khác sở hữu cho T0.13). Con trỏ: **Task 1 DONE → việc tiếp theo = Task 2** (T2.1 dàn ý thesis từ dany.md đã sửa).

@@ -34,9 +34,11 @@ Plan: `docs/superpowers/plans/2026-06-07-task1-dany-md-convert-fix.md`. Audit: `
 | T1.13 ⭐ | Viết lại §4.4 thực nghiệm (xóa eval recommender; LSTM offline eval+giới hạn; DDQN sim; CoreML 2×2) | sonnet | T1.8 | done (verify PASS, eval.py/EPISODE_LEN khớp; T1.V dọn note "BỎ:") |
 | T1.14 ⭐ | Thêm §5.2 Limitations thật (3 giới hạn ledger t0.10) + sửa §5.1 số liệu + §5.3 | sonnet | T1.4 | done (verify PASS, fix citation main.py 130→134) |
 | T1.15 | Resolve claim chưa chứng minh (54 test / 42 màn hình / endpoint / camera freshness) | controller | — | done (54 test ĐÚNG; 79 endpoint; ~48 screen; camera scan có thật) |
-| T1.V | Verify pass độc lập toàn văn | sonnet | T1.5…T1.15 | pending |
+| T1.V | Verify pass độc lập toàn văn | controller | T1.5…T1.15 | done (PASS — `docs/thesis/dany.verify-report.md`) |
 
 > Mỗi leaf-task T1.x: ledger-first → sửa section (giữ outline, citation inline) → verify đối kháng độc lập → done-gate → commit. KHÔNG đụng dynamic-pricing-final/ (chỉ đọc).
+
+> **TASK 1 DONE ✅ (2026-06-07).** Việc tiếp theo = **Task 2** (T2.1 dàn ý thesis từ `docs/thesis/dany.md` đã fact-check). (Không cập nhật STATE.md vì session khác đang sở hữu cho T0.13.)
 
 ## TASK 2 — Viết thesis hoàn chỉnh (phiên sau)
 | ID | Việc | Model | Dep | Status |

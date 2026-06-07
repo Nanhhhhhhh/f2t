@@ -554,8 +554,6 @@ Các chỉ mục thật (đọc từ schema file):
 
 - ⚠️ **GIỚI HẠN QUAN TRỌNG:** Kết quả `/forecast` khi serve KHÔNG đáng tin cậy — train dùng obs_dim=11 + chuỗi 21 bước thật; serve pad-cuối 10→11 (sai vị trí index 2) rồi tile-21× thay chuỗi thật → LSTM không thấy temporal dynamics (`pricing-sidecar/main.py:L134-135`). **Đánh giá tin cậy phải dựa trên offline eval** `eval.py` với dữ liệu chuỗi thật từ `data/processed/test.parquet`, KHÔNG dùng số từ serve `/forecast` [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations; pricing-sidecar/main.py:L134-135]
 
-- BỎ: Holt+DoW vs Holt không DoW, restock warning %, "SV chứng minh DoW cải thiện MAE"
-
 *4.4.3. Đánh giá định giá động (~2 trang)*
 
 - Phân bố delta_pct: histogram 11 action (CANDIDATES = linspace(-0.30, 0.20, 11)) qua mô phỏng trong `dynamic-pricing-final/src/env/market_env.py` — quan sát action DDQN chọn phân bố theo mức độ tươi và tồn kho [ref: dynamic-pricing-final/src/env/market_env.py:146-158; dynamic-pricing-final/src/rl/reward.py:L6-7; ledger t0.2-action-space]
@@ -600,8 +598,6 @@ Các chỉ mục thật (đọc từ schema file):
 
 - ⚠️ **GIỚI HẠN:** (a) Chỉ 2/4 danh mục có model riêng (fruit, root) — leafy và herbs dùng chung model root làm xấp xỉ; (b) Không có dataset rau VN tự thu thập — 2 model CoreML được huấn luyện qua Apple Create ML, không có training script trong repo; đánh giá phụ thuộc vào tập test có sẵn [ref: ledger t0.10-thesis-limitations, t1.4-freshness-coreml, t0.6-coreml-freshness; pricing-sidecar/main.py:L316-333]
 
-- BỎ: "MobileNetV2", "Confusion Matrix 4×4", "so sánh với mắt người", "dataset rau VN tự thu thập = đóng góp riêng"
-
 *4.4.5. Demo sản phẩm (~2 trang)*
 
 - 8 screenshots: Home+sản phẩm nổi bật, Chi tiết+nhãn tươi+giá động, Giỏ hàng, Tracking bản đồ, Farm Dashboard+dự báo, Farm gợi ý giá ★AI, Farm quét tươi ★AI, Admin Dashboard [ref: ledger t1.4-no-recommender, t1.15-numbers]
@@ -628,7 +624,7 @@ Các chỉ mục thật (đọc từ schema file):
 
 - GHN dùng Dijkstra fallback chưa token thật (token GHN thật chưa được cấu hình; delivery.service.ts fallback về graph Dijkstra) [ref: f2t-backend/src/modules/delivery/delivery.service.ts; ledger t1.4-interceptor-cron]
 
-- Định giá chỉ advisory chưa live (ADVISORY_MODE=true; giá đề xuất ghi price_overrides nhưng chưa áp tự động vào giá bán) [ref: f2t-backend/src/app.module.ts:58; pricing-sidecar/main.py]
+- Định giá chỉ advisory/shadow chưa live (`PRICING_MODE` valid "shadow"/"advisory", mặc định "shadow"; không có mode "live"; giá đề xuất ghi price_overrides nhưng chưa áp tự động vào giá bán) [ref: f2t-backend/src/app.module.ts:58; pricing-sidecar/main.py]
 
 - Freshness: chỉ 2/4 danh mục có model CoreML riêng (fruit/root); leafy và herbs không có model riêng → fallback dùng model root (thiết kế cố ý nhưng giảm độ chính xác cho rau lá/thảo mộc) [ref: pricing-sidecar/main.py:314; freshnessmodels/ (chỉ có fruit.mlmodel + root.mlmodel); ledger t0.6-coreml-freshness, t1.4-freshness-coreml, t0.10-thesis-limitations]
 
@@ -644,7 +640,7 @@ Các chỉ mục thật (đọc từ schema file):
 
 **5.3. Hướng phát triển (~0.75 trang)**
 
-- Chuyển định giá sang live + A/B testing (bỏ ADVISORY_MODE, tự động áp giá từ price_overrides đã accepted, theo dõi conversion rate)
+- Chuyển định giá sang live + A/B testing (thêm mode "live" cho PRICING_MODE, tự động áp giá từ price_overrides đã accepted, theo dõi conversion rate)
 
 - Thu thập dataset ảnh rau VN thực tế và huấn luyện model CoreML riêng cho leafy/herbs (hiện chưa có model riêng — dùng root fallback)
 
