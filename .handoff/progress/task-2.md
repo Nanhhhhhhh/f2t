@@ -637,3 +637,91 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 **Ghi chú provenance:** implementer phiên này misreport "prose có sẵn từ phiên trước" — thực tế file tăng 310→395 dòng (chính nó viết §3.3.7). Controller xác minh end-state đúng qua git status + grep; không ảnh hưởng kết quả.
 
 **Done-gate T2.17-T2.19 (post-fix): PASS** → commit task(T2.17-T2.19).
+
+## T2.20-T2.21 — §3.4 CSDL ✅
+
+**Ngày:** 2026-06-07
+**File đích:** `docs/thesis/final/chuong-3-phan-tich-thiet-ke.md` (§3.4.1, §3.4.2, §3.4.3 đã có prose; §3.5 còn nguyên comment skeleton)
+
+### Bảng citation — collection → schema:Lxx
+
+| Collection | Schema file | Field/Index chính | Line |
+|---|---|---|---|
+| `users` | `user.schema.ts` | `email` (unique, lowercase) | L20-21 |
+| `users` | `user.schema.ts` | `password` (bcrypt, select:false) | L23-24 |
+| `users` | `user.schema.ts` | `role` enum [consumer/farm/admin] | L38-43 |
+| `users` | `user.schema.ts` | `status` enum [active/suspended/pending] | L45-50 |
+| `users` | `user.schema.ts` | `location` embedded (coordinates+address, _id:false) | L52-78 |
+| `farms` | `farm.schema.ts` | `ownerId` → users, `required:true` | L51-52 |
+| `farms` | `farm.schema.ts` | `verificationStatus` enum [pending/verified/rejected] | L106-107 |
+| `farms` | `farm.schema.ts` | `location` GeoJSON Point (2dsphere index) | L60-61, L113 |
+| `products` | `product.schema.ts` | `farmId` → farms | L38-39 |
+| `products` | `product.schema.ts` | `category` enum 10 giá trị | L47-61 |
+| `products` | `product.schema.ts` | `unit` enum [kg/g/piece/bunch/box/bag/liter] | L70-73 |
+| `products` | `product.schema.ts` | `status` enum [available/sold_out/unavailable/seasonal] | L82-87 |
+| `orders` | `order.schema.ts` | `customerId` → users, `farmId` → farms | L99-103 |
+| `orders` | `order.schema.ts` | OrderItem embedded `@Schema({_id:false})` | L6-7, L105-106 |
+| `orders` | `order.schema.ts` | `status` enum 7 giá trị | L126-138 |
+| `orders` | `order.schema.ts` | `paymentStatus` enum [pending/paid/failed/refunded] | L141-146 |
+| `orders` | `order.schema.ts` | 3 index đơn: customerId/farmId/status | L239-241 |
+| `posts` | `post.schema.ts` | `authorId` → users, `farmId` → farms (optional) | L76-83 |
+| `notifications` | `notification.schema.ts` | `userId` → users | L20-21 |
+| `notifications` | `notification.schema.ts` | Compound index `{userId, createdAt:-1}` | L52 |
+| `notification_preferences` | `notification-preferences.schema.ts` | `userId` → users, `unique:true` | L20-25 |
+| `verification_tokens` | `verification-token.schema.ts` | `userId` → users, `type` enum [email/phone] | L9-16 |
+| `verification_tokens` | `verification-token.schema.ts` | TTL index `{expiresAt}` expireAfterSeconds:0 | L31 |
+| `verification_tokens` | `verification-token.schema.ts` | Compound index `{userId, type}` | L32 |
+| `freshness_cache` | `freshness-cache.schema.ts` | `productId` → products, unique index | L26-27, L44 |
+| `freshness_cache` | `freshness-cache.schema.ts` | `readings[{score,scannedAt}]` (KHÔNG scores[5]/label) | L29-30 |
+| `freshness_cache` | `freshness-cache.schema.ts` | `medianScore` (required, default 0.7) | L32-33 |
+| `freshness_cache` | `freshness-cache.schema.ts` | TTL index `{expiresAt}` expireAfterSeconds:0 | L45 |
+| `price_overrides` | `price-override.schema.ts` | `productId` → products, `farmId` → farms | L18-22 |
+| `price_overrides` | `price-override.schema.ts` | `status` enum 5 giá trị [shadow/pending_review/accepted/rejected/expired] | L45-50 |
+| `price_overrides` | `price-override.schema.ts` | `mode` enum [shadow/advisory] | L42-43 |
+| `price_overrides` | `price-override.schema.ts` | Compound index `{productId, status}` | L67 |
+| `price_overrides` | `price-override.schema.ts` | TTL index `{expiresAt}` expireAfterSeconds:0 | L68 |
+
+### Checklist self-review §3.4
+
+| Tiêu chí | Kết quả |
+|---|---|
+| Đúng 10 collection (users, farms, products, orders, posts, notifications, notification_preferences, verification_tokens, freshness_cache, price_overrides) | ✅ PASS |
+| 0 collection bịa — KHÔNG có recommendation_caches/forecast_caches | ✅ PASS — ledger t1.4-collections, t1.4-no-recommender |
+| `freshness_cache` có `readings[{score,scannedAt}]` + `medianScore` (KHÔNG scores[5]/label) | ✅ PASS — freshness-cache.schema.ts:L29-33 |
+| `users.location` là embedded object duy nhất (KHÔNG có `addresses[]`) | ✅ PASS — user.schema.ts:L52-78 |
+| `orders.status` đúng 7 giá trị (pending/confirmed/preparing/ready_for_pickup/shipped/delivered/cancelled) | ✅ PASS — order.schema.ts:L126-138 |
+| `orders` có 3 index đơn riêng lẻ (customerId/farmId/status) — KHÔNG compound 3-field | ✅ PASS — order.schema.ts:L239-241 |
+| `price_overrides.status` đúng 5 giá trị (shadow/pending_review/accepted/rejected/expired) | ✅ PASS — price-override.schema.ts:L45-50 |
+| 3 TTL index (freshness_cache/price_overrides/verification_tokens) + unique (freshness_cache.productId + notification_preferences.userId) | ✅ PASS |
+| Compound index đúng 3 (price_overrides productId+status; notifications userId+createdAt; verification_tokens userId+type) | ✅ PASS |
+| Text index đúng 3 (farms name+description; products name+description+tags; posts title+body+hashtags) | ✅ PASS |
+| 2dsphere index: farms.location | ✅ PASS — farm.schema.ts:L113 |
+| OrderItem là embedded (không phải collection riêng), `@Schema({_id:false})` | ✅ PASS — order.schema.ts:L6-7 |
+| §3.5 còn nguyên comment skeleton (T2.22: §3.5.1/3.5.2/3.5.3) | ✅ PASS — đọc cuối file: comment <!-- T2.22 --> còn nguyên |
+| §3.1-§3.3.7 không bị đụng | ✅ PASS — Edit chỉ thay 3 comment §3.4.1/3.4.2/3.4.3 |
+| Mọi câu kỹ thuật có citation [ref: path:Lxx] hoặc [ref: ledger <id>] | ✅ PASS |
+| TỪ CẤM vắng mặt: recommendation_caches/forecast_caches/scores[5]/addresses[]/compound 3-field orders/packing/shipping/completed | ✅ PASS |
+| Văn phong học thuật tiếng Việt, bảng cho field/index, đoạn văn cho lý giải thiết kế | ✅ PASS |
+
+**Done-gate T2.20-T2.21: PASS** — §3.4.1/3.4.2/3.4.3 đầy đủ prose, resolve tại 10 schema file, §3.5 còn comment.
+
+### T2.20-T2.21 — VERIFY ĐỐI KHÁNG 2-LỚP (agent độc lập, khác agent viết)
+
+**Verifier:** sonnet độc lập, resolve TỪNG field/enum/index/FK tại 10 schema file. ⭐ CSDL nghiêm nhất.
+
+**Kết luận: PASS** (0 REJECT). Resolve toàn bộ trap:
+- **10 collection thật, 0 bịa** (`grep recommendation_cache|forecast_cache f2t-backend/src` = 0) ✅
+- users.location EMBEDDED object (`user.schema.ts:52-78`, _id:false) — KHÔNG addresses[] ✅; role/status enum đúng ✅
+- orders.status ĐÚNG 7 giá trị (`order.schema.ts:128-136`) — không packing/shipping/completed ✅; OrderItem embedded @Schema _id:false (`order.schema.ts:6-7,105-106`) ✅
+- freshness_cache = readings[{score,scannedAt}]+medianScore+updatedAt+expiresAt (`freshness-cache.schema.ts:29-39`) — KHÔNG scores[5]/label ✅
+- price_overrides.status 5 giá trị (`price-override.schema.ts:47`), mode [shadow/advisory] ✅
+- products.category 10 giá trị (`product.schema.ts:49-60`) ✅
+- Index resolve TỪNG cái: 2dsphere farms (`farm:113`); 3 TTL (`freshness:45`,`price-override:68`,`verif-token:31` expireAfterSeconds:0); unique (`freshness:44`,`notif-pref:24`); compound (`price-override:67`,`notif:52`,`verif-token:32`); orders 3 SINGLE (`order:239-241`) — KHÔNG compound 3-field ✅; 3 text index ✅
+- 12 FK/quan hệ resolve về schema ✅
+
+**Sửa sau verify (controller, self-resolve tại nguồn) — 3 WARN omission:**
+1. Bổ sung 4 chỉ mục đơn `products` (farmId/category/status/pricePerUnit) `product.schema.ts:148-151` vào bảng + đoạn phân tích (trước bị bỏ sót).
+2. Bổ sung 4 chỉ mục `posts` (createdAt desc/authorId/farmId/hashtags) `post.schema.ts:115,117-119` vào bảng + đoạn phân tích.
+3. Sửa citation `notification_preferences.userId` L20-25 → L20-26 (userId field thực ở L26).
+
+**Done-gate T2.20-T2.21 (post-fix): PASS** → commit task(T2.20-T2.21).

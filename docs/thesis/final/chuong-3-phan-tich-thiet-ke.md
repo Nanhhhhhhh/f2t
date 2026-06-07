@@ -375,13 +375,265 @@ Kết quả suy luận từ lời gọi `model.predict({"image": img})` trả v�
 ## 3.4. Phân tích, thiết kế cơ sở dữ liệu
 
 ### 3.4.1. Sơ đồ quan hệ thực thể (ERD)
-<!-- T2.20 ⭐2-lớp: dany.md L397-421; diagram erd; ledger t1.11-schema-detail -->
+
+Cơ sở dữ liệu của hệ thống F2T được xây dựng trên MongoDB và bao gồm đúng **10 collection** [ref: ledger t1.4-collections], trong đó 8 collection phục vụ nghiệp vụ chính và 2 collection chuyên biệt cho module AI/ML định giá động. Toàn bộ quan hệ giữa các thực thể được hình thức hóa trong sơ đồ ERD (xem Hình erd.puml).
+
+**Cấu trúc tổng quan 10 thực thể và 10 quan hệ:**
+
+Thực thể trung tâm là **users** — biểu diễn cả ba vai trò Consumer, Farm Owner và Admin thông qua trường `role` enum. Từ thực thể này, năm quan hệ tỏa ra:
+
+1. **users → farms (1-N):** Trường `Farm.ownerId` tham chiếu `User._id` — mỗi trang trại thuộc về đúng một người dùng có vai trò `'farm'` [ref: f2t-backend/src/modules/farms/schemas/farm.schema.ts:L51-52].
+2. **users → orders (1-N):** Trường `Order.customerId` tham chiếu `User._id` — mỗi đơn hàng được đặt bởi đúng một Consumer [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L99-100].
+3. **users → notifications (1-N):** Trường `Notification.userId` tham chiếu `User._id` — thông báo gửi đến từng người dùng [ref: f2t-backend/src/modules/notifications/schemas/notification.schema.ts:L20-21].
+4. **users → notification_preferences (1-1):** Trường `NotificationPreferences.userId` tham chiếu `User._id` với ràng buộc `unique: true` — mỗi người dùng có đúng một bộ tùy chọn thông báo [ref: f2t-backend/src/modules/notifications/schemas/notification-preferences.schema.ts:L20-24].
+5. **users → posts (1-N):** Trường `Post.authorId` tham chiếu `User._id`; trường `Post.farmId` (tùy chọn) tham chiếu `Farm._id` khi bài đăng thuộc về một trang trại cụ thể [ref: f2t-backend/src/modules/posts/schemas/post.schema.ts:L76-77, L82-83].
+6. **users → verification_tokens (1-N):** Trường `VerificationToken.userId` tham chiếu `User._id` — mỗi người dùng có thể có nhiều token xác minh email/điện thoại tại các thời điểm khác nhau [ref: f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:L9-10].
+
+Từ thực thể **farms**, một quan hệ tiếp tục phát sinh:
+
+7. **farms → products (1-N):** Trường `Product.farmId` tham chiếu `Farm._id` — mỗi sản phẩm thuộc về đúng một trang trại [ref: f2t-backend/src/modules/products/schemas/product.schema.ts:L38-39].
+
+Từ thực thể **products**, hai quan hệ kết nối sang module AI/ML:
+
+8. **products → freshness_cache (1-1):** Trường `FreshnessCache.productId` tham chiếu `Product._id` với ràng buộc `unique: true` — mỗi sản phẩm có đúng một bản ghi cache kết quả phân loại độ tươi CoreML [ref: f2t-backend/src/modules/dynamic-pricing/schemas/freshness-cache.schema.ts:L26-27, L44].
+9. **products → price_overrides (1-N):** Trường `PriceOverride.productId` tham chiếu `Product._id`; đồng thời `PriceOverride.farmId` tham chiếu `Farm._id` — mỗi đề xuất giá từ DDQN gắn với một sản phẩm và trang trại cụ thể [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:L19-22].
+
+Quan hệ đặc biệt quan trọng về mặt thiết kế là:
+
+10. **orders → OrderItem (embedded, 1-N):** Danh sách `items` trong collection `orders` là mảng các document `OrderItem` được nhúng trực tiếp (`@Schema({ _id: false })`), không phải collection riêng [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L6-34, L105-106]. Mỗi `OrderItem` lưu trữ **snapshot thông tin sản phẩm tại thời điểm đặt hàng** — bao gồm `productName`, `pricePerUnit`, `unit`, `totalPrice`, `farmId` và `farmName` — để đảm bảo tính toàn vẹn lịch sử đơn hàng ngay cả khi thông tin sản phẩm sau đó bị thay đổi hoặc xóa.
+
+Hệ thống **không** có các collection `recommendation_caches` hay `forecast_caches` — đây là thiết kế cố ý sau khi xác minh không có module recommender trong codebase [ref: ledger t1.4-collections, t1.4-no-recommender].
 
 ### 3.4.2. Chi tiết 10 collections
-<!-- T2.20 ⭐2-lớp: dany.md L423-447; ledger t1.11-schema-detail, t1.4-collections -->
+
+Mục này trình bày chi tiết cấu trúc field, kiểu dữ liệu, enum và quan hệ khóa ngoại của từng collection, được resolve trực tiếp từ 10 file schema trong codebase.
+
+#### 8 collection nghiệp vụ chính
+
+**Collection `users`** lưu trữ thông tin tài khoản của cả ba vai trò hệ thống [ref: f2t-backend/src/modules/users/schemas/user.schema.ts:L19-99].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh (Mongoose) |
+| `email` | String | `unique: true`, `lowercase: true`, `trim: true` — L20-21 |
+| `password` | String | bcrypt hash, `select: false` (không trả về mặc định) — L23-24 |
+| `firstName` | String | `required: true` — L26-27 |
+| `lastName` | String | `required: true` — L29-30 |
+| `phoneNumber` | String | `required: true` — L32-33 |
+| `avatarUrl` | String | default `''` — L35-36 |
+| `role` | String | enum `['consumer', 'farm', 'admin']`, default `'consumer'` — L38-43 |
+| `status` | String | enum `['active', 'suspended', 'pending']`, default `'active'` — L45-50 |
+| `location` | Embedded Object | `{ coordinates: {latitude, longitude}, address: {street, city, zipCode, country} }`, `_id: false` — L52-78. **Đây là 1 địa chỉ embedded duy nhất, KHÔNG phải mảng `addresses[]`.** |
+| `refreshToken` | String | `select: false` — L80-81 |
+| `pushToken` | String | `select: false` — L83-84 |
+| `emailVerified` | Boolean | default `false` — L86-87 |
+| `phoneVerified` | Boolean | default `false` — L89-90 |
+| `isBanned` | Boolean | default `false` — L95-96 |
+
+Điểm thiết kế đáng chú ý: trường `location` được nhúng embedded với cấu trúc hai lớp — tọa độ số học (`coordinates`) và địa chỉ văn bản (`address`) — trong cùng một object. Không có mảng `addresses[]` đa địa chỉ trong schema.
+
+**Collection `farms`** lưu thông tin trang trại, liên kết với `users` qua khóa ngoại `ownerId` [ref: f2t-backend/src/modules/farms/schemas/farm.schema.ts:L50-108].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `ownerId` | ObjectId | FK → `users._id`, `ref: 'User'`, `required: true` — L51-52 |
+| `name` | String | `required: true`, `trim: true` — L54-55 |
+| `description` | String | `required: true` — L57-58 |
+| `location` | GeoJSON Point | `{ type: 'Point', coordinates: [lng, lat] }` — PointSchema L6-13. Hỗ trợ chỉ mục 2dsphere. |
+| `address` | Embedded Object | `{ street, city, zipCode, country }`, `_id: false` — AddressSchema L17-25 |
+| `contactEmail` | String | `required: true` — L66-67 |
+| `contactPhone` | String | `required: true` — L69-70 |
+| `deliveryMethods` | String[] | enum `['pickup', 'farm_delivery', 'both']` — L72-77 |
+| `restockSchedule` | RestockScheduleItem[] | `[{ category, intervalDays }]` — L85-86 |
+| `isActive` | Boolean | default `true` — L88-89 |
+| `verificationStatus` | String | enum `['pending', 'verified', 'rejected']`, default `'pending'` — L106-107 |
+
+**Collection `products`** lưu thông tin sản phẩm, liên kết với `farms` qua khóa ngoại `farmId` [ref: f2t-backend/src/modules/products/schemas/product.schema.ts:L37-142].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `farmId` | ObjectId | FK → `farms._id`, `ref: 'Farm'`, `required: true` — L38-39 |
+| `name` | String | `required: true`, `trim: true` — L41-42 |
+| `description` | String | `required: true` — L44-45 |
+| `category` | String | enum 10 giá trị: `['leafy', 'root', 'fruit', 'herbs', 'mushrooms', 'grains', 'dairy', 'eggs', 'honey', 'other']` — L47-61 |
+| `pricePerUnit` | Number | `required: true` — L67-68 |
+| `unit` | String | enum `['kg', 'g', 'piece', 'bunch', 'box', 'bag', 'liter']` — L70-73 |
+| `availableQuantity` | Number | `required: true`, default `0` — L76-77 |
+| `minimumOrder` | Number | `required: true`, default `1` — L79-80 |
+| `status` | String | enum `['available', 'sold_out', 'unavailable', 'seasonal']`, default `'available'` — L82-87 |
+| `images` | String[] | Danh sách URL ảnh — L89-90 |
+| `isOrganic` | Boolean | default `false` — L101-102 |
+| `tags` | String[] | Nhãn tìm kiếm — L113-114 |
+| `nutritionalInfo` | Embedded Object | `{ calories, protein, carbs, fat, fiber, vitamins[] }` — NutritionalInfo L7-14 |
+| `estimatedShelfLife` | Number | Thời gian bảo quản (ngày) — L98-99 |
+| `lastRestockedAt` | Date | Thời điểm nhập hàng gần nhất — L137-138 |
+
+**Collection `orders`** lưu đơn hàng và chứa `OrderItem` embedded [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L6-34, L95-241].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `orderNumber` | String | `unique: true`, `required: true` — L96-97 |
+| `customerId` | ObjectId | FK → `users._id`, `ref: 'User'`, `required: true` — L99-100 |
+| `farmId` | ObjectId | FK → `farms._id`, `ref: 'Farm'`, `required: true` — L102-103 |
+| `items` | OrderItem[] | Mảng OrderItem **embedded** (`_id: false`) — L105-106. Snapshot tại thời điểm đặt hàng. |
+| `subtotal` | Number | `required: true` — L111-112 |
+| `deliveryFee` | Number | `required: true`, default `0` — L114-115 |
+| `tax` | Number | `required: true`, default `0` — L117-118 |
+| `total` | Number | `required: true` — L120-121 |
+| `status` | String | enum 7 giá trị: `['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled']`, default `'pending'` — L126-138 |
+| `paymentStatus` | String | enum `['pending', 'paid', 'failed', 'refunded']`, default `'pending'` — L141-146 |
+| `paymentMethod` | String | enum `['cash', 'stripe']`, `required: true` — L148-149 |
+| `stripeSessionId` | String | Tùy chọn, lưu session ID Stripe — L151-152 |
+| `ghnOrderCode` | String | Tùy chọn, mã vận đơn GHN — L188-189 |
+| `timeline` | OrderTrackingStep[] | Lịch sử chuyển trạng thái — L227-228 |
+
+`OrderItem` là sub-schema embedded với `@Schema({ _id: false })` — không có `_id` riêng, không phải collection độc lập [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L6-7]. Các field của OrderItem: `productId` (ObjectId, ref Product), `productName` (String), `productImage` (String), `quantity` (Number), `pricePerUnit` (Number), `unit` (String), `totalPrice` (Number), `farmId` (ObjectId, ref Farm), `farmName` (String) — tất cả là **snapshot** ghi nhận tại thời điểm đặt hàng [ref: order.schema.ts:L8-34].
+
+**Collection `posts`** lưu bài đăng cộng đồng của Consumer và Farm Owner [ref: f2t-backend/src/modules/posts/schemas/post.schema.ts:L75-111].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `authorId` | ObjectId | FK → `users._id`, `ref: 'User'`, `required: true` — L76-77 |
+| `authorRole` | String | enum `['consumer', 'farm']`, `required: true` — L79-80 |
+| `farmId` | ObjectId | FK → `farms._id` (tùy chọn) — L82-83 |
+| `title` | String | `required: true`, maxlength 200 — L85-86 |
+| `body` | String | `required: true`, maxlength 2000 — L88-89 |
+| `media` | MediaItem[] | `[{ url, type: ['image','video'], thumbnailUrl }]` — L91-92 |
+| `tags` | Tag[] | `[{ id, type: ['consumer','farm'], name }]` — L94-95 |
+| `hashtags` | String[] | Danh sách hashtag — L97-98 |
+| `comments` | Comment[] | Bình luận embedded `[{ authorId, authorName, authorAvatarUrl, content }]` — L100-101 |
+| `likesCount` | Number | default `0` — L103-104 |
+| `commentsCount` | Number | default `0` — L106-107 |
+
+**Collection `notifications`** lưu thông báo hệ thống gửi đến từng người dùng [ref: f2t-backend/src/modules/notifications/schemas/notification.schema.ts:L19-49].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `userId` | ObjectId | FK → `users._id`, `ref: 'User'`, `required: true` — L20-21 |
+| `type` | String | enum theo `NotificationType` — L23 |
+| `title` | String | `required: true` — L25-26 |
+| `message` | String | `required: true` — L29-30 |
+| `isRead` | Boolean | default `false` — L32-33 |
+| `referenceId` | String | Tùy chọn, ID đối tượng liên quan (orderId, productId...) — L35-36 |
+| `referenceType` | String | Tùy chọn, loại đối tượng (`'order'`, `'product'`, `'farm'`) — L38-39 |
+| `data` | Mixed | Metadata bổ sung — L41-42 |
+| `pushSent` | Boolean | default `false` — L44-45 |
+
+**Collection `notification_preferences`** lưu tùy chọn thông báo của từng người dùng [ref: f2t-backend/src/modules/notifications/schemas/notification-preferences.schema.ts:L19-37].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `userId` | ObjectId | FK → `users._id`, `ref: 'User'`, `required: true`, **`unique: true`** — L20-26 |
+| `emailNotifications` | Boolean | default `true` — L28 |
+| `smsNotifications` | Boolean | default `true` — L29 |
+| `pushNotifications` | Boolean | default `true` — L30 |
+| `orderUpdates` | Boolean | default `true` — L31 |
+| `promotions` | Boolean | default `false` — L32 |
+| `newsletter` | Boolean | default `false` — L33 |
+
+**Collection `verification_tokens`** lưu token xác minh email và điện thoại [ref: f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:L8-26].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `userId` | ObjectId | FK → `users._id`, `ref: 'User'`, `required: true` — L9-10 |
+| `token` | String | `required: true` — L12-13 |
+| `type` | String | enum `['email', 'phone']`, `required: true` — L15-16 |
+| `expiresAt` | Date | `required: true` — L18-19. Được dùng làm trường TTL index. |
+| `used` | Boolean | default `false` — L21-22 |
+
+#### 2 collection AI/ML định giá động
+
+**Collection `freshness_cache`** lưu kết quả phân loại độ tươi từ CoreML cho từng sản phẩm [ref: f2t-backend/src/modules/dynamic-pricing/schemas/freshness-cache.schema.ts:L6-40].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `productId` | ObjectId | FK → `products._id`, `required: true`. Có **unique index** — L26-27, L44 |
+| `readings` | FreshnessReading[] | Mảng lịch sử các lần scan: `[{ score: Number, scannedAt: Date }]` — L29-30. **Đây là cấu trúc đúng — KHÔNG phải mảng cố định 5 phần tử `scores[5]` hay trường `label`.** |
+| `medianScore` | Number | Điểm trung vị của các lần scan, `required: true`, default `0.7` — L32-33 |
+| `updatedAt` | Date | Thời điểm cập nhật gần nhất, `required: true` — L35-36 |
+| `expiresAt` | Date | Thời điểm hết hạn cache, `required: true` — L38-39. Được dùng làm trường TTL index. |
+
+Thiết kế dùng mảng `readings[{score, scannedAt}]` thay vì một điểm số duy nhất cho phép lưu lịch sử nhiều lần quét CoreML của cùng một sản phẩm. Trường `medianScore` là giá trị tổng hợp được tính từ mảng `readings`, được `DynamicPricingInterceptor` đọc nhanh mà không cần tính lại.
+
+**Collection `price_overrides`** lưu các đề xuất giá từ DDQN cho từng sản phẩm [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:L17-63].
+
+| Field | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| `_id` | ObjectId | PK tự sinh |
+| `productId` | ObjectId | FK → `products._id`, `required: true` — L18-19 |
+| `farmId` | ObjectId | FK → `farms._id`, `required: true` — L21-22 |
+| `basePrice` | Number | Giá gốc tại thời điểm tính — L24-25 |
+| `targetPrice` | Number | Giá đề xuất từ DDQN sau Safety Layer — L27-28 |
+| `deltaPct` | Number | Phần trăm thay đổi giá — L30-31 |
+| `freshnessScore` | Number | Điểm tươi tại thời điểm tính — L33-34 |
+| `freshnessTag` | String | enum `['fresh', 'aging', 'critical']`, `required: true` — L36-37 |
+| `safetyClipped` | Boolean | `true` nếu Safety Layer đã điều chỉnh giá — L39-40 |
+| `mode` | String | enum `['shadow', 'advisory']`, `required: true` — L42-43 |
+| `status` | String | enum 5 giá trị: `['shadow', 'pending_review', 'accepted', 'rejected', 'expired']`, default `'shadow'` — L45-50 |
+| `reviewedAt` | Date | Tùy chọn, thời điểm Farm xem xét — L52-53 |
+| `reviewedBy` | ObjectId | Tùy chọn, FK → `users._id` của Farm Owner — L55-56 |
+| `computedAt` | Date | Thời điểm DDQN tính đề xuất — L58-59 |
+| `expiresAt` | Date | Thời điểm đề xuất hết hạn — L61-62. Được dùng làm trường TTL index. |
+
+Vòng đời của một `price_override` bắt đầu với `status: 'shadow'` — giai đoạn DDQN vừa tính xong nhưng chưa hiển thị cho Farm. Khi PricingTickCron xử lý xong, trạng thái chuyển sang `pending_review` để Farm xem xét. Farm chấp nhận → `accepted`; từ chối → `rejected`; tự động hết hạn → `expired`. Thiết kế 5 trạng thái này đảm bảo tính minh bạch và khả năng kiểm toán của toàn bộ vòng đời đề xuất giá.
 
 ### 3.4.3. Chỉ mục và tối ưu
-<!-- T2.21 ⭐2-lớp: dany.md L449-477; ledger t1.11-schema-detail -->
+
+Chiến lược chỉ mục của F2T được thiết kế theo bốn nhóm chức năng: (1) chỉ mục địa lý phục vụ tìm kiếm gần kề; (2) chỉ mục TTL tự động dọn dẹp dữ liệu tạm thời; (3) chỉ mục duy nhất đảm bảo tính toàn vẹn dữ liệu; và (4) chỉ mục ghép và đơn tăng tốc các truy vấn nghiệp vụ thường gặp. Toàn bộ chỉ mục được khai báo tường minh trong file schema tương ứng.
+
+**Bảng tổng hợp chỉ mục hệ thống:**
+
+| Loại | Collection | Field(s) | Tùy chọn | Mục đích | Nguồn |
+|---|---|---|---|---|---|
+| 2dsphere | `farms` | `location` | — | Truy vấn địa lý `$near` — tìm trang trại trong bán kính | `farm.schema.ts:L113` |
+| TTL | `freshness_cache` | `expiresAt` | `expireAfterSeconds: 0` | MongoDB tự xóa document khi `expiresAt` đã qua | `freshness-cache.schema.ts:L45` |
+| TTL | `price_overrides` | `expiresAt` | `expireAfterSeconds: 0` | Tự xóa đề xuất giá hết hạn | `price-override.schema.ts:L68` |
+| TTL | `verification_tokens` | `expiresAt` | `expireAfterSeconds: 0` | Tự xóa token xác minh email/điện thoại hết hạn | `verification-token.schema.ts:L31` |
+| Unique | `freshness_cache` | `productId` | `unique: true` | Đảm bảo đúng 1 bản ghi cache per sản phẩm | `freshness-cache.schema.ts:L44` |
+| Unique (implicit) | `notification_preferences` | `userId` | `unique: true` | Đảm bảo đúng 1 bộ tùy chọn per người dùng | `notification-preferences.schema.ts:L24` |
+| Ghép (Compound) | `price_overrides` | `productId + status` | — | Tra đề xuất đang hoạt động theo sản phẩm và trạng thái | `price-override.schema.ts:L67` |
+| Ghép (Compound) | `notifications` | `userId + createdAt (desc)` | — | Lấy thông báo mới nhất của người dùng | `notification.schema.ts:L52` |
+| Ghép (Compound) | `verification_tokens` | `userId + type` | — | Tra token email/điện thoại của người dùng | `verification-token.schema.ts:L32` |
+| Đơn (Single) | `orders` | `customerId` | — | Lọc đơn hàng theo khách | `order.schema.ts:L239` |
+| Đơn (Single) | `orders` | `farmId` | — | Lọc đơn hàng theo trang trại | `order.schema.ts:L240` |
+| Đơn (Single) | `orders` | `status` | — | Lọc đơn hàng theo trạng thái | `order.schema.ts:L241` |
+| Text | `farms` | `name + description` | — | Tìm kiếm trang trại theo từ khóa | `farm.schema.ts:L116` |
+| Text | `products` | `name + description + tags` | — | Tìm kiếm sản phẩm theo từ khóa và nhãn | `product.schema.ts:L147` |
+| Text | `posts` | `title + body + hashtags` | — | Tìm kiếm bài đăng theo nội dung và hashtag | `post.schema.ts:L116` |
+| Đơn (Single) | `products` | `farmId`, `category`, `status`, `pricePerUnit` | — | Lọc/sắp xếp sản phẩm theo trang trại, danh mục, trạng thái, giá | `product.schema.ts:L148-151` |
+| Đơn (Single) | `posts` | `createdAt (desc)`, `authorId`, `farmId`, `hashtags` | — | Dòng thời gian feed, lọc bài theo tác giả/trang trại/hashtag | `post.schema.ts:L115,117-119` |
+
+**Phân tích chi tiết theo nhóm chức năng:**
+
+**Nhóm 2dsphere — tìm kiếm địa lý:** Chỉ mục `FarmSchema.index({ location: '2dsphere' })` tại `farm.schema.ts:L113` cho phép MongoDB thực thi truy vấn `$near` và `$geoWithin` trên trường `location` kiểu GeoJSON Point. Chỉ mục này là nền tảng cho use case CF-02 (tìm kiếm sản phẩm theo vị trí Consumer) và cho `DynamicPricingService` khi tính `competitor_ref_price` từ các trang trại trong bán kính 10km [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:84-124].
+
+**Nhóm TTL — dọn dẹp tự động:** Ba chỉ mục TTL với `expireAfterSeconds: 0` cho phép MongoDB engine tự động xóa document khi trường `expiresAt` vượt qua thời điểm hiện tại, mà không cần bất kỳ cronjob ngoài nào:
+- `freshness-cache.schema.ts:L45` — cache độ tươi CoreML hết hạn tự xóa để tránh tích lũy dữ liệu lỗi thời ảnh hưởng đến định giá.
+- `price-override.schema.ts:L68` — đề xuất giá DDQN có vòng đời hữu hạn; sau khi hết hạn, document tự xóa thay vì tồn tại vô thời hạn trong trạng thái `expired`.
+- `verification-token.schema.ts:L31` — token OTP/xác minh email hết hạn tự xóa, đảm bảo vệ sinh bảo mật mà không cần bảo trì thủ công.
+
+**Nhóm Unique — toàn vẹn dữ liệu:** Chỉ mục `FreshnessCacheSchema.index({ productId: 1 }, { unique: true })` tại `freshness-cache.schema.ts:L44` đảm bảo luật nghiệp vụ "mỗi sản phẩm có đúng một bản ghi cache độ tươi". Trường `userId` trong `notification_preferences` khai báo `unique: true` trực tiếp trong decorator `@Prop` tại `notification-preferences.schema.ts:L24`, đảm bảo mỗi người dùng chỉ có một bộ tùy chọn thông báo.
+
+**Nhóm Ghép (Compound) — truy vấn nghiệp vụ:** Ba chỉ mục ghép phục vụ các pattern truy vấn quan trọng:
+- `PriceOverrideSchema.index({ productId: 1, status: 1 })` tại `price-override.schema.ts:L67` — kết hợp hai điều kiện lọc phổ biến nhất: "đề xuất nào đang ở trạng thái nào cho sản phẩm này". MongoDB có thể thỏa mãn truy vấn hoàn toàn từ chỉ mục mà không cần fetch document.
+- `NotificationSchema.index({ userId: 1, createdAt: -1 })` tại `notification.schema.ts:L52` — cho phép truy vấn "lấy N thông báo mới nhất của người dùng X" theo thứ tự thời gian giảm dần mà không cần sort giai đoạn sau index scan.
+- `VerificationTokenSchema.index({ userId: 1, type: 1 })` tại `verification-token.schema.ts:L32` — tra token theo người dùng và loại (`'email'` hoặc `'phone'`), hỗ trợ luồng xác minh OTP.
+
+**Nhóm Đơn (Single) — collection orders:** Collection `orders` có **3 chỉ mục đơn riêng lẻ** thay vì một chỉ mục ghép ba trường [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L239-241]: `customerId` để Consumer xem đơn hàng của mình, `farmId` để Farm Owner xem đơn hàng trang trại, và `status` để lọc đơn theo trạng thái. Quyết định dùng 3 chỉ mục đơn (không phải 1 chỉ mục ghép 3 trường) phù hợp với các pattern truy vấn thực tế — Consumer chỉ cần lọc theo `customerId`, Farm chỉ cần lọc theo `farmId`; truy vấn kết hợp cả ba trường không phải pattern phổ biến.
+
+**Nhóm Text — tìm kiếm full-text:** Ba chỉ mục text cho phép Consumer tìm kiếm sản phẩm (`products`), trang trại (`farms`) và bài đăng cộng đồng (`posts`) theo từ khóa tự nhiên. MongoDB Text Index hỗ trợ stemming và scoring, trả kết quả theo độ liên quan.
+
+**Nhóm chỉ mục đơn bổ trợ — products và posts:** Ngoài chỉ mục text, collection `products` còn khai báo bốn chỉ mục đơn trên `farmId`, `category`, `status` và `pricePerUnit` [ref: f2t-backend/src/modules/products/schemas/product.schema.ts:L148-151] phục vụ các truy vấn lọc danh mục và sắp xếp theo giá thường gặp trên trang chủ Consumer. Tương tự, collection `posts` có bốn chỉ mục trên `createdAt` (giảm dần, cho dòng thời gian feed), `authorId`, `farmId` và `hashtags` [ref: f2t-backend/src/modules/posts/schemas/post.schema.ts:L115,117-119].
+
+**Quyết định tối ưu — Embedded Snapshot OrderItem:** Thiết kế nhúng `OrderItem` trực tiếp vào `orders` thay vì tách thành collection riêng và dùng FK là quyết định tối ưu đọc có chủ đích. Khi Consumer hoặc Admin xem chi tiết đơn hàng, backend chỉ cần đọc đúng một document từ collection `orders` — toàn bộ thông tin sản phẩm (tên, đơn giá, trang trại) đã có sẵn trong mảng `items` [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L6-34, L105-106]. Phương án thay thế dùng FK sang `products` sẽ yêu cầu `$lookup` (MongoDB join) hoặc nhiều lần truy vấn, đồng thời rủi ro mất thông tin lịch sử nếu sản phẩm bị sửa hoặc xóa sau khi đặt hàng. Embedded Snapshot loại bỏ hoàn toàn rủi ro này — giá và thông tin trang trại tại thời điểm đặt hàng được bảo toàn vĩnh viễn trong đơn hàng.
 
 ## 3.5. Phân tích, thiết kế giao diện chức năng
 
