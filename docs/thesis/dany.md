@@ -610,40 +610,56 @@ Các chỉ mục thật (đọc từ schema file):
 
 **5.1. Kết luận (~1.5 trang)**
 
-- Kết quả: 13 module, 54/54 test (54 test case trong 21 file spec), ≈48 màn hình route, 1 pricing-sidecar AI (port 8000, 3 endpoint) [ref: ledger t1.15-numbers, t1.4-one-sidecar]
+- Kết quả: 13 module NestJS, 54/54 test (54 test case trong 21 file spec), ≈48 màn hình route, 1 pricing-sidecar AI (port 8000, 3 endpoint: /predict, /forecast, /freshness/classify) [ref: ledger t1.15-numbers, t1.4-one-sidecar; f2t-backend/src/app.module.ts:57]
 
-- 6 đóng góp (nhắc lại + kèm số liệu benchmark từ Chương 4)
+- 6 đóng góp thật (nhắc lại + kèm số liệu benchmark từ Chương 4):
+  - ĐG1: Kiến trúc Monolith + 1 Sidecar FastAPI [ref: ledger t1.4-one-sidecar]
+  - ĐG2: DynamicPricingInterceptor tích hợp giá AI vào /products response [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:16-18; ledger t1.4-interceptor-cron]
+  - ĐG3: ForecasterLSTM dự báo nhu cầu (LSTM 2 lớp, window=21, output demand+waste_logit) [ref: dynamic-pricing-final/src/forecaster/model.py:18-49; ledger t1.4-forecaster-not-holt]
+  - ĐG4: Định giá động DDQN SharedMLPDuelingQNet + Safety Layer 5 quy tắc + advisory mode (obs 10 chiều, 11 action ∈ [−0.30,+0.20]) [ref: dynamic-pricing-final/src/rl/network.py:51-57; pricing-sidecar/safety.py:1-19; ledger t1.4-ddqn-dims, t1.4-safety-5-rules]
+  - ĐG5: Phân loại độ tươi bằng 2 model CoreML (fruit/root), nhị phân fresh/rotten [ref: pricing-sidecar/main.py:316-318; ledger t1.4-freshness-coreml]
+  - ĐG6: Tích hợp end-to-end — Dijkstra fallback giao hàng + Embedded Snapshot giá vào orders [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:105; ledger t1.4-interceptor-cron]
 
 - Bài học: Sidecar pattern, embedded snapshot, webhook as truth, safety layer
 
 **5.2. Hạn chế (~0.75 trang)**
 
-- Email/SMS verify tắt
+- Email/SMS verify tắt (verification-token schema có nhưng luồng gửi thật bị tắt trong môi trường demo) [ref: f2t-backend/src/modules/auth/schemas/verification-token.schema.ts:8-26]
 
-- GHN dùng Dijkstra fallback chưa token thật
+- GHN dùng Dijkstra fallback chưa token thật (token GHN thật chưa được cấu hình; delivery.service.ts fallback về graph Dijkstra) [ref: f2t-backend/src/modules/delivery/delivery.service.ts; ledger t1.4-interceptor-cron]
 
-- Định giá chỉ advisory chưa live
+- Định giá chỉ advisory chưa live (ADVISORY_MODE=true; giá đề xuất ghi price_overrides nhưng chưa áp tự động vào giá bán) [ref: f2t-backend/src/app.module.ts:58; pricing-sidecar/main.py]
 
-- Dataset tươi nhỏ (~2000 ảnh)
+- Freshness: chỉ 2/4 danh mục có model CoreML riêng (fruit/root); leafy và herbs không có model riêng → fallback dùng model root (thiết kế cố ý nhưng giảm độ chính xác cho rau lá/thảo mộc) [ref: pricing-sidecar/main.py:314; freshnessmodels/ (chỉ có fruit.mlmodel + root.mlmodel); ledger t0.6-coreml-freshness, t1.4-freshness-coreml, t0.10-thesis-limitations]
 
-- Sidecar chưa Docker
+- Sidecar chưa Docker (pricing-sidecar/ không có Dockerfile; triển khai thủ công bằng venv Python) [ref: pricing-sidecar/]
 
-- Chưa có rating/review
+- Chưa có rating/review (không có collection ratings, không có endpoint đánh giá sản phẩm/farm)
+
+- **[HẠN CHẾ BẮT BUỘC — tính trung thực] Forecaster train↔serve mismatch:** checkpoint `forecaster_v4_best.pt` được huấn luyện với obs_dim=11 (bao gồm feature price_ratio ở index 2) và chuỗi 21 bước thật (temporal dynamics); sidecar serve pad 10→11 ở cuối (sai vị trí — feature bị mất nằm ở index 2, làm lệch toàn bộ feature từ index 2 trở đi) và tile-21× thay vì chuỗi lịch sử thật (LSTM không còn nhìn thấy temporal dynamics). Do đó `/forecast` endpoint chỉ là xấp xỉ thấp; kết quả đáng tin cậy phải qua offline eval bằng `dynamic-pricing-final/src/forecaster/eval.py` với dữ liệu lịch sử thật. [ref: pricing-sidecar/main.py:134-135 (pad cuối + tile-21×); dynamic-pricing-final/checkpoints/forecaster_v4_best.pt (model_cfg obs_dim=11, window=21); ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
+
+- **[HẠN CHẾ BẮT BUỘC — tính trung thực] DoW lệch pha serve:** trong quá trình huấn luyện, ngày trong tuần được tính bằng `t % 7` (t là bước mô phỏng, bắt đầu từ 0 bất kỳ ngày thật); khi serve, sidecar dùng `datetime.now().weekday()` (weekday thật) → lệch pha tùy ý so với pha train. Ảnh hưởng định lượng nhỏ (< 6.2%, vì sin_weekly/cos_weekly của demand_params.json rất nhỏ — max ±0.023) nhưng không bằng 0 và không kiểm soát được. [ref: pricing-sidecar/main.py:98; dynamic-pricing-final/src/env/market_env.py:132; dynamic-pricing-final/data/params/demand_params.json (sin_weekly/cos_weekly); ledger t0.9-fixes, t0.10-thesis-limitations]
+
+- **[HẠN CHẾ BẮT BUỘC — tính trung thực] Freshness chỉ 2/4 model CoreML** (đã nêu chi tiết ở mục trên — leafy/herbs dùng chung model root) [ref: ledger t0.6-coreml-freshness, t0.10-thesis-limitations]
 
 **5.3. Hướng phát triển (~0.75 trang)**
 
-- Chuyển định giá sang live + A/B testing
+- Chuyển định giá sang live + A/B testing (bỏ ADVISORY_MODE, tự động áp giá từ price_overrides đã accepted, theo dõi conversion rate)
 
-- Thu thập thêm ảnh rau VN
+- Thu thập dataset ảnh rau VN thực tế và huấn luyện model CoreML riêng cho leafy/herbs (hiện chưa có model riêng — dùng root fallback)
 
-- Nâng cấp DDQN → Multi-Agent RL (nhiều sản phẩm)
+- Nâng cấp DDQN → Multi-Agent RL (nhiều sản phẩm phối hợp định giá, xử lý cross-elasticity)
 
-- GHN thật + webhook hai chiều
+- GHN thật + webhook hai chiều (cấu hình token GHN production, nhận callback trạng thái giao hàng)
 
-- Docker Compose + CI/CD
+- Docker Compose + CI/CD (đóng gói pricing-sidecar + NestJS backend trong cùng Compose stack, CI chạy 54 test tự động)
 
-- Web portal Farm Owner
+- Web portal Farm Owner (quản lý sản phẩm/đơn/thống kê từ trình duyệt, không phụ thuộc mobile)
 
-- Chatbot AI tư vấn (LLM)
+- Chatbot AI tư vấn (LLM) hỗ trợ Farm hỏi về giá cả/nhu cầu/mùa vụ
+
+- Khắc phục train↔serve forecaster: retrain ForecasterLSTM với obs_dim=10 (khớp env hiện tại) + cung cấp chuỗi lịch sử thật thay vì tile-21×, bổ sung eval offline chuẩn trước khi triển khai serve [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
+
+- Bổ sung hệ thống gợi ý sản phẩm (hiện chưa có trong codebase — không có module recommender, không có endpoint gợi ý); đây là hướng phát triển tương lai, KHÔNG phải tính năng hiện tại [ref: ledger t1.4-no-recommender]
 
 **TÀI LIỆU THAM KHẢO (~2 trang, chuẩn IEEE)**

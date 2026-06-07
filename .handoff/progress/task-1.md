@@ -484,3 +484,61 @@ Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry 
 - [x] Phong cách dàn ý giữ nguyên (tiêu đề in-nghiêng *4.4.x.*, bullets, Tiếng Việt)
 - [x] Không sửa dynamic-pricing-final/ (chỉ đọc eval.py và market_env.py)
 - [x] Không commit
+
+## T1.14 — Sửa CHƯƠNG 5 (§5.1 Kết luận, §5.2 Hạn chế, §5.3 Hướng phát triển) ✅
+
+### Tóm tắt thay đổi trong `docs/thesis/dany.md` (§5 chỉ)
+
+**§5.1 Kết luận:**
+- Số liệu: GIỮ "13 module, 54/54 test, ≈48 màn hình route, 1 pricing-sidecar AI" (đã đúng từ T1.12/T1.15) [ref: ledger t1.15-numbers, t1.4-one-sidecar]
+- 6 đóng góp: liệt kê tường minh ĐG1–ĐG6 thật với citation inline — không còn "ĐG2 recommender" hay "ĐG3 Holt". ĐG2=Interceptor giá AI, ĐG3=ForecasterLSTM [ref: ledger t1.4-no-recommender, t1.4-forecaster-not-holt]
+- "Bài học: Sidecar pattern, embedded snapshot, webhook as truth, safety layer" GIỮ
+
+**§5.2 Hạn chế:**
+- Sửa "Dataset tươi nhỏ (~2000 ảnh)" → "chỉ 2/4 danh mục có model CoreML riêng (fruit/root); leafy và herbs fallback dùng model root" với citation [ref: pricing-sidecar/main.py:314; ledger t0.6-coreml-freshness, t1.4-freshness-coreml, t0.10-thesis-limitations]
+- GIỮ: Email/SMS verify tắt; GHN Dijkstra fallback; Định giá advisory; Sidecar chưa Docker; Chưa có rating/review
+- **THÊM 3 GIỚI HẠN BẮT BUỘC (ledger t0.10-thesis-limitations):**
+
+  **(a) Forecaster train↔serve mismatch** [ref: pricing-sidecar/main.py:130-131; dynamic-pricing-final/checkpoints/forecaster_v4_best.pt; ledger t0.4-forecaster-parity, t0.10-thesis-limitations]:
+  > "**[HẠN CHẾ BẮT BUỘC — tính trung thực] Forecaster train↔serve mismatch:** checkpoint `forecaster_v4_best.pt` được huấn luyện với obs_dim=11 (bao gồm feature price_ratio ở index 2) và chuỗi 21 bước thật (temporal dynamics); sidecar serve pad 10→11 ở cuối (sai vị trí — feature bị mất nằm ở index 2, làm lệch toàn bộ feature từ index 2 trở đi) và tile-21× thay vì chuỗi lịch sử thật (LSTM không còn nhìn thấy temporal dynamics). Do đó `/forecast` endpoint chỉ là xấp xỉ thấp; kết quả đáng tin cậy phải qua offline eval bằng `dynamic-pricing-final/src/forecaster/eval.py` với dữ liệu lịch sử thật."
+
+  **(b) DoW lệch pha serve** [ref: pricing-sidecar/main.py:98; dynamic-pricing-final/src/env/market_env.py:132; dynamic-pricing-final/data/params/demand_params.json; ledger t0.9-fixes, t0.10-thesis-limitations]:
+  > "**[HẠN CHẾ BẮT BUỘC — tính trung thực] DoW lệch pha serve:** trong quá trình huấn luyện, ngày trong tuần được tính bằng `t % 7` (t là bước mô phỏng, bắt đầu từ 0 bất kỳ ngày thật); khi serve, sidecar dùng `datetime.now().weekday()` (weekday thật) → lệch pha tùy ý so với pha train. Ảnh hưởng định lượng nhỏ (< 6.2%, vì sin_weekly/cos_weekly của demand_params.json rất nhỏ — max ±0.023) nhưng không bằng 0 và không kiểm soát được."
+
+  **(c) Freshness chỉ 2/4 model CoreML** [ref: ledger t0.6-coreml-freshness, t0.10-thesis-limitations]:
+  > "**[HẠN CHẾ BẮT BUỘC — tính trung thực] Freshness chỉ 2/4 model CoreML** (đã nêu chi tiết ở mục trên — leafy/herbs dùng chung model root)"
+
+**§5.3 Hướng phát triển:**
+- GIỮ: định giá live+A/B, GHN thật, DDQN→Multi-Agent RL, Docker Compose+CI/CD, Web portal Farm, Chatbot LLM
+- THÊM hướng: "Khắc phục train↔serve forecaster: retrain obs_dim=10 + chuỗi lịch sử thật" [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
+- THÊM hướng: "Bổ sung hệ thống gợi ý sản phẩm (hiện chưa có)" — trình bày trung thực là hướng tương lai, KHÔNG overclaim là feature hiện tại [ref: ledger t1.4-no-recommender]
+- "Thu thập thêm ảnh rau VN" → làm rõ ngữ cảnh: thu thập cho leafy/herbs (hiện chưa có model riêng)
+
+### Xác nhận 3 giới hạn bắt buộc đã vào §5.2 (trích nguyên văn dòng)
+
+1. **Forecaster train↔serve mismatch** — dòng 639 dany.md:
+   `**[HẠN CHẾ BẮT BUỘC — tính trung thực] Forecaster train↔serve mismatch:** checkpoint ...`
+   Citation: `pricing-sidecar/main.py:130-131; ledger t0.4-forecaster-parity, t0.10-thesis-limitations`
+
+2. **DoW lệch pha serve** — dòng 641 dany.md:
+   `**[HẠN CHẾ BẮT BUỘC — tính trung thực] DoW lệch pha serve:** trong quá trình huấn luyện...`
+   Citation: `pricing-sidecar/main.py:98; dynamic-pricing-final/src/env/market_env.py:132; ledger t0.9-fixes, t0.10-thesis-limitations`
+
+3. **Freshness chỉ 2/4 model CoreML** — dòng 643 dany.md:
+   `**[HẠN CHẾ BẮT BUỘC — tính trung thực] Freshness chỉ 2/4 model CoreML** (đã nêu chi tiết...)`
+   Citation: `ledger t0.6-coreml-freshness, t0.10-thesis-limitations`
+
+### Verify checklist
+
+- [x] §5.1 số liệu đúng: 13 module, 54/54 test, ≈48 màn hình route, 1 sidecar
+- [x] §5.1 6 đóng góp thật (ĐG1–ĐG6): không còn recommender, không còn Holt
+- [x] §5.2 "Dataset tươi ~2000 ảnh" → đã sửa thành giới hạn thật (2/4 model, leafy/herbs dùng root)
+- [x] §5.2 GIỮ 5 hạn chế thật cũ (Email/SMS, GHN, advisory, Docker, rating)
+- [x] §5.2 CÓ ĐỦ 3 giới hạn bắt buộc từ ledger t0.10-thesis-limitations
+- [x] §5.3 không overclaim recommender — trình bày rõ "hiện chưa có, đây là hướng tương lai"
+- [x] §5.3 có hướng "khắc phục forecaster train↔serve" (trung thực)
+- [x] Mọi claim kỹ thuật có [ref: file:Lxx / ledger-id]
+- [x] Outline §5 giữ nguyên (tiêu đề **5.1.**, **5.2.**, **5.3.** in-đậm, bullets, Tiếng Việt)
+- [x] Không sửa §1–§4, TÀI LIỆU THAM KHẢO
+- [x] Không sửa dynamic-pricing-final/
+- [x] Không commit
