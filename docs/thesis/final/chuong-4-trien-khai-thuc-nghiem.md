@@ -269,7 +269,107 @@ window = np.tile(obs_padded, (OBS_WINDOW, 1))  # (21, 10)
 Hệ quả là LSTM nhận đầu vào ở trạng thái steady-state — tất cả 21 bước thời gian đều giống hệt nhau — và không nhìn thấy được các biến động chuỗi thời gian thật (xu hướng, chu kỳ, bất thường). Cơ chế này là một xấp xỉ thực dụng khi chưa có pipeline lưu trữ và cung cấp chuỗi lịch sử 21 ngày trên môi trường phục vụ. Hạn chế này không ảnh hưởng đến đánh giá offline, vốn sử dụng chuỗi dữ liệu thật từ `test.parquet`; do đó, **đánh giá tin cậy về hiệu năng mô hình phải dựa trên kết quả offline từ `eval.py`**, không nên dùng số liệu từ endpoint `/forecast` trong môi trường phục vụ [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations].
 
 ### 4.4.3. Đánh giá định giá động
-<!-- T2.27 ⭐2-lớp: dany.md L557-587; market_env sim + Safety + 3 paper [TLTK]; KHÔNG bịa số; ledger t0.2-action-space, t1.4-safety-5-rules -->
+
+#### Môi trường mô phỏng và phương pháp đánh giá
+
+Đánh giá hiệu năng thành phần định giá động của F2T được thực hiện thông qua mô phỏng trên môi trường **`MarketEnv`** — lớp `gym`-style được hiện thực tại `dynamic-pricing-final/src/env/market_env.py`. Mỗi episode mô phỏng kéo dài **`EPISODE_LEN = 91` ngày** [ref: dynamic-pricing-final/src/env/market_env.py:14], bao phủ đầy đủ một quý kinh doanh với bốn danh mục sản phẩm song song: `leafy` (rau lá), `root` (củ), `fruit` (trái cây), và `herbs` (thảo mộc) [ref: dynamic-pricing-final/src/env/market_env.py:10]. Episode kết thúc theo điều kiện `done = self._t >= EPISODE_LEN` kiểm tra tại cuối mỗi bước [ref: dynamic-pricing-final/src/env/market_env.py:99].
+
+Mỗi bước thời gian trong `MarketEnv.step()` thực hiện tuần tự sáu pha: (1) áp delta giá không lũy thừa — giá luôn tính tương đối so với `ref_price` [ref: dynamic-pricing-final/src/env/market_env.py:64]; (2) lấy mẫu nhu cầu qua `CrossDemandModel`; (3) phân rã độ tươi theo từng danh mục; (4) kiểm tra sự kiện lãng phí (`waste_event`) khi độ tươi về ngưỡng và tồn kho chưa bằng không [ref: dynamic-pricing-final/src/env/market_env.py:79-81]; (5) bổ sung hàng định kỳ; và (6) ghi nhận delta trước cho bước tiếp theo. Vector quan sát có số chiều `OBS_DIM = 10` [ref: dynamic-pricing-final/src/env/market_env.py:9], bao gồm độ tươi, tỉ lệ tồn kho, mã hóa ngày trong tuần (sin/cos), ngày đến lần nhập tiếp theo, tỉ lệ cầu hôm qua, delta trước, tỉ lệ giá cạnh tranh, số ngày đến ngưỡng lãng phí, và tỉ lệ tồn kho so với dự báo 7 ngày [ref: dynamic-pricing-final/src/env/market_env.py:146-157].
+
+Ba phương án được đề xuất để so sánh trong mô phỏng:
+
+| Phương án | Mô tả |
+|---|---|
+| **DDQN (MultiCatDDQNAgent)** | Tác nhân DDQN chọn action từ không gian 11 hành động, có qua Safety Layer [ref: dynamic-pricing-final/src/rl/reward.py:6-7; ledger t0.2-action-space] |
+| **Giá cố định (Fixed)** | Baseline: luôn chọn `delta_pct = 0` (giữ nguyên `ref_price`) qua toàn bộ episode |
+| **Giảm giá đều (Uniform discount)** | Baseline: áp một mức delta âm cố định theo lịch, không phụ thuộc trạng thái thị trường |
+
+Hai chỉ số chính được đo trên mỗi episode: (1) **tổng doanh thu mô phỏng** (tổng `price × sold` qua 91 ngày × 4 danh mục); và (2) **số sự kiện lãng phí** (`waste_event`) — tính khi `is_waste(freshness, inventory)` trả `True` ở cuối mỗi ngày [ref: dynamic-pricing-final/src/env/market_env.py:79-81].
+
+#### Định nghĩa không gian hành động và phân bố delta_pct
+
+Tác nhân DDQN hoạt động trên không gian hành động rời rạc gồm **11 mức điều chỉnh giá** (`delta_pct`), được định nghĩa tường minh bằng:
+
+```python
+CANDIDATES = np.linspace(-0.30, 0.20, 11)
+CANDIDATES[6] = 0.0
+```
+
+[ref: dynamic-pricing-final/src/rl/reward.py:6-7; ledger t0.2-action-space]
+
+Mảng `CANDIDATES` gồm 11 phần tử từ −0,30 đến +0,20 (bước 0,05), với `CANDIDATES[6]` được đặt cứng về `0.0` để đảm bảo tác nhân luôn có tùy chọn "giữ nguyên giá" không bị lệch dấu do lỗi dấu phẩy động. Phân bố hành động mà DDQN chọn qua toàn episode mô phỏng dự kiến phản ánh chiến lược đã học. Căn cứ trên hàm phần thưởng, hành vi *kỳ vọng* (chưa kiểm chứng qua episode thực tế, sẽ được xác nhận khi điền Bảng 4.9) là tác nhân ưu tiên delta âm (giảm giá) khi độ tươi thấp và tồn kho cao, và ưu tiên delta dương/trung lập khi danh mục thuộc nhóm có biên giá cao (`fruit`, `root`) với độ tươi còn cao [ref: dynamic-pricing-final/src/rl/reward.py:16-45; dynamic-pricing-final/src/env/market_env.py:146-157]. Histogram phân bố 11 hành động trên toàn bộ episode mô phỏng được điền vào bảng khung bên dưới sau khi chạy mô phỏng.
+
+#### Chỉ số Safety clip rate
+
+**Safety clip rate** được định nghĩa là tỉ lệ phần trăm số lần hàm `apply_safety()` trả về `safety_clipped = True` trên tổng số lần gọi trong một episode, trong đó cờ `safety_clipped` được xác định bằng:
+
+```python
+safety_clipped = (clipped_price != original_price)
+```
+
+[ref: pricing-sidecar/safety.py:21]
+
+Safety clip rate phản ánh tần suất Safety Layer phải can thiệp chỉnh lại đề xuất giá của DDQN — tỉ lệ này cho phép đánh giá mức độ "sạch" của chính sách đã học: tỉ lệ thấp cho thấy DDQN đã học được cách đề xuất giá nằm trong vùng an toàn mà không cần chỉnh nhiều; tỉ lệ cao cho thấy tác nhân vẫn còn xu hướng đề xuất ngoài biên.
+
+#### Safety Layer — 5 quy tắc bảo vệ
+
+Safety Layer được hiện thực trong hàm `apply_safety(price, base_price, freshness)` tại `pricing-sidecar/safety.py` và áp dụng năm quy tắc theo **thứ tự cố định 3 → 4 → 1 → 2 → 5** [ref: pricing-sidecar/safety.py:1-23; ledger t1.4-safety-5-rules]:
+
+| Thứ tự áp | Ký hiệu | Điều kiện / hành động | Ngưỡng | Nguồn |
+|---|---|---|---|---|
+| 1 (áp trước) | Rule 3 | Clip price ∈ [base × 0,70 ; base × 1,20] | ±30%/+20% quanh giá gốc | [ref: pricing-sidecar/safety.py:6] |
+| 2 | Rule 4 | Nếu `freshness < 0,4` → `price ≤ base × 0,75` | Ngưỡng tươi 0,4; cap 75% | [ref: pricing-sidecar/safety.py:9-10] |
+| 3 | Rule 1 | `price ≥ base × 0,55` (sàn chi phí) | 55% giá gốc | [ref: pricing-sidecar/safety.py:13] |
+| 4 | Rule 2 | `price ≤ base × 2,0` (trần tuyệt đối) | 200% giá gốc | [ref: pricing-sidecar/safety.py:16] |
+| 5 (áp sau) | Rule 5 | `price ≥ 1 000` VND (giá tối thiểu) | 1 000 VND | [ref: pricing-sidecar/safety.py:19] |
+
+Thiết kế thứ tự 3 → 4 → 1 → 2 → 5 có chủ đích: Rule 3 thu hẹp biên dao động trước (clip tick lớn); Rule 4 ép giảm thêm khi sản phẩm sắp hỏng; Rule 1 đảm bảo không bán lỗ dưới sàn chi phí; Rule 2 ngăn tình huống giá bị đẩy lên bất thường do Rule 1 và 4 tương tác; Rule 5 là rào chắn cuối đảm bảo tính hợp lệ tuyệt đối (giá bán không được âm hoặc quá nhỏ). Thứ tự này được đọc trực tiếp từ mã nguồn `safety.py` và không phải quy ước tùy ý của tác giả.
+
+#### Kết quả mô phỏng (bảng khung — điền sau khi chạy)
+
+**Bảng 4.8 — So sánh ba phương án định giá qua mô phỏng `MarketEnv` (91 ngày)**
+*(Bảng khung — các ô "—" được điền sau khi chạy episode mô phỏng trong `dynamic-pricing-final/src/env/market_env.py`. Siêu tham số DDQN xem §3.3.7(b).)*
+
+| Chỉ số | DDQN (MultiCatDDQNAgent) | Giá cố định (Fixed) | Giảm đều (Uniform) |
+|---|---|---|---|
+| Tổng doanh thu mô phỏng (91 ngày) | — | — | — |
+| Số sự kiện lãng phí (waste_event) | — | — | — |
+| Safety clip rate (%) | — | — | — |
+
+**Bảng 4.9 — Phân bố 11 hành động DDQN qua episode mô phỏng**
+*(Bảng khung — điền sau khi chạy mô phỏng.)*
+
+| Hành động (index) | delta_pct | Tần suất chọn (%) |
+|---|---|---|
+| 0 | −0,30 | — |
+| 1 | −0,25 | — |
+| 2 | −0,20 | — |
+| 3 | −0,15 | — |
+| 4 | −0,10 | — |
+| 5 | −0,05 | — |
+| 6 | 0,00 | — |
+| 7 | +0,05 | — |
+| 8 | +0,10 | — |
+| 9 | +0,15 | — |
+| 10 | +0,20 | — |
+
+[ref: dynamic-pricing-final/src/rl/reward.py:6-7; ledger t0.2-action-space]
+
+*Ghi chú: Bảng 4.8 và 4.9 được điền bằng script mô phỏng episode từ `dynamic-pricing-final/src/env/market_env.py` với `EPISODE_LEN = 91` [ref: dynamic-pricing-final/src/env/market_env.py:14,99]. Safety clip rate tính theo tỉ lệ `safety_clipped = True` trên tổng lần gọi `apply_safety()` [ref: pricing-sidecar/safety.py:21]. Siêu tham số DDQN (lr, gamma, batch_size, ε-decay) xem §3.3.7(b) [ref: dynamic-pricing-final/src/rl/agent.py:144-148; dynamic-pricing-final/src/rl/train.py:12-15; ledger t1.8-ddqn-hyperparams].*
+
+#### So sánh với nghiên cứu quốc tế
+
+**Bảng 4.10 — So sánh hệ thống định giá động F2T với nghiên cứu quốc tế**
+
+| Tiêu chí | Nassibi et al. (2023) [TLTK] | Xue et al. (2025) [TLTK] | Kayikci et al. (2022) [TLTK] | F2T (hệ thống này) |
+|---|---|---|---|---|
+| **Phương pháp AI/ML** | Học máy dự báo nhu cầu (regression/classification) | Định giá rau tươi theo hệ số co giãn giá (price elasticity) | Định giá động để giảm lãng phí thực phẩm | DDQN (MultiCatDDQNAgent) — học tăng cường nhiều danh mục [ref: dynamic-pricing-final/src/rl/agent.py:144-148; ledger t0.2-action-space] |
+| **Đầu vào / dữ liệu** | Dữ liệu lịch sử nhu cầu, đặc trưng sản phẩm/thời tiết | Dữ liệu giá và lượng bán rau tươi | Dữ liệu giá, tồn kho, hạn sử dụng | Vector quan sát 10 chiều (độ tươi, tồn kho, ngày trong tuần, cạnh tranh, …) [ref: dynamic-pricing-final/src/env/market_env.py:9,146-157] |
+| **Chức năng định giá** | Không (tập trung dự báo cầu) | Có — tối ưu giá theo độ co giãn | Có — giảm giá theo hạn sử dụng | Có — DDQN đề xuất delta ∈ 11 mức, tối ưu qua phần thưởng đa thành phần [ref: dynamic-pricing-final/src/rl/reward.py:75-95] |
+| **Tích hợp Safety Layer** | Không | Không | Không | Có — 5 quy tắc cứng đảm bảo giá hợp lệ (Rule 3→4→1→2→5) [ref: pricing-sidecar/safety.py:1-23; ledger t1.4-safety-5-rules] |
+| **Đặc điểm nổi bật so với F2T** | Không có thành phần định giá; F2T bổ sung cơ chế đề xuất giá DDQN lên trên nền dự báo cầu | Sử dụng giả thuyết co giãn tuyến tính; F2T thay bằng RL học trực tiếp từ mô phỏng mà không cần ước lượng elasticity | Có giảm giá động nhưng không có lớp kiểm soát cứng; F2T thêm Safety Layer 5 quy tắc bắt buộc | — |
+
+Qua bảng so sánh, đóng góp kỹ thuật đặc trưng của F2T so với ba nghiên cứu nêu trên là sự kết hợp giữa **học tăng cường đa danh mục** (DDQN với không gian hành động 11 mức) và **Safety Layer bắt buộc** (5 quy tắc cứng áp theo thứ tự xác định). Nassibi et al. (2023) [TLTK] không có thành phần định giá — F2T mở rộng thêm cơ chế đề xuất giá DDQN trên cơ sở tương tự về dự báo cầu. Xue et al. (2025) [TLTK] định giá theo co giãn giá tuyến tính — F2T thay thế bằng RL học trực tiếp từ mô phỏng mà không cần ước lượng elasticity riêng biệt. Kayikci et al. (2022) [TLTK] có cơ chế giảm giá động theo hạn sử dụng nhưng chưa có lớp kiểm soát cứng bảo vệ tính hợp lệ tài chính — F2T bổ sung Safety Layer 5 quy tắc đảm bảo giá luôn nằm trong biên hợp lệ trước khi trả về cho NestJS [ref: pricing-sidecar/safety.py:1-23; ledger t1.4-safety-5-rules].
 
 ### 4.4.4. Đánh giá phân loại độ tươi
 <!-- T2.28 ⭐2-lớp: dany.md L589-599; Confusion Matrix 2×2 + giới hạn 2/4; KHÔNG bịa số; ledger t0.6-coreml-freshness, t0.10 -->

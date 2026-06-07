@@ -999,3 +999,55 @@ Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **
 **WARN-2/3 (chấp nhận):** comment `# (21,10)` trong snippet = chú thích minh hoạ đúng shape; no_grad citation range 43-57 bao trùm L50. Không sửa.
 
 **Done-gate T2.26 (post-fix): PASS** → commit task(T2.26). Chân thực 100%: Naive = đề xuất, không overclaim đã hiện thực.
+
+## T2.27 — §4.4.3 Eval định giá động ✅
+
+### Citation resolve (dòng thật đã mở trực tiếp)
+
+| Tệp | Dòng | Nội dung xác minh |
+|---|---|---|
+| `dynamic-pricing-final/src/rl/reward.py` | 6-7 | `CANDIDATES = np.linspace(-0.30, 0.20, 11)` + `CANDIDATES[6] = 0.0` — 11 action, index 6 = 0.0 |
+| `dynamic-pricing-final/src/env/market_env.py` | 14 | `EPISODE_LEN = 91` |
+| `dynamic-pricing-final/src/env/market_env.py` | 9 | `OBS_DIM = 10` |
+| `dynamic-pricing-final/src/env/market_env.py` | 10 | `CATEGORIES = ["leafy", "root", "fruit", "herbs"]` |
+| `dynamic-pricing-final/src/env/market_env.py` | 64 | giá tính non-compound `ref * (1.0 + delta)` |
+| `dynamic-pricing-final/src/env/market_env.py` | 79-81 | waste_event ghi vào `info["waste_events"]` khi `is_waste()` |
+| `dynamic-pricing-final/src/env/market_env.py` | 99 | `done = self._t >= EPISODE_LEN` |
+| `dynamic-pricing-final/src/env/market_env.py` | 146-157 | obs array 10 chiều |
+| `pricing-sidecar/safety.py` | 6 | Rule 3: `max(base*0.70, min(p, base*1.20))` |
+| `pricing-sidecar/safety.py` | 9-10 | Rule 4: `freshness < 0.4 → ≤ base*0.75` |
+| `pricing-sidecar/safety.py` | 13 | Rule 1: sàn `base*0.55` |
+| `pricing-sidecar/safety.py` | 16 | Rule 2: trần `base*2.0` |
+| `pricing-sidecar/safety.py` | 19 | Rule 5: `≥ 1000 VND` |
+| `pricing-sidecar/safety.py` | 21 | `safety_clipped = (clipped_price != original_price)` |
+
+### Self-review checklist
+
+| Tiêu chí | Kết quả |
+|---|---|
+| 0 số kết quả mô phỏng bịa (doanh thu, clip rate, phân bố action) | ✅ PASS — tất cả ô Bảng 4.8 và 4.9 = "—" |
+| EPISODE_LEN = 91 đọc từ market_env.py:14 | ✅ PASS |
+| Safety thứ tự 3→4→1→2→5 đọc từ safety.py (thứ tự code lines 6,9-10,13,16,19) | ✅ PASS |
+| Ngưỡng Safety từ safety.py: 0.70/1.20/0.4/0.75/0.55/2.0/1000 VND | ✅ PASS |
+| CANDIDATES = linspace(-0.30, 0.20, 11), CANDIDATES[6]=0.0 từ reward.py:6-7 | ✅ PASS |
+| OBS_DIM = 10 từ market_env.py:9 | ✅ PASS |
+| 3 paper [TLTK] chỉ mô tả định tính (không bịa số liệu paper) | ✅ PASS |
+| Bảng so sánh paper có cột định tính (phương pháp, dữ liệu, safety layer) | ✅ PASS |
+| Không ghi obs_dim=11 / MobileNetV2 / Holt / EWMA / recommender | ✅ PASS |
+| Heading §4.4.3 giữ nguyên, §4.4.2 và §4.4.4 không đụng | ✅ PASS |
+| safety_clipped định nghĩa từ safety.py:21 | ✅ PASS |
+
+**Done-gate T2.27: PASS** — §4.4.3 đầy đủ prose = phương pháp mô phỏng (MarketEnv, 3 phương án, 2 chỉ số) + định nghĩa không gian action (11 CANDIDATES, reward.py:6-7) + Safety 5 rule ngưỡng hằng số đúng + bảng khung trống (Bảng 4.8 + 4.9) + bảng so sánh 3 paper [TLTK] định tính. 0 số mô phỏng/doanh thu bịa.
+
+### T2.27 — VERIFY 2-LỚP AI/ML (agent độc lập) → PASS
+
+**Verifier:** sonnet độc lập, lớp 2 AI/ML. Tiêu chí #1: **0 con số mô phỏng/doanh thu bịa** — toàn bộ ô Bảng 4.8 (revenue/waste/clip rate) + Bảng 4.9 (phân bố 11 action) = "—". ✅
+- 11 action linspace(-0.30,0.20,11) + CANDIDATES[6]=0.0 (reward.py:6-7) ✅
+- EPISODE_LEN=91 (market_env.py:14) + done self._t>=EPISODE_LEN (:99); OBS_DIM=10 (:9) ✅
+- Safety 5 rule THỨ TỰ 3→4→1→2→5 khớp safety.py (Rule3 L6→Rule4 L8-10→Rule1 L12-13→Rule2 L15-16→Rule5 L18-19); ngưỡng 0.70/1.20, 0.4/0.75, 0.55, 2.0, 1000 đúng; safety_clipped=(clipped!=original) safety.py:21 ✅
+- Hyperparam KHÔNG lặp số (tham chiếu §3.3.7b + agent.py:144-148) — 0 risk sai ✅
+- 3 paper Nassibi/Xue/Kayikci [TLTK] định tính, 0 số liệu paper bịa ✅; 0 từ cấm ✅
+
+**WARN-2 (resolve):** câu mô tả phân bố action ban đầu trình bày như kết quả quan sát → controller SỬA thành hành vi *kỳ vọng* (chưa kiểm chứng qua episode, xác nhận khi điền Bảng 4.9) để không overclaim. WARN-1/3 chấp nhận (không vi phạm).
+
+**Done-gate T2.27 (post-fix): PASS** → commit task(T2.27).
