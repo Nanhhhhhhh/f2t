@@ -6,6 +6,8 @@
 **Phủ:** 5 chương, 671 dòng dany.md  
 **Ground truth đã verify Task 0:** ledger `claims-ledger.md` nhóm kiến trúc ML (t0.1–t0.10)
 
+> ⚠️ **CẬP NHẬT post-retrain T0.13:** các dòng audit ghi forecaster "obs_dim=11 / layout mismatch 11≠10" phản ánh trạng thái TRƯỚC retrain. Sau T0.13, forecaster đã retrain **obs_dim=10** khớp env (layout mismatch HẾT); giới hạn còn lại chỉ là serve tile-21× steady-state. dany.md đã được sửa theo trạng thái mới (xem `dany.verify-report.md` §4).
+
 ---
 
 ## Quy ước

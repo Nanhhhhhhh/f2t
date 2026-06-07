@@ -146,7 +146,7 @@
 
 - Hai đầu ra (dual-head): `demand_head` (Linear → demand dự báo) và `waste_head` (Linear→ReLU→Dropout→Linear → logit xác suất hỏng) — hai mục tiêu song song từ cùng biểu diễn ẩn [ref: dynamic-pricing-final/src/forecaster/model.py:L31-37, L46-49]
 
-- Window=21 bước; obs_dim=11 (checkpoint v4); mỗi bước = vector đặc trưng tổng hợp của sản phẩm trong môi trường giả lập [ref: dynamic-pricing-final/src/forecaster/model.py:L9-15, ledger t0.4-forecaster-parity]
+- Window=21 bước; obs_dim=10 (khớp env hiện tại sau retrain T0.13); mỗi bước = vector đặc trưng tổng hợp của sản phẩm trong môi trường giả lập [ref: dynamic-pricing-final/src/forecaster/model.py:L9, checkpoint forecaster_v4_best.pt model_cfg obs_dim=10; ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
 
 *2.4.2. Học tăng cường và DDQN*
 
@@ -338,7 +338,7 @@ AI/ML:
 
 ForecasterLSTM — kiến trúc thật:
 
-- LSTM 2 lớp, hidden=128, dropout=0.2; input_size=11 (obs_dim train), window=21 bước [ref: dynamic-pricing-final/src/forecaster/model.py:L9-15, L23-29]
+- LSTM 2 lớp, hidden=128, dropout=0.2; input_size=10 (obs_dim, khớp env sau retrain T0.13), window=21 bước [ref: dynamic-pricing-final/src/forecaster/model.py:L9, L23-29; checkpoint forecaster_v4_best.pt lstm.weight_ih_l0=(512,10)]
 
 - Category embedding: nn.Embedding(n_categories=4, cat_embed_dim=8) ghép vào hidden state [ref: model.py:L22]
 
@@ -346,7 +346,7 @@ ForecasterLSTM — kiến trúc thật:
 
 - Luồng serve: backend `/demand-forecasting/forecast` → DemandForecastingService → sidecar `/forecast` (port 8000) → `_run_forecaster` → ForecasterLSTM [ref: pricing-sidecar/main.py:L128-137, L263-274]
 
-- ⚠️ **GIỚI HẠN TRAIN↔SERVE:** checkpoint train với obs_dim=11 layout cũ + chuỗi 21 bước thật; khi serve, sidecar pad-cuối 10→11 (`main.py:L134`) thay vì chèn đúng vị trí index 2, rồi tile-21× (`main.py:L135`) thay vì chuỗi thật — LSTM không thấy temporal dynamics. Serve `/forecast` là **xấp xỉ thấp**; kết quả tin cậy cần chạy offline eval `dynamic-pricing-final/src/forecaster/eval.py` [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
+- ⚠️ **GIỚI HẠN SERVE (sau retrain T0.13):** forecaster đã được train lại với obs_dim=10 khớp env → KHÔNG còn layout mismatch (pad/slice `main.py:L134` nay là no-op vì forecaster_obs_dim=10=obs sidecar). Giới hạn DUY NHẤT còn lại: khi serve, sidecar tile-21× cùng 1 vector (`main.py:L135`) thay vì chuỗi lịch sử 21 ngày thật (backend chưa lưu chuỗi history) → LSTM nhận đầu vào steady-state, không thấy temporal dynamics. Serve `/forecast` vẫn là **xấp xỉ**; kết quả tin cậy cần chạy offline eval `dynamic-pricing-final/src/forecaster/eval.py` với chuỗi thật [ref: pricing-sidecar/main.py:L134-135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
 
 **(b) ĐỊNH GIÁ ĐỘNG (~1.5 trang)**
 
@@ -552,7 +552,7 @@ Các chỉ mục thật (đọc từ schema file):
 
 - Kết quả theo từng danh mục (leafy/root/fruit/herbs): MAE/day + AUROC + waste_rate cho từng category [ref: eval.py:74-83]
 
-- ⚠️ **GIỚI HẠN QUAN TRỌNG:** Kết quả `/forecast` khi serve KHÔNG đáng tin cậy — train dùng obs_dim=11 + chuỗi 21 bước thật; serve pad-cuối 10→11 (sai vị trí index 2) rồi tile-21× thay chuỗi thật → LSTM không thấy temporal dynamics (`pricing-sidecar/main.py:L134-135`). **Đánh giá tin cậy phải dựa trên offline eval** `eval.py` với dữ liệu chuỗi thật từ `data/processed/test.parquet`, KHÔNG dùng số từ serve `/forecast` [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations; pricing-sidecar/main.py:L134-135]
+- ⚠️ **GIỚI HẠN QUAN TRỌNG:** Kết quả `/forecast` khi serve chỉ là xấp xỉ — sau retrain (T0.13) forecaster obs_dim=10 khớp env (hết layout mismatch), nhưng serve vẫn tile-21× cùng 1 vector (`pricing-sidecar/main.py:L135`) thay vì chuỗi 21 ngày thật → LSTM nhận đầu vào steady-state, không thấy temporal dynamics. **Đánh giá tin cậy phải dựa trên offline eval** `eval.py` với dữ liệu chuỗi thật từ `data/processed/test.parquet`, KHÔNG dùng số từ serve `/forecast` [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations; pricing-sidecar/main.py:L135]
 
 *4.4.3. Đánh giá định giá động (~2 trang)*
 
@@ -632,7 +632,7 @@ Các chỉ mục thật (đọc từ schema file):
 
 - Chưa có rating/review (không có collection ratings, không có endpoint đánh giá sản phẩm/farm)
 
-- **[HẠN CHẾ BẮT BUỘC — tính trung thực] Forecaster train↔serve mismatch:** checkpoint `forecaster_v4_best.pt` được huấn luyện với obs_dim=11 (bao gồm feature price_ratio ở index 2) và chuỗi 21 bước thật (temporal dynamics); sidecar serve pad 10→11 ở cuối (sai vị trí — feature bị mất nằm ở index 2, làm lệch toàn bộ feature từ index 2 trở đi) và tile-21× thay vì chuỗi lịch sử thật (LSTM không còn nhìn thấy temporal dynamics). Do đó `/forecast` endpoint chỉ là xấp xỉ thấp; kết quả đáng tin cậy phải qua offline eval bằng `dynamic-pricing-final/src/forecaster/eval.py` với dữ liệu lịch sử thật. [ref: pricing-sidecar/main.py:134-135 (pad cuối + tile-21×); dynamic-pricing-final/checkpoints/forecaster_v4_best.pt (model_cfg obs_dim=11, window=21); ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
+- **[HẠN CHẾ BẮT BUỘC — tính trung thực] Forecaster serve tiling (steady-state):** sau retrain (T0.13), checkpoint `forecaster_v4_best.pt` có obs_dim=10 khớp env (lstm.weight_ih_l0=(512,10)) → **layout mismatch 11≠10 đã được khắc phục**, pad/slice ở serve là no-op. Giới hạn còn lại: sidecar tile-21× cùng 1 vector quan sát hiện tại (`main.py:135`) thay vì chuỗi lịch sử 21 ngày thật (backend chưa lưu chuỗi history) → LSTM nhận đầu vào steady-state, không khai thác được temporal dynamics. Do đó `/forecast` endpoint chỉ là xấp xỉ; kết quả đáng tin cậy phải qua offline eval bằng `dynamic-pricing-final/src/forecaster/eval.py` với dữ liệu chuỗi thật. [ref: pricing-sidecar/main.py:135 (tile-21×); dynamic-pricing-final/checkpoints/forecaster_v4_best.pt (model_cfg obs_dim=10, window=21); ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
 
 - **[HẠN CHẾ BẮT BUỘC — tính trung thực] DoW lệch pha serve:** trong quá trình huấn luyện, ngày trong tuần được tính bằng `t % 7` (t là bước mô phỏng, bắt đầu từ 0 bất kỳ ngày thật); khi serve, sidecar dùng `datetime.now().weekday()` (weekday thật) → lệch pha tùy ý so với pha train. Ảnh hưởng định lượng nhỏ (< 6.2%, vì sin_weekly/cos_weekly của demand_params.json rất nhỏ — max ±0.023) nhưng không bằng 0 và không kiểm soát được. [ref: pricing-sidecar/main.py:98; dynamic-pricing-final/src/env/market_env.py:132; dynamic-pricing-final/data/params/demand_params.json (sin_weekly/cos_weekly); ledger t0.9-fixes, t0.10-thesis-limitations]
 
@@ -654,7 +654,7 @@ Các chỉ mục thật (đọc từ schema file):
 
 - Chatbot AI tư vấn (LLM) hỗ trợ Farm hỏi về giá cả/nhu cầu/mùa vụ
 
-- Khắc phục train↔serve forecaster: retrain ForecasterLSTM với obs_dim=10 (khớp env hiện tại) + cung cấp chuỗi lịch sử thật thay vì tile-21×, bổ sung eval offline chuẩn trước khi triển khai serve [ref: ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
+- Hoàn thiện forecaster serve: forecaster đã retrain obs_dim=10 khớp env (hết layout mismatch); bước tiếp theo là để backend lưu & cung cấp chuỗi lịch sử 21 ngày thật cho `/forecast` thay vì tile-21× steady-state, kèm eval offline chuẩn trước khi tin số serve [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations]
 
 - Bổ sung hệ thống gợi ý sản phẩm (hiện chưa có trong codebase — không có module recommender, không có endpoint gợi ý); đây là hướng phát triển tương lai, KHÔNG phải tính năng hiện tại [ref: ledger t1.4-no-recommender]
 

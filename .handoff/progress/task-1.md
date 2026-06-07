@@ -549,3 +549,9 @@ Không phát sinh claim mới ngoài ledger. Toàn bộ citation đã có entry 
 - Fix khi verify: §5.2(a) main.py 130→134-135 (drift số dòng); ADVISORY_MODE→PRICING_MODE; §2.4.3 BGR→RGB; §1.5 5→6 đóng góp; strip 2 dòng "BỎ:".
 - Số liệu: 13 module, 54/54 test, ~79 endpoint, ~48 màn hình, 10 collection, 1 sidecar.
 - ⚠️ KHÔNG ghi STATE.md (session khác sở hữu cho T0.13). Con trỏ: **Task 1 DONE → việc tiếp theo = Task 2** (T2.1 dàn ý thesis từ dany.md đã sửa).
+
+## T1.W — đồng bộ post-retrain forecaster obs_dim=10 (sau T0.13) ✅
+- Session Task 0 retrain xong: forecaster obs_dim=10 (checkpoint model_cfg obs_dim=10, lstm ih_l0=(512,10)); model.py default 11→10; layout mismatch 11≠10 HẾT; pad/slice main.py:134 nay no-op; chỉ còn giới hạn serve tile-21× (main.py:135).
+- Sửa dany.md 6 chỗ stale (§2.4.1 L149, §3.3.7a L341+L349, §4.4.2 eval L555, §5.2 L635, §5.3 L657): obs_dim 11→10; giới hạn forecaster mô tả lại = tile-21× steady-state (không còn layout mismatch/pad/index2).
+- Cập nhật dany.verify-report.md §4 + banner đầu dany.audit.md (post-retrain note).
+- Verify lại: checkpoint obs_dim=10 (chạy torch.load), model.py:9 obs_dim=10, main.py:135 tile. 0 false-claim residue.

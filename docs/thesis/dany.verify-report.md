@@ -21,7 +21,7 @@
 
 ## 3. 3 giới hạn BẮT BUỘC (ledger t0.10-thesis-limitations) — PASS
 `grep -c 'HẠN CHẾ BẮT BUỘC'` = **3**, đều ở §5.2:
-- (a) Forecaster train↔serve mismatch (pad-cuối + tile-21×) → `/forecast` xấp xỉ; dùng offline eval. [main.py:134-135]
+- (a) **[CẬP NHẬT post-retrain T0.13]** Forecaster đã retrain obs_dim=10 khớp env → layout mismatch 11≠10 HẾT; giới hạn còn lại CHỈ là serve tile-21× steady-state → `/forecast` xấp xỉ; dùng offline eval. [main.py:135; checkpoint obs_dim=10]
 - (b) DoW lệch pha serve (weekday thật vs t%7, <6.2%). [main.py:98 vs market_env.py:132]
 - (c) Freshness chỉ 2/4 model CoreML (leafy/herbs → root).
 Ngoài ra mỗi section AI/ML liên quan (§3.3.7a forecaster, §4.4.2 eval) đều nhắc lại giới hạn tương ứng.
