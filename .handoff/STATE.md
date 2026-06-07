@@ -3,9 +3,11 @@
 > Cập nhật mục "Việc tiếp theo" + commit TRƯỚC khi kết thúc mỗi phiên.
 
 ## Phase hiện tại
-**Task 0 ✅ DONE (gồm addendum retrain T0.11–T0.13) + Task 1 ✅ DONE. Việc tiếp theo = TASK 2.**
+**Task 0 ✅ DONE + Task 1 ✅ DONE. TASK 2 ĐANG CHẠY — đã xong nền tảng + Chương 1 + Chương 2; việc tiếp theo = CHƯƠNG 3 (T2.12).**
 
-> Cập nhật 2026-06-07: forecaster đã retrain obs_dim=10 (T0.13, checkpoint model_cfg obs_dim=10) — layout mismatch 11≠10 HẾT, chỉ còn giới hạn serve tile-21×. Task 1 đã convert+fact-check `docs/thesis/dany.md` trung thực 100% với code (xem `docs/thesis/dany.verify-report.md`).
+> Cập nhật 2026-06-07 (phiên Task 2 #1): đã chạy writing-plans (plan: `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md`) + subagent-driven-development. Đầu ra ở `docs/thesis/final/` (chia chương). ĐÃ XONG: T2.1 skeleton+STRUCTURE.md, T2.2 fact-pack ledger (5 entry nhóm Task 2), T2.3 23 diagram PlantUML (verify đối kháng PASS), T2.4-T2.5 Chương 1 (verify PASS), T2.6-T2.11 Chương 2 (verify PASS, §2.4 AI/ML resolve source 2 lần). 5 commit (eb7765d→c05f50c).
+
+> (Nền cũ) forecaster đã retrain obs_dim=10 (T0.13) — layout mismatch 11≠10 HẾT, chỉ còn giới hạn serve tile-21×. `docs/thesis/dany.md` = dàn ý đã fact-check 100% (NGUỒN nội dung Task 2).
 
 ### (Lịch sử) Task 0 addendum retrain — đã xong
 - Quyết định: retrain forecaster trên env-10 hiện tại (fix layout 11≠10 + version skew). Tiling-21× VẪN còn (cần backend history → document). Freshness leafy/herbs + dow KHÔNG fix được (thiếu data / vô nghĩa).
@@ -28,15 +30,21 @@
 Sidecar phục vụ dynamic-pricing-final: **định giá `/predict` trung thực** (sau fix comp_ratio), **dự báo `/forecast` có giới hạn** (forecaster train↔serve mismatch, giữ nguyên theo user → document trong thesis), freshness OK. Backend gửi đủ 9 field. Code fix: `pricing-sidecar/main.py` comp_ratio. Test mới: `tests/test_smoke_load.py`, `tests/test_coreml_freshness.py`.
 
 ## Việc tiếp theo
-Bắt đầu **TASK 2** — viết khoá luận hoàn chỉnh từ `docs/thesis/dany.md` (đã fact-check ở Task 1). Quy trình: writing-plans cho Task 2 → subagent-driven-development. Bắt đầu T2.1 (dàn ý đầy đủ từ dany.md), T2.2 (fact-pack CSDL/AI-ML/luồng → ledger), T2.3 (diagram PlantUML), rồi nở T2.4…N viết từng chương + fact-check, cuối cùng T2.V verify toàn văn.
-- INPUT chính: `docs/thesis/dany.md` (dàn-ý đã đúng + citation inline), `docs/thesis/dany.audit.md`, `docs/thesis/dany.verify-report.md`, `.handoff/claims-ledger.md` (tái dùng evidence).
-- BẮT BUỘC giữ 3 giới hạn `t0.10-thesis-limitations` (forecaster tile-21× steady-state [obs_dim=10, KHÔNG còn layout mismatch], dow <6.2%, freshness 2/4 model).
-- Ràng buộc: chân thực 100% với code; ưu tiên CSDL/AI-ML/diagram; tiếng Việt; diagram PlantUML; KHÔNG đụng dynamic-pricing-final/ (chỉ đọc).
+Tiếp tục **TASK 2** tại **CHƯƠNG 3** (file `docs/thesis/final/chuong-3-phan-tich-thiet-ke.md`, hiện CÒN NGUYÊN skeleton comment). Theo plan `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md`, dùng subagent-driven-development (implementer sonnet → verifier đối kháng độc lập → commit nhỏ). Chia 4 dispatch TUẦN TỰ (cùng 1 file, EDIT đúng cụm mục, tránh xung đột ghi):
+1. **T2.12-T2.16** §3.1, §3.2, §3.3.1-§3.3.6 (nghiệp vụ + kiến trúc + UC + mô tả 9 SD + 4 AD, tham chiếu các Hình .puml đã có). (Prompt dispatch này ĐÃ SOẠN sẵn — xem `.handoff/progress/task-2.md` mục "NEXT: prompt T2.12-T2.16" nếu muốn tái dùng.)
+2. **T2.17-T2.19** §3.3.7(a/b/c) AI/ML ⭐2-lớp (ForecasterLSTM obs_dim=10+giới hạn tile-21×; DDQN state10/11action/hyperparam/Safety 5 rule 3→4→1→2→5; CoreML 2 model+giới hạn 2/4).
+3. **T2.20-T2.21** §3.4 CSDL ⭐2-lớp (ERD + 10 collection chi tiết + index — resolve 10 schema file; tham chiếu `diagrams/erd.puml`).
+4. **T2.22** §3.5 giao diện (Consumer KHÔNG "xem gợi ý"; Farm GIỮ "gợi ý giá"/"quét tươi" THẬT).
+Sau Chương 3 → Chương 4 (T2.23-T2.28) → Chương 5+TLTK (T2.29-T2.30) → **T2.V verify toàn văn** (ghi `docs/thesis/final/VERIFY-REPORT.md`).
+
+- INPUT chính: `docs/thesis/dany.md` (dàn-ý đã đúng + citation inline — NGUỒN nội dung), `docs/thesis/final/STRUCTURE.md` (hợp đồng cấu trúc + số liệu canonical + 3 giới hạn), `.handoff/claims-ledger.md` (20 entry — TÁI DÙNG, đừng verify lại cái đã có).
+- BẮT BUỘC giữ 3 giới hạn `t0.10-thesis-limitations` (forecaster tile-21× steady-state [obs_dim=10, KHÔNG còn layout mismatch], dow <6.2%, freshness 2/4 model) — xuất hiện ở §5.2 + nhắc §3.3.7a/§4.4.2.
+- Ràng buộc: chân thực 100% với code; ưu tiên CSDL/AI-ML/diagram (2-lớp verify); tiếng Việt; mỗi câu kỹ thuật mang citation resolve được; KHÔNG đụng dynamic-pricing-final/, pricing-sidecar/, freshnessmodels/ (chỉ đọc).
 
 ## Task đang mở
 - Task 0: ✅ done toàn bộ (gồm retrain obs_dim=10).
 - Task 1: ✅ done toàn bộ (T1.1–T1.V + sync post-retrain). dany.md trung thực với code.
-- Task 2: ⏳ chưa bắt đầu — là việc tiếp theo.
+- Task 2: 🔄 ĐANG CHẠY. Done: T2.1, T2.2, T2.3(a-g), T2.4-T2.5 (Ch1), T2.6-T2.11 (Ch2). Tiếp theo: T2.12 (Ch3) → … → T2.V.
 
 ## T0.9 fix-backlog — ĐÃ XỬ LÝ (xem progress T0.9)
 - #1 comp_ratio: ✅ ĐÃ SỬA code (main.py:108-112) khớp env.

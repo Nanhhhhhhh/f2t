@@ -40,11 +40,21 @@ Plan: `docs/superpowers/plans/2026-06-07-task1-dany-md-convert-fix.md`. Audit: `
 
 > **TASK 1 DONE ✅ (2026-06-07).** Việc tiếp theo = **Task 2** (T2.1 dàn ý thesis từ `docs/thesis/dany.md` đã fact-check). (Không cập nhật STATE.md vì session khác đang sở hữu cho T0.13.)
 
-## TASK 2 — Viết thesis hoàn chỉnh (phiên sau)
+## TASK 2 — Viết thesis hoàn chỉnh (ĐANG CHẠY)
+Plan: `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md`. Đầu ra: `docs/thesis/final/` (chia chương) + `diagrams/*.puml`. Progress: `.handoff/progress/task-2.md`.
 | ID | Việc | Model | Dep | Status |
 |----|------|-------|-----|--------|
-| T2.1 | Dàn ý thesis đầy đủ | sonnet | T1.V | pending |
-| T2.2 | Fact pack: schema CSDL, AI/ML, luồng → ledger | sonnet | T2.1 | pending |
-| T2.3 | Diagram PlantUML (usecase/sequence/activity/ERD) | sonnet | T2.2 | pending |
-| T2.4…N | (động) Viết từng chương, fact-check | sonnet | T2.2/T2.3 | pending |
-| T2.V | Verify toàn văn độc lập | sonnet | T2.4…N | pending |
+| T2.1 | Skeleton 6 file chương + STRUCTURE.md (hợp đồng cấu trúc) | controller | T1.V | done (outline khớp 100%) |
+| T2.2 | Fact-pack ledger non-AI/non-CSDL (5 entry nhóm Task 2) | sonnet | T2.1 | done (seed khớp dany.md) |
+| T2.3a-g | 23 diagram PlantUML (ERD/deploy/FDD/usecase/SD×9/AD×4/net×2/business×2) | sonnet | T2.2 | done (verify đối kháng PASS, fix erd referenceId String) |
+| T2.4-T2.5 | Chương 1 GIỚI THIỆU prose | sonnet | T2.3 | done (verify PASS, 15 cit) |
+| T2.6-T2.11 | Chương 2 CƠ SỞ LÝ THUYẾT prose (§2.4 AI/ML ⭐) | sonnet | T2.3 | done (verify PASS, §2.4 resolve source) |
+| T2.12-T2.16 | Chương 3 phần 1: §3.1-§3.3.6 (nghiệp vụ+kiến trúc+UC+SD+AD) | sonnet | T2.3 | ⏳ NEXT |
+| T2.17-T2.19 ⭐ | Chương 3: §3.3.7 a/b/c AI/ML (2-lớp) | sonnet | T2.16 | pending |
+| T2.20-T2.21 ⭐ | Chương 3: §3.4 CSDL (ERD+10 collection+index, 2-lớp) | sonnet | T2.16 | pending |
+| T2.22 | Chương 3: §3.5 giao diện | sonnet | T2.16 | pending |
+| T2.23-T2.28 | Chương 4 TRIỂN KHAI (§4.4.2/3/4 eval AI/ML ⭐, không bịa số) | sonnet | T2.22 | pending |
+| T2.29-T2.30 | Chương 5 (3 giới hạn bắt buộc ⭐) + TLTK IEEE | sonnet | T2.28 | pending |
+| T2.V | Verify toàn văn độc lập → VERIFY-REPORT.md | sonnet/controller | T2.30 | pending |
+
+> Mỗi leaf-task: ledger-first (tái dùng 20 entry sẵn) → prose giữ citation inline → verify đối kháng độc lập (CSDL/AI-ML/diagram 2-lớp) → commit nhỏ. KHÔNG đụng code (chỉ đọc fact-check).

@@ -397,3 +397,26 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 | Thứ tự mục §2.1→§2.6 giữ nguyên như skeleton | ✅ PASS |
 | Văn phong học thuật tiếng Việt, đoạn văn liền mạch | ✅ PASS |
 | Độ dài ~12 trang (ước lượng) | ✅ PASS (~12 trang khi in A4 font 13) |
+
+---
+
+## NEXT (session sau): prompt dispatch T2.12-T2.16 — Chương 3 phần 1 (ĐÃ SOẠN, copy nguyên)
+
+> Dùng subagent-driven-development. Dispatch sonnet implementer với prompt dưới, rồi verifier đối kháng độc lập, rồi commit `task(T2.12-T2.16)`. Sau đó dispatch tiếp T2.17-T2.19 (§3.3.7 AI/ML 2-lớp), T2.20-T2.21 (§3.4 CSDL 2-lớp), T2.22 (§3.5). TẤT CẢ EDIT cùng file `chuong-3-phan-tich-thiet-ke.md` → chạy TUẦN TỰ, mỗi dispatch chỉ thay comment của cụm mục của nó.
+
+```
+[BỐI CẢNH] Dự án f2t, /Users/macos/f2t, branch feature/f2t-ml-verify-thesis. Task 2 viết khoá luận tiếng Việt. Bạn viết PROSE cho CHƯƠNG 3 PHẦN 1: §3.1, §3.2, §3.3.1→§3.3.6 (KHÔNG đụng §3.3.7, §3.4, §3.5).
+Đọc trước: docs/thesis/dany.md L193-333 (NGUỒN); docs/thesis/final/chuong-3-phan-tich-thiet-ke.md (skeleton — Edit thay comment ĐÚNG các mục §3.1/§3.2/§3.3.1-§3.3.6, GIỮ heading, KHÔNG sửa §3.3.7/§3.4/§3.5); docs/thesis/final/STRUCTURE.md; .handoff/claims-ledger.md (t1.4-one-sidecar, t1.4-no-recommender, t1.4-interceptor-cron, t1.4-forecaster-not-holt, t1.4-safety-5-rules, t2.2-stripe-ghn, t2.2-security). Diagram đã có trong docs/thesis/final/diagrams/ — prose phải tham chiếu "xem Hình <tên>.puml".
+[NHIỆM VỤ] Nở prose học thuật cho: §3.1.1 (Hình business-process-current), §3.1.2 (Hình business-process-f2t; luồng AI interceptor nhãn tươi+giá động, KHÔNG gợi ý SP [ref: dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron, t1.4-no-recommender]), §3.1.3 ba tác nhân; §3.2.1 (Consumer 8 KHÔNG "xem gợi ý"; Farm 7 GIỮ "gợi ý giá" THẬT; Admin 5); §3.2.2 NFR 6 tiêu chí (JWT/bcrypt [ledger t2.2-security]); §3.2.3 FDD (Hình fdd-functional-decomposition; AI/ML 3 chức năng [ledger t1.4-no-recommender; main.py:263,277,316]); §3.3.1 (Hình deployment-architecture; 1 sidecar 3 endpoint+graceful [app.module.ts:57; ledger t1.4-one-sidecar]); §3.3.2 (Hình usecase-overview; UC-01..06); §3.3.3 (Hình usecase-aiml; ĐÚNG 2 UC-ML [demand-forecasting.service.ts:43; main.py:277; ledger t1.4-no-recommender]); §3.3.4 đặc tả 6 UC (Đăng ký/Đặt hàng/Stripe/GHN/Định giá/Dự báo); §3.3.5 mô tả 9 SD (6 ecommerce sd-01..06 + 3 SD-ML: cron "0 * * * *" [pricing-tick.cron.ts:18], forecast [main.py:263], định giá [main.py:277; safety.py:1-19]) "3 biểu đồ AI"; §3.3.6 mô tả AD-01 (7 trạng thái enum đúng)/AD-02/AD-ML-01 [main.py:128-145]/AD-ML-02 (Safety 5 rule 3→4→1→2→5 [safety.py:1-19]).
+[QUY TẮC] Câu kỹ thuật → citation inline (lấy từ dany.md). Mỗi mô tả biểu đồ dẫn "xem Hình <file>.puml". KHÔNG: recommender/gợi ý SP (trừ "gợi ý GIÁ" Farm là THẬT), Holt/EWMA, 3 sidecar/8001/8002, UC/SD/AD recommender, "5 biểu đồ AI". Nguồn ngoài → [TLTK].
+[ĐẦU RA] Edit chuong-3 (chỉ §3.1-§3.3.6). Append "## T2.12-T2.16 ✅" vào .handoff/progress/task-2.md (citation + checklist).
+[DONE] §3.1-§3.3.6 đầy đủ; 2 UC AI; 3 SD AI; Safety 3→4→1→2→5; §3.3.7/§3.4/§3.5 còn nguyên comment. Self-review.
+[CẤM] Không sửa §3.3.7/§3.4/§3.5, không bịa nguồn, không sửa code, không đổi citation.
+[REPORT] Status + checklist.
+```
+
+### Lưu ý quan trọng cho session sau
+- `.handoff/claims-ledger.md` hiện có **20 entry** (15 Task 0/1 + 5 Task 2). TÁI DÙNG — đừng verify lại cái đã có entry. Nếu phát hiện fact thiếu ledger khi viết → nạp bổ sung (ledger-first).
+- Ghi chú từ T2.2/T2.3: Dijkstra (delivery.service.ts:131) là **fallback demo** graph 10 node HCMC hardcoded, KHÔNG phải routing production → §3.3.5 SD-06 + §5.2 trình bày rõ. Stripe chỉ ở backend + WebView (frontend không có @stripe/stripe-react-native).
+- §4.4.2/3/4 + eval: KHÔNG bịa số MAE/AUROC/accuracy/doanh thu cụ thể (chưa chạy eval) — trình bày phương pháp + bảng khung. 3 paper (Nassibi 2023/Xue 2025/Kayikci 2022) là [TLTK] giữ nguyên.
+- §5.2 BẮT BUỘC `grep -c "HẠN CHẾ BẮT BUỘC"` ≥3, trạng thái post-retrain (forecaster tile-21× obs_dim=10 — KHÔNG ghi obs_dim=11/layout mismatch).
