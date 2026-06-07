@@ -725,3 +725,46 @@ Quy trình mỗi leaf-task: ledger-first → viết prose (giữ citation inline
 3. Sửa citation `notification_preferences.userId` L20-25 → L20-26 (userId field thực ở L26).
 
 **Done-gate T2.20-T2.21 (post-fix): PASS** → commit task(T2.20-T2.21).
+
+## T2.22 — §3.5 Giao diện chức năng ✅
+
+**File đích:** `docs/thesis/final/chuong-3-phan-tich-thiet-ke.md` — §3.5.1, §3.5.2, §3.5.3 (dòng 638–691)
+
+### Citation chính
+
+| Section | Claim | Citation |
+|---|---|---|
+| §3.5.1 Trang chủ | DynamicPricingInterceptor bổ sung 3 trường | `f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77` |
+| §3.5.1 Tìm kiếm địa lý | Chỉ mục 2dsphere MongoDB | `f2t-backend/src/modules/farms/schemas/farm.schema.ts:L113; ledger t1.11-schema-detail` |
+| §3.5.1 Checkout | Stripe createCheckoutSession + webhook | `f2t-backend/src/modules/payments/payments.service.ts:54-118; ledger t2.2-stripe-ghn` |
+| §3.5.1 Tracking | GHN + Dijkstra fallback | `f2t-backend/src/modules/delivery/delivery.service.ts:98-232; ledger t2.2-stripe-ghn` |
+| §3.5.2 ★ Dashboard | ForecasterLSTM /forecast → demand+waste_logit | `pricing-sidecar/main.py:263; dynamic-pricing-final/src/forecaster/model.py:46-49; ledger t0.2-forecaster-arch` |
+| §3.5.2 ★ Quét tươi | Camera → CoreML 2 model (fruit/root) nhị phân | `pricing-sidecar/main.py:314, 321-326; ledger t0.6-coreml-freshness, t1.4-freshness-coreml` |
+| §3.5.2 ★ Gợi ý giá | DDQN → Safety Layer 5 rule → advisory | `pricing-sidecar/safety.py:1-19; f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:289-291; ledger t1.4-safety-5-rules` |
+| §3.5.2 Vòng đời giá | shadow→pending_review→accepted/rejected→expired | `f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:17-63; ledger t1.4-collections` |
+| §3.5.3 Duyệt farm | verificationStatus (pending/verified/rejected) | `f2t-backend/src/modules/farms/schemas/farm.schema.ts:L50-108; ledger t1.11-schema-detail` |
+| §3.5.3 ★ Shadow Report | GET /dynamic-pricing/shadow-report → shadowDays+safetyClipRate | `f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.controller.ts:78-84; dynamic-pricing.service.ts:379-405` |
+
+### Checklist Done-gate
+
+- [x] Consumer 0 từ cấm: grep `For-You|gợi ý sản phẩm|sản phẩm tương tự|cross.sell|recommender|collaborative|cosine` trong §3.5 = **0 kết quả** (trừ citation ledger t1.4-no-recommender trong cùng file ở §3.1-§3.2 — nằm ngoài §3.5, không vi phạm)
+- [x] Farm ★ Quét độ tươi GIỮ (camera → CoreML 2 model, nhị phân fresh/rotten) — chức năng THẬT, có trong `price-suggestions.tsx` + backend `dynamic-pricing.controller.ts:33`
+- [x] Farm ★ Gợi ý giá GIỮ (DDQN → Safety Layer → advisory, Farm chấp nhận/từ chối) — chức năng THẬT, vòng đời 5 trạng thái từ schema
+- [x] Admin ★ Shadow Report GIỮ (GET /dynamic-pricing/shadow-report, shadowDays, safetyClipRate) — endpoint thật từ `dynamic-pricing.controller.ts:78-84`
+- [x] §3.1–§3.4 không bị đụng — grep heading xác nhận: §3.1.1/3.1.2/3.1.3, §3.2.1/3.2.2/3.2.3, §3.3.1–§3.3.7, §3.4.1/3.4.2/3.4.3 toàn bộ nguyên vẹn
+- [x] Prose tiếng Việt học thuật, câu kỹ thuật có citation inline, không bịa màn hình/route
+- [x] §3.5.1 = 7 màn hình nhóm Consumer; §3.5.2 = 6 màn hình nhóm Farm (3 AI ★); §3.5.3 = 5 màn hình nhóm Admin (1 AI ★)
+
+**Done-gate T2.22: PASS** → Controller verify → commit.
+
+### T2.22 — VERIFY (controller, 1-lớp resolve theo STRUCTURE.md)
+
+**Kết luận: PASS.** Resolve các claim mới:
+- 5 file frontend tồn tại: forecast-insights.tsx, price-suggestions.tsx, dashboard.tsx, home.tsx, admin/index.tsx ✅
+- Shadow Report endpoint THẬT: `dynamic-pricing.controller.ts:78` `@Get("shadow-report") @UseGuards(AdminGuard)` ✅
+- `getShadowReport` trả `shadowDays` (service.ts:384,405) + `safetyClipRate` (service.ts:388,408) ✅
+- Consumer: mọi nhắc "gợi ý/recommender" là PHỦ ĐỊNH trung thực (ledger t1.4-no-recommender) — 0 màn For-You/cross-sell ✅
+- Farm GIỮ ★Quét tươi + ★Gợi ý giá (chức năng THẬT) ✅; Admin ★Shadow Report ✅
+- §3.1-§3.4 nguyên vẹn (27 heading) ✅
+
+**Done-gate T2.22: PASS** → commit task(T2.22). **CHƯƠNG 3 HOÀN TẤT (T2.12→T2.22).**

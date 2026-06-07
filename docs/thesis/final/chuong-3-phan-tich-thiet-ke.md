@@ -638,10 +638,53 @@ Chiến lược chỉ mục của F2T được thiết kế theo bốn nhóm ch�
 ## 3.5. Phân tích, thiết kế giao diện chức năng
 
 ### 3.5.1. Consumer
-<!-- T2.22: dany.md L481; ledger t1.4-no-recommender, t2.2-frontend-routes -->
+
+Nhóm giao diện dành cho Consumer được tổ chức theo luồng nghiệp vụ tuyến tính: khám phá sản phẩm → đặt hàng → thanh toán → theo dõi giao hàng → tương tác cộng đồng. Toàn bộ nhóm này được xây dựng trên Expo Router với file-system routing, chiếm phần lớn trong tổng số ≈48 màn hình route của ứng dụng [ref: ledger t1.15-numbers, t2.2-frontend-routes].
+
+**Trang chủ và danh sách sản phẩm** (`(app)/home.tsx`, `(app)/products.tsx`) là điểm vào chính của Consumer. Màn hình này thực hiện truy vấn sản phẩm thông thường lên NestJS REST API; không có thuật toán gợi ý hay cá nhân hóa nào được nhúng vào tầng này [ref: ledger t1.4-no-recommender]. Điểm đặc trưng của F2T nằm ở phía backend: `DynamicPricingInterceptor` đăng ký toàn cục dưới dạng `APP_INTERCEPTOR` tự động bổ sung ba trường `dynamicPrice`, `freshnessScore` và `priceTag` vào mỗi phần tử sản phẩm trong phản hồi API trước khi trả về client [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77]. Nhờ đó, màn hình danh sách hiển thị trực tiếp nhãn độ tươi (fresh / aging / critical) và giá động cập nhật theo chu kỳ cron hàng giờ mà không cần thêm bất kỳ logic phía client nào.
+
+**Màn hình chi tiết sản phẩm** (`products/[id].tsx`) trình bày đầy đủ thông tin một mặt hàng, trong đó ba trường AI được ưu tiên hiển thị nổi bật: `freshnessScore` (điểm tươi 0–1 từ CoreML), `dynamicPrice` (giá đề xuất sau Safety Layer) và `priceTag` (nhãn phân loại giá). Consumer có thể thêm sản phẩm vào giỏ hàng trực tiếp từ màn hình này.
+
+**Tìm kiếm theo vị trí địa lý** (`farms/search.tsx`, `(app)/farms.tsx`) cho phép Consumer lọc trang trại và sản phẩm trong một bán kính địa lý nhất định. Truy vấn được thực hiện thông qua chỉ mục 2dsphere trên collection `farms` trong MongoDB, đảm bảo hiệu năng với dữ liệu địa lý thực [ref: f2t-backend/src/modules/farms/schemas/farm.schema.ts:L113; ledger t1.11-schema-detail].
+
+**Giỏ hàng** (`(app)/cart.tsx`) quản lý danh sách sản phẩm đã chọn, cho phép điều chỉnh số lượng và hiển thị tổng giá trị đơn hàng bao gồm phí giao hàng ước tính. Từ màn hình này, Consumer chuyển sang luồng thanh toán.
+
+**Checkout và thanh toán** (`checkout/index.tsx`, `checkout/success.tsx`) tích hợp Stripe Checkout Session: backend tạo session với danh sách line_items từ đơn hàng rồi trả về `url` redirect; frontend mở Stripe WebView để Consumer hoàn tất thanh toán; kết quả xác nhận được backend nhận qua webhook [ref: f2t-backend/src/modules/payments/payments.service.ts:54-118; ledger t2.2-stripe-ghn]. Màn hình `payment/result.tsx` hiển thị trạng thái thành công hoặc lỗi sau khi Stripe redirect.
+
+**Theo dõi đơn hàng** (`(app)/orders/index.tsx`, `(app)/orders/[id].tsx`, `(app)/orders/tracking.tsx`) cho phép Consumer xem lịch sử và trạng thái chi tiết từng đơn. Khi đơn hàng đã có mã vận đơn GHN, màn hình tracking hiển thị thông tin từ GHN Provider; trong trường hợp chưa có mã GHN, hệ thống fallback về Dijkstra trên đồ thị 10 node TP.HCM để ước tính lộ trình [ref: f2t-backend/src/modules/delivery/delivery.service.ts:98-232; ledger t2.2-stripe-ghn].
+
+**Hồ sơ cá nhân** (`(app)/profile.tsx`, `(app)/profile/edit.tsx`) cho phép Consumer xem và chỉnh sửa thông tin tài khoản, bao gồm địa chỉ giao hàng nhúng trực tiếp trong document user [ref: f2t-backend/src/modules/users/schemas/user.schema.ts:L20-97; ledger t1.11-schema-detail].
+
+**Feed cộng đồng** (`(app)/feed.tsx`, `feed/[id].tsx`, `feed/add-post.tsx`) là không gian chia sẻ bài đăng giữa người dùng trên nền tảng. Đây là chức năng cộng đồng thuần túy dựa trên collection `posts`; hệ thống không triển khai bất kỳ cơ chế gợi ý sản phẩm, lọc cộng tác hay cá nhân hóa nào [ref: ledger t1.4-no-recommender].
 
 ### 3.5.2. Farm
-<!-- T2.22: dany.md L483; quét tươi + gợi ý giá THẬT -->
+
+Nhóm giao diện dành cho Farm Owner tập trung vào ba chức năng cốt lõi: quản lý catalog sản phẩm, xử lý đơn hàng và tiếp nhận hỗ trợ từ hệ thống AI/ML. Ba màn hình tích hợp AI — ★ Dashboard dự báo, ★ Quét độ tươi và ★ Gợi ý giá — là điểm khác biệt rõ nét nhất của nền tảng F2T so với các giải pháp thương mại điện tử truyền thống.
+
+**★ Dashboard và dự báo nhu cầu** (`(app)/dashboard.tsx`, `(app)/farm/forecast-insights.tsx`) là màn hình tổng quan dành cho Farm Owner. Điểm nổi bật là biểu đồ dự báo nhu cầu 7 ngày tới do `ForecasterLSTM` tính toán và trả về qua endpoint `/forecast` của pricing-sidecar [ref: pricing-sidecar/main.py:263; ledger t0.2-forecaster-arch]. Ngoài chỉ số nhu cầu dự kiến (`demand`), model còn trả về `waste_logit` — xác suất tồn kho hư hỏng — được hiển thị bằng màu cảnh báo để Farm chủ động điều chỉnh lượng xuất hàng [ref: dynamic-pricing-final/src/forecaster/model.py:46-49; ledger t0.2-forecaster-arch]. Dữ liệu được phân loại theo bốn danh mục sản phẩm: rau lá (leafy), củ (root), quả (fruit) và rau thơm (herbs) [ref: f2t-frontend/src/app/(app)/farm/forecast-insights.tsx].
+
+**★ Quét độ tươi** (tích hợp trong `(app)/farm/price-suggestions.tsx`) là chức năng cho phép Farm Owner chụp ảnh sản phẩm trực tiếp từ camera thiết bị, sau đó gửi ảnh lên backend để phân loại độ tươi bằng hai mô hình CoreML (fruit model và root model, ảnh đầu vào 299×299 RGB). Backend trả về nhãn nhị phân `fresh` hoặc `rotten` kèm xác suất tương ứng; kết quả được lưu vào `FreshnessCache` và dùng làm đầu vào cho chu kỳ định giá động tiếp theo [ref: pricing-sidecar/main.py:314, 321-326; ledger t0.6-coreml-freshness, t1.4-freshness-coreml]. Ngoài luồng camera, màn hình cũng hỗ trợ nhập điểm tươi thủ công qua các preset định sẵn (fresh/aging/critical) để Farm Owner có thể kiểm thử đề xuất giá mà không cần thiết bị camera.
+
+**★ Gợi ý giá** (`(app)/farm/price-suggestions.tsx`) hiển thị danh sách đề xuất delta giá từ mô hình DDQN (`SharedMLPDuelingQNet`) sau khi đã qua Safety Layer 5 quy tắc [ref: pricing-sidecar/safety.py:1-19; ledger t1.4-safety-5-rules]. Với mỗi sản phẩm, màn hình trình bày: giá gốc, giá đề xuất, delta phần trăm và trạng thái hiện tại (`shadow` / `pending_review`). Farm Owner có toàn quyền chấp nhận (`accepted`) hoặc từ chối (`rejected`) từng đề xuất — hệ thống hoạt động ở chế độ **advisory**, không ép giá tự động [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:289-291; ledger t1.4-interceptor-cron]. Vòng đời đề xuất gồm năm trạng thái: `shadow → pending_review → accepted/rejected → expired` [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:17-63; ledger t1.4-collections].
+
+**Quản lý sản phẩm** (`products/add.tsx`, `products/[id]/edit.tsx`, `(app)/inventory/index.tsx`) cung cấp đầy đủ các thao tác CRUD: thêm mới sản phẩm kèm ảnh, chỉnh sửa thông tin (đơn giá, số lượng, mô tả), và xem tồn kho hiện tại. Trường `availableQuantity` được backend sử dụng trực tiếp để tính `inventory_ratio` trong vector quan sát của DDQN [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:228; ledger t0.7-backend-payload].
+
+**Quản lý đơn hàng** (`(app)/farm/orders/index.tsx`, `(app)/farm/orders/[id].tsx`) cho phép Farm Owner xem danh sách đơn hàng theo trạng thái, xem chi tiết từng đơn và cập nhật trạng thái xử lý. Thông tin sản phẩm trong đơn hàng được lưu theo mô hình Embedded Snapshot nên Farm Owner xem được đúng giá và thông tin tại thời điểm đặt hàng [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L6-34; ledger t1.11-schema-detail].
+
+**Thống kê** (`(app)/farm/analytics.tsx`) cung cấp số liệu tổng hợp về doanh thu, số đơn hàng và đánh giá của trang trại, hỗ trợ Farm Owner đưa ra quyết định kinh doanh.
 
 ### 3.5.3. Admin
-<!-- T2.22: dany.md L485 -->
+
+Nhóm giao diện Admin tập trung vào bốn nhiệm vụ vận hành chính: kiểm soát chất lượng nhà cung cấp, quản lý người dùng, giám sát hệ thống AI định giá và quản lý nội dung. Admin truy cập thông qua route group riêng biệt (`admin/`) với quyền hạn cao nhất trên nền tảng [ref: f2t-frontend/src/app/admin/; ledger t2.2-frontend-routes].
+
+**Dashboard tổng quan** (`admin/index.tsx`) hiển thị các chỉ số vận hành cốt lõi lấy từ `AdminAnalytics` endpoint: tổng số người dùng, tổng trang trại, tổng đơn hàng, doanh thu tích lũy, số người dùng mới trong tháng và phân bổ đơn hàng theo trạng thái. Dashboard cũng trình bày `farmsByVerification` — phân bổ trang trại theo `verificationStatus` — cho phép Admin nắm bắt nhanh số lượng trang trại đang chờ duyệt [ref: f2t-frontend/src/app/admin/index.tsx:106-115]. Từ dashboard, Admin điều hướng trực tiếp đến các màn hình chức năng qua ba nút nhanh: Users, Farms, Orders.
+
+**Duyệt trang trại** (`admin/farms.tsx`) là màn hình kiểm soát chất lượng nhà cung cấp. Admin xem danh sách trang trại kèm `verificationStatus` (pending / verified / rejected), có thể lọc theo trạng thái và thực hiện phê duyệt hoặc từ chối hồ sơ đăng ký. Chỉ các trang trại có trạng thái `verified` mới có thể đăng sản phẩm và tiếp nhận đơn hàng từ Consumer. Cơ chế này đảm bảo chất lượng và tính xác thực của nhà cung cấp trên nền tảng [ref: f2t-backend/src/modules/farms/schemas/farm.schema.ts:L50-108; ledger t1.11-schema-detail].
+
+**Quản lý người dùng** (`admin/users.tsx`) cho phép Admin xem danh sách tài khoản người dùng theo vai trò (consumer / farm / admin) và thực hiện ban (cấm vĩnh viễn) hoặc suspend (tạm khóa) tài khoản vi phạm. Trạng thái tài khoản `suspended` được phản ánh trực tiếp trong field `status` của schema `users` [ref: f2t-backend/src/modules/users/schemas/user.schema.ts:L20-97; ledger t1.11-schema-detail]. Tài khoản seed thử nghiệm bao gồm một tài khoản `suspended@f2t.vn` minh họa trạng thái này [ref: f2t-backend/src/seed/seed.ts:116-135; ledger t2.2-seed].
+
+**★ Shadow Report** (truy cập qua `admin/index.tsx` → endpoint `GET /dynamic-pricing/shadow-report`) là màn hình giám sát chuyên biệt cho hệ thống định giá AI ở chế độ shadow/advisory. Khi biến môi trường `PRICING_MODE=shadow` (mặc định), mọi đề xuất giá từ DDQN được ghi vào MongoDB với status `shadow` mà không tự động áp dụng — Admin có thể theo dõi toàn bộ hành vi mô hình qua endpoint `GET /dynamic-pricing/shadow-report` [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.controller.ts:78-84]. Report tổng hợp các chỉ số KPI: số ngày hoạt động shadow (`shadowDays`), tỷ lệ Safety Layer can thiệp (`safetyClipRate`) — tức tỷ lệ đề xuất bị Safety Layer điều chỉnh lại trước khi ghi — và phân bổ đề xuất theo trạng thái [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:379-405]. Chức năng này cho phép Admin đánh giá mức độ tin cậy và an toàn của mô hình AI trước khi quyết định chuyển sang chế độ `pending_review` (Farm có thể duyệt) hoặc áp dụng tự động.
+
+**Quản lý đơn hàng** (`admin/orders.tsx`) cung cấp cho Admin tầm nhìn toàn hệ thống về đơn hàng, cho phép tra cứu, lọc theo trạng thái và can thiệp vào các đơn có vấn đề.
+
+**Thống kê hệ thống** được tích hợp vào dashboard tổng quan và có thể mở rộng thêm theo nhu cầu vận hành. Các số liệu nền tảng hiện tại bao gồm phân bổ người dùng theo vai trò, phân bổ đơn hàng theo trạng thái và tổng doanh thu, phục vụ công tác báo cáo và đưa ra quyết định vận hành của đội ngũ quản trị.
