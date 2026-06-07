@@ -372,7 +372,59 @@ Thiết kế thứ tự 3 → 4 → 1 → 2 → 5 có chủ đích: Rule 3 thu h
 Qua bảng so sánh, đóng góp kỹ thuật đặc trưng của F2T so với ba nghiên cứu nêu trên là sự kết hợp giữa **học tăng cường đa danh mục** (DDQN với không gian hành động 11 mức) và **Safety Layer bắt buộc** (5 quy tắc cứng áp theo thứ tự xác định). Nassibi et al. (2023) [TLTK] không có thành phần định giá — F2T mở rộng thêm cơ chế đề xuất giá DDQN trên cơ sở tương tự về dự báo cầu. Xue et al. (2025) [TLTK] định giá theo co giãn giá tuyến tính — F2T thay thế bằng RL học trực tiếp từ mô phỏng mà không cần ước lượng elasticity riêng biệt. Kayikci et al. (2022) [TLTK] có cơ chế giảm giá động theo hạn sử dụng nhưng chưa có lớp kiểm soát cứng bảo vệ tính hợp lệ tài chính — F2T bổ sung Safety Layer 5 quy tắc đảm bảo giá luôn nằm trong biên hợp lệ trước khi trả về cho NestJS [ref: pricing-sidecar/safety.py:1-23; ledger t1.4-safety-5-rules].
 
 ### 4.4.4. Đánh giá phân loại độ tươi
-<!-- T2.28 ⭐2-lớp: dany.md L589-599; Confusion Matrix 2×2 + giới hạn 2/4; KHÔNG bịa số; ledger t0.6-coreml-freshness, t0.10 -->
+
+#### Tổng quan mô hình và phương pháp đánh giá
+
+Hệ thống phân loại độ tươi của F2T sử dụng **hai mô hình CoreML nhị phân** được huấn luyện qua Apple Create ML: `MyFreshnessClassifier-fruit.mlmodel` phục vụ danh mục `fruit`, và `MyFreshnessClassifier-root.mlmodel` phục vụ các danh mục `root`, `leafy`, và `herbs` [ref: pricing-sidecar/main.py:316-333; ledger t0.6-coreml-freshness, t1.4-freshness-coreml]. Mỗi mô hình thực hiện **phân loại nhị phân hai lớp** (fresh / rotten), trả về cấu trúc output dạng `{target: "fresh"/"rotten", targetProbability: {fresh: float, rotten: float}}` [ref: pricing-sidecar/main.py:329-330; ledger t0.6-coreml-freshness].
+
+Trước khi đưa vào mô hình, ảnh đầu vào được chuẩn hóa về kích thước 299×299 pixel, chuyển sang không gian màu RGB thông qua lời gọi `.convert("RGB").resize((299, 299))`, sau đó truyền trực tiếp vào `model.predict({"image": img})` [ref: pricing-sidecar/main.py:324-325; ledger t0.6-coreml-freshness, t0.9-fixes]. Logic định tuyến model được thực hiện tại dòng 318: nếu `req.category in ("fruit", "fruits")` thì `model_key = "fruit"`, ngược lại `model_key = "root"` [ref: pricing-sidecar/main.py:318].
+
+#### Định nghĩa chỉ số đánh giá
+
+Bài toán nhị phân fresh/rotten được đánh giá theo bộ chỉ số tiêu chuẩn cho phân loại hai lớp, lấy lớp `fresh` làm **positive**:
+
+- **True Positive (TP):** mô hình dự đoán `fresh`, nhãn thật `fresh`.
+- **False Positive (FP):** mô hình dự đoán `fresh`, nhãn thật `rotten`.
+- **False Negative (FN):** mô hình dự đoán `rotten`, nhãn thật `fresh`.
+- **True Negative (TN):** mô hình dự đoán `rotten`, nhãn thật `rotten`.
+
+Từ các ô trên, các chỉ số tổng hợp được tính như sau:
+
+$$\text{Accuracy} = \frac{TP + TN}{TP + FP + FN + TN}$$
+
+$$\text{Precision} = \frac{TP}{TP + FP}$$
+
+$$\text{Recall} = \frac{TP}{TP + FN}$$
+
+$$\text{F1-score} = \frac{2 \times \text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}$$
+
+Thời gian suy luận (inference time) được đo bằng đơn vị mili-giây cho một lần gọi `model.predict({"image": img})` với ảnh 299×299 RGB, phản ánh độ trễ thực tế của pipeline phân loại khi tích hợp vào sidecar FastAPI [ref: pricing-sidecar/main.py:324-325].
+
+#### Bảng 4.10 — Confusion Matrix 2×2 (khung chờ điền)
+
+|  | **Dự đoán: fresh** | **Dự đoán: rotten** |
+|---|---|---|
+| **Thực tế: fresh** | TP = — | FN = — |
+| **Thực tế: rotten** | FP = — | TN = — |
+
+*Ghi chú: Các ô TP/FP/FN/TN sẽ được điền sau khi chạy đánh giá trên tập test. Bảng áp dụng cho từng mô hình (fruit model và root model) riêng biệt.*
+
+#### Bảng 4.11 — Chỉ số phân loại độ tươi (khung chờ điền)
+
+| Mô hình | Accuracy | Precision | Recall | F1-score | Inference time (ms) |
+|---|---|---|---|---|---|
+| fruit model (`MyFreshnessClassifier-fruit.mlmodel`) | — | — | — | — | — |
+| root model (`MyFreshnessClassifier-root.mlmodel`) | — | — | — | — | — |
+
+*Ghi chú: Tất cả chỉ số sẽ được điền sau khi thực hiện đánh giá trên tập test có sẵn. Inference time đo trên môi trường macOS với ảnh 299×299 RGB.*
+
+#### Giới hạn của mô hình phân loại độ tươi
+
+Hệ thống hiện có hai giới hạn kỹ thuật cần lưu ý trong đánh giá [ref: ledger t0.10-thesis-limitations, t1.4-freshness-coreml]:
+
+**Giới hạn 1 — Chỉ 2/4 danh mục có mô hình riêng:** F2T phân loại sản phẩm thành bốn danh mục (`fruit`, `root`, `leafy`, `herbs`), nhưng chỉ có hai mô hình CoreML (`fruit.mlmodel` và `root.mlmodel`). Hai danh mục `leafy` và `herbs` được xử lý bằng cách dùng chung `root.mlmodel` làm xấp xỉ [ref: pricing-sidecar/main.py:318]. Điều này có thể làm giảm độ chính xác phân loại cho các sản phẩm rau lá và thảo mộc do đặc trưng thị giác khác biệt so với củ/rễ.
+
+**Giới hạn 2 — Không có training script và dataset tự thu thập:** Hai mô hình CoreML được huấn luyện hoàn toàn qua giao diện đồ họa Apple Create ML; không có training script `.py` hay pipeline huấn luyện cho mô hình phân loại ảnh trong repository F2T (khác với hai mô hình DDQN và ForecasterLSTM vốn có script huấn luyện riêng trong `dynamic-pricing-final/src/`) [ref: ledger t0.10-thesis-limitations, t1.4-freshness-coreml]. Ngoài ra, dự án không tự thu thập dataset rau củ Việt Nam — đánh giá hiệu năng phụ thuộc vào tập test có sẵn đi kèm với mô hình. Đây là điểm khác biệt quan trọng so với các hệ thống nghiên cứu có toàn bộ pipeline huấn luyện–đánh giá được tái lập hoàn toàn.
 
 ### 4.4.5. Demo sản phẩm
 

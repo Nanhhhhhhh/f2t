@@ -3,12 +3,21 @@
 > Cập nhật mục "Việc tiếp theo" + commit TRƯỚC khi kết thúc mỗi phiên.
 
 ## Phase hiện tại
-**Task 0 ✅ DONE + Task 1 ✅ DONE. TASK 2 ĐANG CHẠY — đã xong nền tảng + Chương 1 + Chương 2 + CHƯƠNG 3; việc tiếp theo = CHƯƠNG 4 (T2.23).**
+**Task 0 ✅ DONE + Task 1 ✅ DONE. TASK 2 ĐANG CHẠY — đã xong nền tảng + Chương 1 + Chương 2 + CHƯƠNG 3 + CHƯƠNG 4; việc tiếp theo = CHƯƠNG 5 (T2.29) + TLTK (T2.30) → T2.V.**
+
+> Cập nhật 2026-06-07 (phiên Task 2 #3): hoàn tất CHƯƠNG 4 (T2.23→T2.28) bằng subagent-driven-development, 6 dispatch tuần tự (implementer sonnet → verifier đối kháng độc lập; §4.4.2/3/4 verify 2-lớp AI/ML → controller fix → commit nhỏ). Tất cả PASS:
+> - T2.23 §4.1+§4.2 (PASS; 13 module/1 sidecar 8000/3 endpoint; cron "0 * * * *"; PriceOverride 5 trạng thái; seed 10 user số thật).
+> - T2.24 §4.3 (PASS; 54/54 test / 21 spec đếm thật; Stripe 7 + GHN/Dijkstra 7 case resolve tại spec — KHÔNG dùng "4 case" sai của dany.md; KHÔNG overclaim tsc 0 lỗi).
+> - T2.25 §4.4.1+§4.4.5 (REJECT→fix→PASS; demo 8 caption 0 recommender; SỬA Hình 4.8: Shadow Report = endpoint backend controller.ts:78 CHƯA tích hợp UI mobile, KHÔNG phải màn hình admin).
+> - T2.26 ⭐2-lớp §4.4.2 (PASS; eval.py MAE/day+AUROC+isotonic+per-category; bảng khung 0 số bịa; giới hạn tile-21× obs_dim=10; SỬA Naive = baseline ĐỀ XUẤT chưa hiện thực trong eval.py).
+> - T2.27 ⭐2-lớp §4.4.3 (PASS; market_env EPISODE_LEN=91, 11 action, safety clip rate, sim revenue/waste bảng khung 0 số bịa; Safety 5 rule 3→4→1→2→5 ngưỡng đúng; 3 paper TLTK định tính).
+> - T2.28 ⭐2-lớp §4.4.4 (PASS; 2 model CoreML nhị phân fruit/root; Confusion Matrix 2×2 KHÔNG 4×4; bảng khung 0 số bịa; giới hạn 2/4 model + không training script ảnh).
+> Chương 4 (`docs/thesis/final/chuong-4-trien-khai-thuc-nghiem.md`) KHÔNG còn skeleton comment; **0 số eval bịa toàn chương** (mọi MAE/AUROC/accuracy/doanh thu để "—" bảng khung).
 
 > Cập nhật 2026-06-07 (phiên Task 2 #2): hoàn tất CHƯƠNG 3 (T2.12→T2.22) bằng subagent-driven-development, 4 dispatch tuần tự (implementer sonnet → verifier đối kháng độc lập → controller fix → commit). Tất cả PASS:
 > - T2.12-T2.16 §3.1-§3.3.6 (verify PASS; fix citation GHN/cron/port + sửa trung thực Redis = cache dự báo, KHÔNG phải hàng đợi thông báo). Commit 578b412.
-> - T2.17-T2.19 §3.3.7 AI/ML ⭐2-lớp (verify PASS; obs_dim=10 tile-21×; Safety 3→4→1→2→5; 9/9 hyperparam khớp; fix line-ref → MultiCatDDQNAgent + cite Bellman/Huber). Commit e29b38f.
-> - T2.20-T2.21 §3.4 CSDL ⭐2-lớp (verify PASS; 10 collection resolve 10 schema; orders 3 single index; freshness_cache readings/medianScore; +index bổ sung products/posts). Commit 6607d5f.
+> - T2.17-T2.19 §3.3.7 AI/ML ⭐2-lớp (verify PASS; obs_dim=10 tile-21×; Safety 3→4→1→2→5; 9/9 hyperparam khớp; fix line-ref → MultiCatDDQNAgent + cite Bellman/Huber). Commit e29b38f
+"?> - T2.20-T2.21 §3.4 CSDL ⭐2-lớp (verify PASS; 10 collection resolve 10 schema; orders 3 single index; freshness_cache readings/medianScore; +index bổ sung products/posts). Commit 6607d5f.
 > - T2.22 §3.5 giao diện (verify PASS; Consumer 0 recommender; Farm quét tươi+gợi ý giá thật; Admin Shadow Report endpoint resolve). Commit 35d18e7.
 > Chương 3 (`docs/thesis/final/chuong-3-phan-tich-thiet-ke.md`) KHÔNG còn skeleton comment nào.
 
@@ -37,14 +46,13 @@
 Sidecar phục vụ dynamic-pricing-final: **định giá `/predict` trung thực** (sau fix comp_ratio), **dự báo `/forecast` có giới hạn** (forecaster train↔serve mismatch, giữ nguyên theo user → document trong thesis), freshness OK. Backend gửi đủ 9 field. Code fix: `pricing-sidecar/main.py` comp_ratio. Test mới: `tests/test_smoke_load.py`, `tests/test_coreml_freshness.py`.
 
 ## Việc tiếp theo
-Tiếp tục **TASK 2** tại **CHƯƠNG 4 — TRIỂN KHAI THỰC NGHIỆM** (file `docs/thesis/final/chuong-4-trien-khai-thuc-nghiem.md`, hiện CÒN skeleton comment). Theo plan `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md`, dùng subagent-driven-development (implementer sonnet → verifier đối kháng độc lập → controller fix → commit nhỏ). Các leaf-task:
-1. **T2.23** §4.1 Môi trường + §4.2 Cài đặt (4.2.1-4.2.3) — 13 module/1 sidecar; cron "0 * * * *"; seed accounts số thật (ledger t2.2-seed: Admin×1/Farm×3/Consumer×5/Suspended×1). Nguồn dany.md L487-523.
-2. **T2.24** §4.3 Kiểm thử — 54/54 test (54 case/21 spec), KHÔNG overclaim "0 lỗi TS". Nguồn L525-533, ledger t1.15-numbers.
-3. **T2.25** §4.4.1 Đánh giá chức năng + §4.4.5 Demo — bảng 13 module, ≈79 endpoint, 10 collection, ≈48 màn hình; demo caption 0 recommender. Nguồn L537-541,L601-603.
-4. **T2.26 ⭐2-lớp** §4.4.2 Eval dự báo — offline eval.py (MAE/AUROC method), GIỚI HẠN tile-21× obs_dim=10. ⚠️ KHÔNG BỊA số (chưa chạy eval) — chỉ phương pháp + bảng khung. Nguồn L543-555.
-5. **T2.27 ⭐2-lớp** §4.4.3 Eval định giá — phân bố 11 action, safety clip rate, sim revenue (EPISODE_LEN=91), 3 paper [TLTK]. KHÔNG bịa số doanh thu. Nguồn L557-587.
-6. **T2.28 ⭐2-lớp** §4.4.4 Eval tươi — 2 model, Confusion Matrix 2×2 (BỎ 4×4), GIỚI HẠN 2/4 model. KHÔNG bịa số. Nguồn L589-599.
-Sau Chương 4 → **Chương 5 (T2.29: §5.1 kết luận + §5.2 ≥3 HẠN CHẾ BẮT BUỘC trạng thái post-retrain + §5.3) + TLTK IEEE (T2.30)** → **T2.V verify toàn văn** (ghi `docs/thesis/final/VERIFY-REPORT.md`, sau đó cập nhật STATE "Task 2 DONE").
+**CHƯƠNG 4 ✅ DONE (T2.23→T2.28, verify đối kháng PASS, §4.4.2/3/4 2-lớp AI/ML, 0 số eval bịa).** Tiếp tục **TASK 2** tại **CHƯƠNG 5 — KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN** (file `docs/thesis/final/chuong-5-ket-luan.md`, hiện CÒN skeleton comment) + **TÀI LIỆU THAM KHẢO** (`docs/thesis/final/tai-lieu-tham-khao.md` + hoàn thiện mục lục `00-trang-bia-muc-luc.md`). Theo plan `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md` (mục T2.29/T2.30), dùng subagent-driven-development (implementer sonnet → verifier đối kháng độc lập → controller fix → commit nhỏ). Leaf-task:
+1. **T2.29 ⭐** §5.1 Kết luận (số liệu canonical 13 module/54-54 test/≈48 màn/1 sidecar + 6 ĐG thật) + §5.2 Hạn chế (**≥3 "HẠN CHẾ BẮT BUỘC"** trạng thái POST-RETRAIN) + §5.3 Hướng phát triển (gồm "khắc phục forecaster serve chuỗi thật"; recommender = TƯƠNG LAI chưa có — không overclaim). Nguồn dany.md L605-659.
+2. **T2.30** TÀI LIỆU THAM KHẢO IEEE — gom mọi marker [TLTK] toàn 5 chương thành danh mục IEEE đánh số + hoàn thiện mục lục/danh mục hình-bảng ở `00-trang-bia-muc-luc.md`. Nguồn dany.md L661.
+Sau đó → **T2.V verify toàn văn độc lập** (citation sweep toàn bộ file:ref tồn tại + false-claim sweep + xác nhận 3 giới hạn §5.2 + outline khớp STRUCTURE.md + diagram) → ghi `docs/thesis/final/VERIFY-REPORT.md`; PASS → cập nhật STATE "Task 2 DONE" + task-tree + commit `task(T2.V)`.
+
+> ⚠️ NHẮC §5.2 BẮT BUỘC: `grep -c "HẠN CHẾ BẮT BUỘC" docs/thesis/final/chuong-5-ket-luan.md` ≥3 — (a) forecaster serve tile-21× steady-state obs_dim=10 [main.py:135] (KHÔNG ghi layout mismatch 11≠10 — đã hết sau retrain T0.13), (b) DoW lệch pha serve <6.2% [main.py:98 vs market_env.py:132], (c) freshness chỉ 2/4 model CoreML (leafy/herbs→root). Dijkstra = fallback demo; Stripe chỉ backend+WebView; recommender = future không overclaim.
+> ⚠️ NHẮC §4.4: mọi số eval (MAE/AUROC/accuracy/doanh thu) ĐỂ "—" bảng khung (chưa chạy eval). Naive baseline = ĐỀ XUẤT chưa hiện thực trong eval.py. Shadow Report = endpoint backend chưa có UI mobile.
 
 > ⚠️ NHẮC §5.2 BẮT BUỘC: `grep -c "HẠN CHẾ BẮT BUỘC"` ≥3 — (a) forecaster tile-21× steady-state obs_dim=10 (KHÔNG ghi layout mismatch 11≠10), (b) DoW lệch pha <6.2%, (c) freshness 2/4 model. Dijkstra = fallback demo; Stripe chỉ backend+WebView; recommender = future không overclaim.
 
@@ -55,7 +63,7 @@ Sau Chương 4 → **Chương 5 (T2.29: §5.1 kết luận + §5.2 ≥3 HẠN CH
 ## Task đang mở
 - Task 0: ✅ done toàn bộ (gồm retrain obs_dim=10).
 - Task 1: ✅ done toàn bộ (T1.1–T1.V + sync post-retrain). dany.md trung thực với code.
-- Task 2: 🔄 ĐANG CHẠY. Done: T2.1, T2.2, T2.3(a-g), T2.4-T2.5 (Ch1), T2.6-T2.11 (Ch2), T2.12-T2.22 (Ch3 — verify đối kháng PASS, ⭐2-lớp §3.3.7/§3.4). Tiếp theo: T2.23 (Ch4) → T2.29-30 (Ch5+TLTK) → T2.V.
+- Task 2: 🔄 ĐANG CHẠY. Done: T2.1, T2.2, T2.3(a-g), T2.4-T2.5 (Ch1), T2.6-T2.11 (Ch2), T2.12-T2.22 (Ch3 — verify đối kháng PASS, ⭐2-lớp §3.3.7/§3.4), T2.23-T2.28 (Ch4 — verify đối kháng PASS, ⭐2-lớp §4.4.2/3/4, 0 số eval bịa). Tiếp theo: T2.29-30 (Ch5+TLTK) → T2.V.
 
 ## T0.9 fix-backlog — ĐÃ XỬ LÝ (xem progress T0.9)
 - #1 comp_ratio: ✅ ĐÃ SỬA code (main.py:108-112) khớp env.

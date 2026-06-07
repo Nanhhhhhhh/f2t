@@ -1051,3 +1051,52 @@ Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **
 **WARN-2 (resolve):** câu mô tả phân bố action ban đầu trình bày như kết quả quan sát → controller SỬA thành hành vi *kỳ vọng* (chưa kiểm chứng qua episode, xác nhận khi điền Bảng 4.9) để không overclaim. WARN-1/3 chấp nhận (không vi phạm).
 
 **Done-gate T2.27 (post-fix): PASS** → commit task(T2.27).
+
+## T2.28 — §4.4.4 Eval tươi ✅
+
+### Citation table (resolve main.py dòng thật)
+
+| Claim | File | Dòng thật | Ledger |
+|---|---|---|---|
+| Endpoint `/freshness/classify`, 2 model CoreML nhị phân | pricing-sidecar/main.py | 316-333 | t0.6-coreml-freshness, t1.4-freshness-coreml |
+| Routing `model_key = "fruit" if req.category in ("fruit","fruits") else "root"` | pricing-sidecar/main.py | 318 | — |
+| Ảnh chuẩn hóa `.convert("RGB").resize((299, 299))` | pricing-sidecar/main.py | 324 | t0.9-fixes |
+| `model.predict({"image": img})` | pricing-sidecar/main.py | 325 | t0.6-coreml-freshness |
+| Output `target` + `targetProbability` fresh/rotten | pricing-sidecar/main.py | 329-330 | t0.6-coreml-freshness |
+| Chỉ 2 file .mlmodel trong freshnessmodels/ | freshnessmodels/ (ls xác nhận) | — | t0.6-coreml-freshness |
+| Giới hạn 2/4 model + không training script | — | — | t0.10-thesis-limitations, t1.4-freshness-coreml |
+
+### Nguồn xác minh thực tế
+
+- `ls /Users/macos/f2t/freshnessmodels/` → **4 file**: `MyFreshnessClassifier-fruit.mlmodel`, `MyFreshnessClassifier-fruit.mlproj`, `MyFreshnessClassifier-root.mlmodel`, `MyFreshnessClassifier-root.mlproj` — xác nhận chỉ có 2 .mlmodel (fruit + root), không có root/leafy/herbs riêng biệt.
+- `Read pricing-sidecar/main.py:310-333` → đọc trực tiếp từ source, citation dòng thật (316-333).
+
+### Self-review checklist
+
+| Tiêu chí | Kết quả |
+|---|---|
+| 0 số kết quả eval bịa (accuracy/precision/recall/F1/inference/confusion cells) | ✅ PASS — Bảng 4.10 và 4.11 toàn bộ ô = "—" |
+| Confusion Matrix 2×2 (KHÔNG 4×4) | ✅ PASS — Bảng 4.10 là ma trận 2×2 (TP/FP/FN/TN nhị phân fresh/rotten) |
+| 2 model nhị phân CoreML (fruit + root) | ✅ PASS — ls xác nhận, main.py:316-333 đọc trực tiếp |
+| Giới hạn 2/4 model ghi rõ (leafy+herbs dùng root làm xấp xỉ) | ✅ PASS — Giới hạn 1 nêu tường minh |
+| Giới hạn không có training script ghi rõ | ✅ PASS — Giới hạn 2 nêu tường minh |
+| Routing fruit/root cite main.py:318 | ✅ PASS |
+| 299×299 RGB cite main.py:324 | ✅ PASS |
+| Output target/targetProbability cite main.py:329-330 | ✅ PASS |
+| KHÔNG ghi MobileNetV2 / 4-class / recommender / Holt / EWMA / obs_dim=11 | ✅ PASS |
+| Heading §4.4.4 giữ nguyên; §4.4.2/4.4.3/4.4.5 không đụng | ✅ PASS |
+| Mọi câu kỹ thuật có citation [ref:...] | ✅ PASS |
+
+**Done-gate T2.28: PASS** — §4.4.4 đầy đủ prose = phương pháp (2 model nhị phân, routing fruit/root, 299×299 RGB) + định nghĩa chỉ số (Confusion Matrix 2×2 TP/FP/FN/TN + công thức accuracy/precision/recall/F1) + Bảng 4.10 khung Confusion Matrix 2×2 ô trống + Bảng 4.11 chỉ số ô trống ("—") + Giới hạn 2/4 model + không training script. 0 số eval bịa.
+
+### T2.28 — VERIFY 2-LỚP AI/ML (agent độc lập) → PASS
+
+**Verifier:** sonnet độc lập, lớp 2 AI/ML. Tiêu chí #1: **0 số eval bịa** — Bảng 4.10 (Confusion Matrix 4 ô) + Bảng 4.11 (accuracy/precision/recall/F1/inference) toàn "—". ✅
+- Confusion Matrix 2×2 (positive=fresh), KHÔNG 4×4 / KHÔNG 4-class / KHÔNG MobileNetV2 ✅
+- 2 model CoreML nhị phân: routing main.py:318 (fruit/fruits→fruit, else root); .convert("RGB").resize(299,299) main.py:324; predict({"image":img}) :325; output target+targetProbability fresh/rotten :329-330 ✅
+- ls freshnessmodels/ = đúng 2 file .mlmodel (fruit+root); không training script ảnh trong repo ✅
+- Giới hạn 2/4 (leafy+herbs→root) + không dataset VN + không training script ảnh ✅; 0 từ cấm ✅
+
+**WARN-1 (resolve):** câu "không training script trong repo F2T" có thể bị hiểu nhầm là repo không có script nào → controller làm rõ "không có training script cho mô hình phân loại ẢNH (khác DDQN/LSTM vốn có script trong dynamic-pricing-final/src/)". WARN-2 (vị trí thư mục) chấp nhận.
+
+**Done-gate T2.28 (post-fix): PASS** → commit task(T2.28). **CHƯƠNG 4 HOÀN TẤT (T2.23→T2.28).**
