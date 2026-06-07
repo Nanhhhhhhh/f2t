@@ -6,7 +6,7 @@ from typing import Dict
 
 @dataclass
 class ForecasterConfig:
-    obs_dim:       int   = 11
+    obs_dim:       int   = 10
     window:        int   = 21
     n_categories:  int   = 4
     cat_embed_dim: int   = 8

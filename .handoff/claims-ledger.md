@@ -49,6 +49,8 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 
 ### t0.4-forecaster-parity: Forecaster serve lệch kép — obs layout mismatch + tile-21×
 
+> ⚠️ **ĐÃ LỖI THỜI một phần (xem T0.13):** sau retrain obs_dim=10, **layout mismatch 11≠10 KHÔNG còn**. Phần dưới mô tả trạng thái TRƯỚC khi fix (giá trị lịch sử về phân tích lỗi). Trạng thái HIỆN TẠI: forecaster obs_dim=10, chỉ còn giới hạn tile-21×. Khi viết thesis kiến trúc forecaster, dùng **obs_dim=10** (không phải 11).
+
 - **Evidence:**
   - **Checkpoint thật** (`dynamic-pricing-final/checkpoints/forecaster_v4_best.pt`):
     ```
@@ -162,14 +164,14 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
 ### t0.10-conclusion: Kết luận Task 0 — sidecar phục vụ dynamic-pricing-final (định giá trung thực; dự báo có giới hạn)
 - **Evidence:** tổng hợp T0.1–T0.9 (progress/task-0.md mục T0.10).
   - `/predict` (DDQN): trung thực sau fix comp_ratio — obs 10 chiều khớp `market_env.py`, checkpoint load sạch, runtime hợp lý.
-  - `/forecast` (ForecasterLSTM): KHÔNG trung thực — train obs_dim=11 layout cũ + chuỗi thật, serve feed 10-chiều-pad-cuối + tile-21×. Giữ nguyên theo quyết định user (không retrain).
+  - `/forecast` (ForecasterLSTM): **CẬP NHẬT T0.13 — ĐÃ RETRAIN obs_dim=10.** Layout mismatch 11≠10 + version skew ĐÃ HẾT (forecaster nay train & serve cùng obs_dim=10, không pad). Giới hạn DUY NHẤT còn lại: serve tile obs hiện tại 21× (steady-state, vì backend chưa cung cấp chuỗi 21 ngày). Checkpoint mới: best epoch41 val_loss3.114. (Bản cũ obs_dim=11 backup ở `_backup_obs11/`.)
   - `/freshness`: OK (RGB đúng; 2/4 category có model riêng, non-fruit→root).
   - Backend gửi đủ 9 field; kiến trúc dùng đúng 10 chiều (không phải 10-12).
 - **Verified by:** controller T0.10 — 2026-06-07
 - **Dùng ở:** thesis chương AI/ML (kiến trúc + Limitations) + chương Kiến trúc hệ thống (luồng backend→sidecar)
 
 ### t0.10-thesis-limitations: 3 giới hạn phải ghi trung thực trong thesis
-- **Evidence:** (1) forecaster train↔serve mismatch → `/forecast` là xấp xỉ, nên trình bày kết quả qua offline eval `src/forecaster/eval.py` thay vì serve; (2) dow phase serve dùng weekday thật vs train `t%7` (ảnh hưởng <6.2%, demand_params.json sin/cos_weekly); (3) freshness chỉ 2 CoreML model (fruit/root), leafy/herbs dùng chung "root".
+- **Evidence:** (1) **[CẬP NHẬT T0.13]** forecaster ĐÃ retrain obs_dim=10 → layout mismatch HẾT; giới hạn còn lại CHỈ là serve tile-21× (steady-state, backend chưa có chuỗi 21 ngày thật) → `/forecast` vẫn là xấp xỉ, nên trình bày kết quả qua offline eval `src/forecaster/eval.py` thay vì serve. ĐỪNG ghi "obs_dim=11" hay "layout 11≠10" như giới hạn (đã sửa); (2) dow phase serve dùng weekday thật vs train `t%7` (ảnh hưởng <6.2%, demand_params.json sin/cos_weekly); (3) freshness chỉ 2 CoreML model (fruit/root), leafy/herbs dùng chung "root".
 - **Verified by:** controller T0.10 — 2026-06-07
 - **Dùng ở:** thesis section Limitations / Future work
 
