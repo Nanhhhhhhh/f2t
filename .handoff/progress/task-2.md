@@ -1139,3 +1139,28 @@ Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **
 - 6 ĐG1–ĐG6 đầy đủ; recommender chỉ ở §5.3 dạng "hiện chưa tồn tại / tương lai".
 
 **KẾT LUẬN T2.29: PASS — Chương 5 chân thực 100% với code.**
+
+## T2.30 — Tài liệu tham khảo IEEE + Mục lục/Danh mục hình-bảng ✅
+
+**Ngày:** 2026-06-08. **File:** `tai-lieu-tham-khao.md` (35 entry IEEE) + `00-trang-bia-muc-luc.md` (mục lục + danh mục hình + danh mục bảng).
+**Quy trình:** implementer sonnet → controller verify (đối chiếu heading thật + spot-check IEEE) → fix.
+
+### TLTK — 35 entry IEEE đánh số theo thứ tự xuất hiện
+- Thống kê/thị trường: [1] TCTK, [2] FAO 2019, [3] e-Conomy SEA 2023, [4-7] Foodmap/Sendo Farm/Bac Tom/Lazada Fresh (website).
+- Phương pháp: [8] Scrum Guide, [9] Fielding REST dissertation 2000, [10] Richardson, [11] Newman.
+- Framework/công nghệ (docs [Online]): [12-17] RN/Expo/NativeWind/Zustand/MMKV/TanStack, [18-21] NestJS/Node/TS/MongoDB, [22-24] FastAPI/Uvicorn/Flask, [25] CoreML.
+- AI/ML papers kinh điển: [26] LSTM Hochreiter&Schmidhuber 1997, [27] Sutton&Barto, [28] DQN Mnih 2015 Nature, [29] Double DQN van Hasselt AAAI 2016, [30] Dueling DQN Wang ICML 2016, [31] Pan&Yang TKDE 2010, [32] MobileNets Howard 2017.
+- 3 paper so sánh: [33] Nassibi 2023, [34] Xue 2025, [35] Kayikci 2022.
+- Ghi chú cuối: phân biệt [ref: path:Lxx]/[ref: ledger] = tham chiếu code nội bộ ≠ TLTK ngoài.
+
+### Controller fix (tính trung thực)
+- **[33-35] trim vol/no:** implementer thêm journal name + volume cho 3 paper so sánh — KHÔNG có trong nguồn gốc (3 paper là [TLTK] kế thừa Task 1, chỉ biết tác giả+năm+chủ đề). → trim còn "Author et al., title, year". WARN: tác giả thesis nên xác nhận thư mục đầy đủ.
+- **Mục lục §2.1.1/§2.1.2:** sửa abbreviation "TMĐT" → khớp NGUYÊN VĂN heading thật (bảo toàn outline V5).
+
+### Mục lục + danh mục
+- Mục lục: 5 chương + TLTK, phân cấp ##/### khớp 100% heading thật.
+- Danh mục hình: Hình 1.1 (contribution-map) + Hình 4.1-4.8 (8 screenshot) + Hình 3.1-3.22 (22 PlantUML) = 23 .puml + 8 ảnh + 1 map.
+- Danh mục bảng: Bảng 2.1, 2.2, 4.1-4.11 (13 bảng); tiêu đề Bảng 2.1 (chuong-2:47) + Bảng 4.11 (chuong-4:412) từ source thật.
+- KHÔNG bịa số trang.
+
+**KẾT LUẬN T2.30: PASS.**
