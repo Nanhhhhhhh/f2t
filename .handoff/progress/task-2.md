@@ -1164,3 +1164,21 @@ Kết quả khớp hoàn toàn với ledger t1.15-numbers. Đây là con số **
 - KHÔNG bịa số trang.
 
 **KẾT LUẬN T2.30: PASS.**
+
+## T2.V — Verify toàn văn độc lập (gate cuối) ✅ PASS — TASK 2 DONE
+
+**Ngày:** 2026-06-08. **Verifier:** adversarial độc lập (khác mọi implementer). **Artifact:** `docs/thesis/final/VERIFY-REPORT.md` (330 dòng).
+**Scope:** 5 chương + 00-trang-bia-muc-luc + tai-lieu-tham-khao + 23 diagram + STRUCTURE.md.
+
+| Kiểm | Nội dung | Verdict |
+|---|---|---|
+| V1 | Citation resolve sweep — 38 path ref resolve qua `ls` (gồm chuong-5: app.module.ts:57/58, interceptor:74-77, model.py:18-49, network.py:51-57, safety.py:1-19, main.py:135/98/318, order.schema:105, verification-token:8-26, market_env:132, forecaster_v4_best.pt tồn tại) | PASS (0 broken) |
+| V2 | False-claim sweep — mọi hit recommend/collaborative/cosine/content-based/holt/layout-11 đều PHỦ ĐỊNH/lý thuyết §2.x/ledger-id; 8001/8002/mobilenetv2/obs_dim=11/3 sidecar/14 module = KHÔNG khớp | PASS (0 khẳng định sai) |
+| V3 | 3 HẠN CHẾ BẮT BUỘC §5.2 — grep -c = 4; (a) tile-21× obs_dim=10 ghi rõ "layout mismatch ĐÃ khắc phục"; (b) DoW<6.2%; (c) freshness 2/4 | PASS (đúng trạng thái post-retrain) |
+| V4 | 10 số canonical nhất quán 5 chương (13 module/14 controller/10 collection/54-21 test/obs_dim=10/11 action/2 CoreML/port 8000/Safety 5 rule/23 diagram) | PASS (0 mâu thuẫn) |
+| V5 | Mục lục 00-* khớp 100% heading thật 5 chương (thứ tự + cấp + chữ) | PASS |
+| V6 | 0 số eval bịa §4.4 — mọi ô MAE/AUROC/accuracy/precision/recall/F1/doanh thu/waste = "—"; MAE<3.0/AUROC>0.85 = ngưỡng eval.py (footnote), không phải kết quả đo | PASS |
+
+**VERDICT TỔNG: PASS (0 FAIL).** WARN không chặn: shorthand path order.schema §3.4 (file tồn tại); 3 paper so sánh [33-35] best-effort; ngưỡng eval.py ghi rõ là kỳ vọng.
+
+**→ TASK 2 ĐÓNG. Cả 3 task lớn (0 verify ML / 1 dany.md / 2 thesis) HOÀN TẤT. Khoá luận chân thực 100% với code.**

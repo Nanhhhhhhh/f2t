@@ -3,7 +3,12 @@
 > Cập nhật mục "Việc tiếp theo" + commit TRƯỚC khi kết thúc mỗi phiên.
 
 ## Phase hiện tại
-**Task 0 ✅ DONE + Task 1 ✅ DONE. TASK 2 ĐANG CHẠY — đã xong nền tảng + Chương 1 + Chương 2 + CHƯƠNG 3 + CHƯƠNG 4; việc tiếp theo = CHƯƠNG 5 (T2.29) + TLTK (T2.30) → T2.V.**
+**Task 0 ✅ DONE + Task 1 ✅ DONE + TASK 2 ✅ DONE. Toàn bộ khoá luận hoàn chỉnh (5 chương + TLTK + mục lục + 23 diagram) đã viết, verify toàn văn PASS (T2.V), commit + push.**
+
+> Cập nhật 2026-06-08 (phiên Task 2 #4 — ĐÓNG TASK 2): hoàn tất CHƯƠNG 5 + TLTK + VERIFY TOÀN VĂN bằng subagent-driven-development:
+> - **T2.29** Chương 5 (`chuong-5-ket-luan.md`): §5.1 Kết luận (số liệu canonical + 6 ĐG thật), §5.2 Hạn chế (4× "HẠN CHẾ BẮT BUỘC", 3 giới hạn post-retrain: tile-21× obs_dim=10 / DoW<6.2% / freshness 2/4), §5.3 Hướng phát triển (recommender = TƯƠNG LAI chưa có). Verify đối kháng REJECT→fix ĐG2 (interceptor gắn 3 trường dynamicPrice/freshnessScore/priceTag — KHÔNG "suggested_price" bịa; cite :74-77)→PASS. Commit cd6655d.
+> - **T2.30** TLTK IEEE 35 entry (order-of-appearance) + mục lục/danh mục hình-bảng (`00-trang-bia-muc-luc.md`). Controller trim vol/no chưa kiểm chứng của 3 paper so sánh [33-35]; sửa abbreviation mục lục §2.1.1/2 khớp heading. Commit a23d9c9.
+> - **T2.V** verify toàn văn độc lập (`VERIFY-REPORT.md`): V1 citation sweep (38 path resolve ls, 0 broken) / V2 false-claim sweep (0 khẳng định sai, mọi hit phủ định/lý thuyết/ledger) / V3 3 giới hạn đúng trạng thái / V4 10 canonical nhất quán / V5 mục lục khớp 100% heading / V6 0 số eval bịa (mọi ô §4.4 = "—"). **VERDICT: PASS (0 FAIL).**
 
 > Cập nhật 2026-06-07 (phiên Task 2 #3): hoàn tất CHƯƠNG 4 (T2.23→T2.28) bằng subagent-driven-development, 6 dispatch tuần tự (implementer sonnet → verifier đối kháng độc lập; §4.4.2/3/4 verify 2-lớp AI/ML → controller fix → commit nhỏ). Tất cả PASS:
 > - T2.23 §4.1+§4.2 (PASS; 13 module/1 sidecar 8000/3 endpoint; cron "0 * * * *"; PriceOverride 5 trạng thái; seed 10 user số thật).
@@ -46,10 +51,13 @@
 Sidecar phục vụ dynamic-pricing-final: **định giá `/predict` trung thực** (sau fix comp_ratio), **dự báo `/forecast` có giới hạn** (forecaster train↔serve mismatch, giữ nguyên theo user → document trong thesis), freshness OK. Backend gửi đủ 9 field. Code fix: `pricing-sidecar/main.py` comp_ratio. Test mới: `tests/test_smoke_load.py`, `tests/test_coreml_freshness.py`.
 
 ## Việc tiếp theo
-**CHƯƠNG 4 ✅ DONE (T2.23→T2.28, verify đối kháng PASS, §4.4.2/3/4 2-lớp AI/ML, 0 số eval bịa).** Tiếp tục **TASK 2** tại **CHƯƠNG 5 — KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN** (file `docs/thesis/final/chuong-5-ket-luan.md`, hiện CÒN skeleton comment) + **TÀI LIỆU THAM KHẢO** (`docs/thesis/final/tai-lieu-tham-khao.md` + hoàn thiện mục lục `00-trang-bia-muc-luc.md`). Theo plan `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md` (mục T2.29/T2.30), dùng subagent-driven-development (implementer sonnet → verifier đối kháng độc lập → controller fix → commit nhỏ). Leaf-task:
-1. **T2.29 ⭐** §5.1 Kết luận (số liệu canonical 13 module/54-54 test/≈48 màn/1 sidecar + 6 ĐG thật) + §5.2 Hạn chế (**≥3 "HẠN CHẾ BẮT BUỘC"** trạng thái POST-RETRAIN) + §5.3 Hướng phát triển (gồm "khắc phục forecaster serve chuỗi thật"; recommender = TƯƠNG LAI chưa có — không overclaim). Nguồn dany.md L605-659.
-2. **T2.30** TÀI LIỆU THAM KHẢO IEEE — gom mọi marker [TLTK] toàn 5 chương thành danh mục IEEE đánh số + hoàn thiện mục lục/danh mục hình-bảng ở `00-trang-bia-muc-luc.md`. Nguồn dany.md L661.
-Sau đó → **T2.V verify toàn văn độc lập** (citation sweep toàn bộ file:ref tồn tại + false-claim sweep + xác nhận 3 giới hạn §5.2 + outline khớp STRUCTURE.md + diagram) → ghi `docs/thesis/final/VERIFY-REPORT.md`; PASS → cập nhật STATE "Task 2 DONE" + task-tree + commit `task(T2.V)`.
+**TASK 2 ✅ DONE — toàn bộ 3 task lớn (0/1/2) hoàn tất.** Khoá luận hoàn chỉnh ở `docs/thesis/final/` (5 chương + TLTK IEEE + mục lục + 23 diagram .puml + VERIFY-REPORT.md PASS). Không còn leaf-task mở.
+
+Hướng đi tiếp (NẾU user yêu cầu — KHÔNG tự động làm):
+- Render PDF/DOCX từ Markdown final → bổ sung số trang vào mục lục (hiện cố ý để trống vì chưa render).
+- Tác giả thesis xác nhận thông tin thư mục đầy đủ của 3 paper so sánh [33-35] (Nassibi/Xue/Kayikci) — hiện trim còn tác giả+title+năm (WARN-V2-A, không chặn).
+- Điền số eval thật vào §4.4 (chạy eval.py forecaster + sim market_env định giá + confusion 2×2 freshness) — hiện mọi ô là "—" bảng khung (cố ý, chưa chạy eval định lượng).
+- WARN-V1-A (không chặn): vài ô bảng §3.4 dùng path order.schema.ts rút gọn — có thể chuẩn hoá thành full path khi rảnh.
 
 > ⚠️ NHẮC §5.2 BẮT BUỘC: `grep -c "HẠN CHẾ BẮT BUỘC" docs/thesis/final/chuong-5-ket-luan.md` ≥3 — (a) forecaster serve tile-21× steady-state obs_dim=10 [main.py:135] (KHÔNG ghi layout mismatch 11≠10 — đã hết sau retrain T0.13), (b) DoW lệch pha serve <6.2% [main.py:98 vs market_env.py:132], (c) freshness chỉ 2/4 model CoreML (leafy/herbs→root). Dijkstra = fallback demo; Stripe chỉ backend+WebView; recommender = future không overclaim.
 > ⚠️ NHẮC §4.4: mọi số eval (MAE/AUROC/accuracy/doanh thu) ĐỂ "—" bảng khung (chưa chạy eval). Naive baseline = ĐỀ XUẤT chưa hiện thực trong eval.py. Shadow Report = endpoint backend chưa có UI mobile.
@@ -63,7 +71,7 @@ Sau đó → **T2.V verify toàn văn độc lập** (citation sweep toàn bộ 
 ## Task đang mở
 - Task 0: ✅ done toàn bộ (gồm retrain obs_dim=10).
 - Task 1: ✅ done toàn bộ (T1.1–T1.V + sync post-retrain). dany.md trung thực với code.
-- Task 2: 🔄 ĐANG CHẠY. Done: T2.1, T2.2, T2.3(a-g), T2.4-T2.5 (Ch1), T2.6-T2.11 (Ch2), T2.12-T2.22 (Ch3 — verify đối kháng PASS, ⭐2-lớp §3.3.7/§3.4), T2.23-T2.28 (Ch4 — verify đối kháng PASS, ⭐2-lớp §4.4.2/3/4, 0 số eval bịa). Tiếp theo: T2.29-30 (Ch5+TLTK) → T2.V.
+- Task 2: ✅ DONE toàn bộ. T2.1→T2.28 (nền tảng + Ch1-4) + T2.29 (Ch5) + T2.30 (TLTK+mục lục) + T2.V (verify toàn văn PASS — `VERIFY-REPORT.md`). Khoá luận chân thực 100% với code.
 
 ## T0.9 fix-backlog — ĐÃ XỬ LÝ (xem progress T0.9)
 - #1 comp_ratio: ✅ ĐÃ SỬA code (main.py:108-112) khớp env.

@@ -54,9 +54,12 @@ Plan: `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md`. Đầu ra:
 | T2.20-T2.21 ⭐ | Chương 3: §3.4 CSDL (ERD+10 collection+index, 2-lớp) | sonnet | T2.16 | done (verify 2-lớp PASS; 10 collection resolve 10 schema; orders 3 single index) |
 | T2.22 | Chương 3: §3.5 giao diện | sonnet | T2.16 | done (verify PASS; Consumer 0 recommender; Farm quét tươi+gợi ý giá thật) |
 | T2.23-T2.28 | Chương 4 TRIỂN KHAI (§4.4.2/3/4 eval AI/ML ⭐, không bịa số) | sonnet | T2.22 | done (verify đối kháng PASS; §4.4.2/3/4 2-lớp; T2.25 REJECT→fix Hình 4.8 Shadow Report; T2.26 fix Naive=đề xuất; 0 số eval bịa) |
-| T2.29-T2.30 | Chương 5 (3 giới hạn bắt buộc ⭐) + TLTK IEEE | sonnet | T2.28 | ⏳ NEXT |
-| T2.V | Verify toàn văn độc lập → VERIFY-REPORT.md | sonnet/controller | T2.30 | pending |
+| T2.29 | Chương 5 (3 giới hạn bắt buộc ⭐) | sonnet | T2.28 | done (verify đối kháng REJECT→fix ĐG2 suggested_price→3 trường thật→PASS; 4× "HẠN CHẾ BẮT BUỘC") |
+| T2.30 | TLTK IEEE 35 entry + mục lục/danh mục hình-bảng | sonnet | T2.29 | done (order-of-appearance; trim vol/no 3 paper so sánh; mục lục khớp heading) |
+| T2.V | Verify toàn văn độc lập → VERIFY-REPORT.md | sonnet | T2.30 | done (PASS — V1-V6, 38 path resolve, 0 false-claim, 0 số eval bịa) |
 
 > Mỗi leaf-task: ledger-first (tái dùng 20 entry sẵn) → prose giữ citation inline → verify đối kháng độc lập (CSDL/AI-ML/diagram 2-lớp) → commit nhỏ. KHÔNG đụng code (chỉ đọc fact-check).
 
-> **CHƯƠNG 4 DONE ✅ (2026-06-07, phiên #3):** T2.23→T2.28 verify đối kháng PASS + RE-VERIFY toàn chương 2 lớp PASS (0 số eval bịa, canonical nhất quán, 26/26 ref tồn tại). 6 commit `19500b6…520664b` + re-verify đã push. **Việc tiếp theo = T2.29 (Chương 5) → T2.30 (TLTK+mục lục) → T2.V (verify toàn văn → VERIFY-REPORT.md → STATE "Task 2 DONE").**
+> **CHƯƠNG 4 DONE ✅ (2026-06-07, phiên #3):** T2.23→T2.28 verify đối kháng PASS + RE-VERIFY toàn chương 2 lớp PASS (0 số eval bịa, canonical nhất quán, 26/26 ref tồn tại). 6 commit `19500b6…520664b` + re-verify đã push.
+
+> **TASK 2 DONE ✅ (2026-06-08, phiên #4):** T2.29 (Chương 5, commit cd6655d) → T2.30 (TLTK IEEE 35 entry + mục lục, commit a23d9c9) → T2.V (verify toàn văn độc lập PASS — `docs/thesis/final/VERIFY-REPORT.md`, V1-V6 0 FAIL). Khoá luận hoàn chỉnh: 5 chương + TLTK + mục lục + 23 diagram, chân thực 100% với code. **CẢ 3 TASK LỚN (0/1/2) HOÀN TẤT.**
