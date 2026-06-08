@@ -57,6 +57,9 @@
 - `UPLOAD_BASE_URL`: http://192.168.1.4:3000
 - **GHN vars are NOT set in .env.development** — delivery falls back to Dijkstra mock
 
+### Backend — Recommender Sidecar vars (add to .env.development to enable)
+- `RECOMMENDER_SIDECAR_URL`: `http://localhost:8001` (default). URL of the FastAPI recommender sidecar. If not set or sidecar is unreachable, the recommendations endpoint falls back to returning same-farm products (never 500).
+
 ### Backend — Dynamic Pricing vars (add to .env.development to enable)
 - `PRICING_MODE`: `shadow` (default) or `advisory`. Shadow = internal KPI only. Advisory = farmers see/accept/reject suggestions; interceptor enriches product responses.
 - `PRICING_SIDECAR_URL`: `http://localhost:8000` (default). URL of the FastAPI pricing sidecar.
@@ -97,8 +100,8 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 
 ## Current Project Status
 
-**Last updated:** 2026-05-29
-**Last session:** Tech debt cleanup — TD-002 (docker-compose version removed), TD-031 (duplicate FreshnessCache index fixed), TD-015 (SidecarOverride interface added, any types removed from dynamic-pricing.service.ts), TD-035 (DYNAMIC-PRICING-INTEGRATION.md written). Verified TD-003/032/033/034 already resolved. Backend 46/46 tests pass (admin.service.spec.ts has pre-existing type error). Build clean.
+**Last updated:** 2026-06-08
+**Last session:** Phase 5 finalize — cross-sell / recommendations feature. New backend module `recommendations` (JWT-guarded, FP-Growth category rules via sidecar). New `recommender-sidecar` (FastAPI, port 8001). New offline pipeline `recommender-final/` (Instacart 2017 warm-start, category-level). Frontend cart screen shows cross-sell strip. GĐ2 retrain prep script `scripts/export_real_orders.py` added. 5/5 unit tests pass. ESLint clean.
 
 | Phase | Status | Output |
 |---|---|---|
@@ -124,7 +127,7 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 | Phase 10 — Dynamic Pricing (backend) | ✅ Complete (Tasks 1–3) | Sidecar + NestJS module + interceptor + cron. Shadow + advisory modes. 6 service tests + 6 interceptor tests. |
 | Phase 10 — Dynamic Pricing (frontend) | ✅ Complete | CoreML freshness scan, price-suggestions screen, product card enrichment |
 | Phase 10 — Dynamic Pricing (graduation) | ✅ Complete | Shadow KPI validation, INTEGRATION.md, advisory graduation checklist |
-| Phase 11 — Recommender | ❌ Removed | Module deleted from backend and frontend |
+| Phase 11 — Cross-sell Recommender | ✅ Complete (GĐ1) | FP-Growth category rules, sidecar port 8001, backend module, frontend cart strip. Product-level (GĐ2) pending real order data. |
 | Phase 12 — Demand Forecast | ❌ Removed | Module deleted from backend and frontend |
 
 ---
@@ -145,7 +148,7 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 | Delivery | ✅ | ✅ | ✅ | GHN provider + Dijkstra mock. 4 tests. |
 | Admin | ✅ | ✅ | ✅ | 8 endpoints, AdminGuard, isBanned+verificationStatus. 4 tests. Seed account: admin@f2t.com |
 | DynamicPricing | ✅ | ✅ | ✅ | Shadow + advisory modes. 5 routes. PricingTick cron. DynamicPricingInterceptor (APP_INTERCEPTOR). 6 service tests + 6 interceptor tests. Requires pricing-sidecar running (FastAPI). |
-| Recommendations | ❌ Removed | — | — | Module deleted (backend + sidecar + frontend). |
+| Recommendations | ✅ | ✅ (5/5) | ✅ | GET /api/recommendations/cross-sell. JWT-guarded. Calls recommender-sidecar (port 8001). Graceful fallback: same-farm products when sidecar down. Category-level only (GĐ1). |
 | DemandForecast | ❌ Removed | — | — | Module deleted (backend + sidecar + frontend). |
 
 ---
@@ -244,6 +247,7 @@ Seed is idempotent — re-running clears all `_seeded: true` documents first.
 | GET | /api/admin/orders | Admin | Yes | admin | All orders. Params: page, limit, status, paymentStatus |
 | GET | /api/admin/analytics | Admin | Yes | admin | Platform-wide stats (totals, revenue, breakdowns) |
 | GET | /api/admin/products | Admin | Yes | admin | All products. Params: page, limit, search, farmId |
+| GET | /api/recommendations/cross-sell | Recommendations | Yes | Any | Query: productIds (comma-sep ObjectIds), limit (default 6). Returns `{ success, data: Product[] }`. Calls recommender-sidecar; falls back to same-farm products if sidecar unreachable. |
 | POST | /api/dynamic-pricing/freshness/:productId | DynamicPricing | Yes | Any | Body: { score: number 0–1 }. Stores reading, returns { medianScore, freshnessTag } |
 | GET | /api/dynamic-pricing/suggestions | DynamicPricing | Yes | farm | Pending price suggestions for caller's farms. Returns { items, total } |
 | PATCH | /api/dynamic-pricing/suggestions/:id/accept | DynamicPricing | Yes | farm | Accept a price suggestion. ForbiddenException if not farm owner. |
@@ -271,7 +275,8 @@ Also wire up an SMS/email provider in the backend `email.service.ts` and ensure 
 ## Start order
 1. `docker start f2t-mongo` (or ensure MongoDB is running)
 2. `cd pricing-sidecar && uvicorn main:app --port 8000`
-3. `cd f2t-backend && npm run start:dev`
+3. `cd recommender-sidecar && ./venv/bin/uvicorn main:app --port 8001`
+4. `cd f2t-backend && npm run start:dev`
 
 ---
 
@@ -298,6 +303,38 @@ Also wire up an SMS/email provider in the backend `email.service.ts` and ensure 
 
 ### Weibull Fallback (when no freshness scan available)
 - vegetables/leafy: λ=0.97, fruits: λ=0.985, herbs: λ=0.96, other: λ=0.995. Freshness = λ^24.
+
+---
+
+## Cross-sell Recommender — Architecture Notes (GĐ1)
+
+### Components
+- **`recommender-final/`** — offline Python pipeline. Generates synthetic baskets (Instacart 2017 category distribution), mines FP-Growth association rules via `scripts/mine_rules.py`, outputs `model/category_rules.json` + `model/category_popularity.json`.
+- **`recommender-sidecar/`** — standalone FastAPI service (Python). Loads `category_rules.json` at startup. Exposes `POST /recommend` (body: `{cart_categories, top_k}`) and `GET /health`. Start: `cd recommender-sidecar && ./venv/bin/uvicorn main:app --port 8001`. Controlled by `RECOMMENDER_SIDECAR_URL` in backend env.
+- **`f2t-backend/src/modules/recommendations/`** — NestJS module. `GET /api/recommendations/cross-sell?productIds=...&limit=6`. JWT-guarded. Maps product categories to sidecar, fetches recommended category products from MongoDB, returns envelope `{ success, data: Product[] }`.
+- **Frontend** — cart screen shows horizontal cross-sell strip below cart items. Uses `useRecommendations` hook.
+
+### Backend E2E (manual — requires live MongoDB + seeded data + JWT)
+```bash
+# 1. Login to get token
+TOKEN=$(curl -s -X POST localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"consumer1@f2t.vn","password":"SeedPass123!"}' | jq -r '.data.accessToken')
+
+# 2. Get a product ID (e.g., from product listing)
+PRODUCT_ID=<some ObjectId from GET /api/products>
+
+# 3. Call cross-sell
+curl -H "Authorization: Bearer $TOKEN" \
+  "localhost:3000/api/recommendations/cross-sell?productIds=$PRODUCT_ID&limit=6"
+```
+
+### Known Limitations (GĐ1 — truthful)
+- **Category-level only:** The warm-start model is 10-category × 10-category (e.g., leafy → herbs). It does NOT predict at product level.
+- **External training data:** Trained on synthetic baskets derived from Instacart 2017 distribution mapped to F2T categories. Not trained on real F2T purchase history.
+- **No personalization:** No user history used. All users with the same cart categories receive identical recommendations.
+- **Cart screen only:** Cross-sell UI is shown only in the cart screen, not on product detail pages.
+- **GĐ2 (future):** Product-level retrain on real F2T orders. Script: `recommender-final/scripts/export_real_orders.py` (requires `MONGODB_URI`, needs ≥200 multi-item baskets).
 
 ---
 
