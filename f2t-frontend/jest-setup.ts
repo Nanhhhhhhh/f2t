@@ -8,6 +8,21 @@ global.window = global;
 
 // ── Mock commonly-used Expo modules ──────────────────────────────────────────
 
+jest.mock('@react-navigation/native', () => ({
+  NavigationContext: require('react').createContext(undefined),
+  useIsFocused: () => true,
+  useNavigation: () => ({}),
+  useRoute: () => ({}),
+}));
+
+jest.mock('expo-localization', () => ({
+  getLocales: () => [{ languageCode: 'en', languageTag: 'en-US' }],
+  locale: 'en-US',
+  locales: [{ languageCode: 'en', languageTag: 'en-US' }],
+  timezone: 'UTC',
+  isRTL: false,
+}));
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -58,6 +73,15 @@ jest.mock('expo-location', () => ({
   getCurrentPositionAsync: jest.fn().mockResolvedValue({
     coords: { latitude: 10.8231, longitude: 106.6297, accuracy: 10 },
   }),
+  watchPositionAsync: jest.fn().mockResolvedValue({ remove: jest.fn() }),
+  Accuracy: {
+    Lowest: 1,
+    Low: 2,
+    Balanced: 3,
+    High: 4,
+    Highest: 5,
+    BestForNavigation: 6,
+  },
 }));
 
 jest.mock('expo-notifications', () => ({
@@ -99,13 +123,17 @@ jest.mock('react-native-mmkv', () => ({
 }));
 
 // ── Mock API client ───────────────────────────────────────────────────────────
-jest.mock('./src/lib/client', () => ({
-  apiClient: {
+jest.mock('@/api/common/client', () => ({
+  client: {
     get: jest.fn(),
     post: jest.fn(),
     put: jest.fn(),
     patch: jest.fn(),
     delete: jest.fn(),
+    interceptors: {
+      request: { use: jest.fn() },
+      response: { use: jest.fn() },
+    },
   },
 }));
 
