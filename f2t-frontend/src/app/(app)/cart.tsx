@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 
 import { CartItem } from '@/components/cart';
+import { CrossSell } from '@/components/cart/cross-sell';
 import { Button, Text, View } from '@/components/ui';
 import { useCart, useCartIsEmpty } from '@/lib/cart';
 
@@ -154,6 +155,9 @@ export default function CartScreen() {
               <CartItem key={item.id} item={item} variant="default" />
             ))}
           </View>
+
+          {/* Cross-sell recommendations */}
+          <CrossSell productIds={cart.items.map((i) => i.productId)} />
 
           {/* Delivery Options */}
           <View className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
