@@ -1,0 +1,17 @@
+{
+  "fresh vegetables": "leafy",
+  "packaged vegetables fruits": "leafy",
+  "fresh herbs": "herbs",
+  "fresh fruits": "fruit",
+  "packaged produce": "fruit",
+  "frozen produce": "fruit",
+  "eggs": "eggs",
+  "milk": "dairy",
+  "yogurt": "dairy",
+  "cream": "dairy",
+  "butter": "dairy",
+  "other creams cheeses": "dairy",
+  "honeys syrups nectars": "honey",
+  "grains rice dried goods": "grains",
+  "bulk grains rice dried goods": "grains"
+}
