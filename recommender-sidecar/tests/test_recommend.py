@@ -36,3 +36,19 @@ def test_recommend_fallback_popularity(monkeypatch, tmp_path):
     r = c.post("/recommend", json={"cart_categories": ["mushrooms"], "top_k": 2})
     recs = r.json()["recommendations"]
     assert len(recs) > 0 and recs[0]["source"] == "fallback"
+
+def test_malformed_json_does_not_crash(monkeypatch, tmp_path):
+    (tmp_path / "category_rules.json").write_text("{ this is not valid json")
+    (tmp_path / "category_popularity.json").write_text("{}")
+    monkeypatch.setenv("RECOMMENDER_MODEL_DIR", str(tmp_path))
+    import importlib, main
+    importlib.reload(main)
+    from fastapi.testclient import TestClient
+    c = TestClient(main.app)
+    assert c.get("/health").json()["n_rules"] == 0
+
+def test_duplicate_cart_categories_not_double_counted(monkeypatch, tmp_path):
+    c = _client(monkeypatch, tmp_path)
+    r = c.post("/recommend", json={"cart_categories": ["leafy", "leafy"], "top_k": 5})
+    herbs = next(x for x in r.json()["recommendations"] if x["category"] == "herbs")
+    assert herbs["score"] == 2.1  # not 4.2

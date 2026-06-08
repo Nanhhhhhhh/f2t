@@ -1,17 +1,13 @@
 import json
 import logging
 import os
+from typing import Literal
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-MODEL_DIR = os.environ.get(
-    "RECOMMENDER_MODEL_DIR",
-    os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "recommender-final", "model")),
-)
 
 CATEGORY_RULES: dict[str, list[dict]] = {}
 CATEGORY_POPULARITY: dict[str, float] = {}
@@ -20,8 +16,12 @@ MODEL_VERSION = "none"
 
 def _load() -> None:
     global CATEGORY_RULES, CATEGORY_POPULARITY, MODEL_VERSION
-    rules_path = os.path.join(MODEL_DIR, "category_rules.json")
-    pop_path = os.path.join(MODEL_DIR, "category_popularity.json")
+    model_dir = os.environ.get(
+        "RECOMMENDER_MODEL_DIR",
+        os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "recommender-final", "model")),
+    )
+    rules_path = os.path.join(model_dir, "category_rules.json")
+    pop_path = os.path.join(model_dir, "category_popularity.json")
     try:
         with open(rules_path) as f:
             CATEGORY_RULES = json.load(f)
@@ -29,8 +29,8 @@ def _load() -> None:
             CATEGORY_POPULARITY = json.load(f)
         MODEL_VERSION = str(int(os.path.getmtime(rules_path)))
         logger.info(f"Loaded {len(CATEGORY_RULES)} antecedents from {rules_path}")
-    except FileNotFoundError:
-        logger.warning(f"Artifact not found in {MODEL_DIR}; serving empty rules (fallback only)")
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.warning(f"Artifact not found/invalid in {model_dir}; serving empty rules (fallback only)")
         CATEGORY_RULES, CATEGORY_POPULARITY, MODEL_VERSION = {}, {}, "none"
 
 
@@ -46,7 +46,7 @@ class RecommendRequest(BaseModel):
 class Recommendation(BaseModel):
     category: str
     score: float
-    source: str
+    source: Literal["rule", "fallback"]
 
 
 class RecommendResponse(BaseModel):
@@ -62,12 +62,13 @@ def health():
 def recommend(req: RecommendRequest) -> RecommendResponse:
     in_cart = set(req.cart_categories)
     scores: dict[str, float] = {}
-    for cat in req.cart_categories:
+    for cat in set(req.cart_categories):  # dedupe so duplicate cart entries don't double-count
         for rule in CATEGORY_RULES.get(cat, []):
-            c = rule["consequent"]
-            if c in in_cart:
+            c = rule.get("consequent")
+            lift = rule.get("lift")
+            if c is None or lift is None or c in in_cart:
                 continue
-            scores[c] = scores.get(c, 0.0) + float(rule["lift"])
+            scores[c] = scores.get(c, 0.0) + float(lift)
 
     if scores:
         ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)[: req.top_k]
