@@ -43,6 +43,22 @@ Defaults for min_support=0.02 and min_confidence=0.10 work well on the full Inst
 
 ---
 
+## Actual warm-start run (2026-06-08)
+
+The original Kaggle *competition* `instacart-market-basket-analysis` is archived (rules page 404, competition-API download returns 403), so the data was pulled from the public **dataset mirror** `psparks/instacart-market-basket-analysis` (license **CC0-1.0**, identical CSVs).
+
+Result of the real run with default thresholds (`min_support=0.02`, `min_confidence=0.10`):
+
+- Baskets after map+project to F2T categories: **2,874,457**
+- Rules mined: **34** across **8 antecedent** categories
+- Categories present: **9** (`other` is absent — it has no Instacart aisle mapping, as designed)
+- Category popularity (top): fruit 0.71, leafy 0.60, dairy 0.59, root 0.32, eggs 0.16, herbs 0.11
+- Sample real rules (by lift): herbs↔root 1.94, leafy→herbs 1.38, mushrooms→root 1.58, dairy→eggs 1.12
+
+These reflect genuine US-grocery co-occurrence; they are the warm-start, to be replaced by product-level rules once F2T has real orders (see Limitations).
+
+---
+
 ## Test the pipeline without Instacart data
 
 `generate_synthetic.py` creates 5 000 fabricated baskets whose affinity signals are hand-coded to exercise the pipeline end-to-end:

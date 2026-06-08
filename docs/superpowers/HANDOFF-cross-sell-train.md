@@ -1,5 +1,7 @@
 # HANDOFF — Train model thật cho feature Cross-sell (F2T)
 
+> ✅ **ĐÃ HOÀN THÀNH (2026-06-08).** Warm-start đã train thật trên Instacart 2017 (mirror `psparks/instacart-market-basket-analysis`, CC0): 2,874,457 giỏ → 34 luật / 8 antecedent / 9 category; sidecar đã verify nạp artifact thật và `/recommend` trả luật thật. Artifact ở `recommender-final/model/*.json` (KHÔNG commit — tái tạo bằng pipeline). File này giữ lại làm quy trình tái lập / để retrain. **Lưu ý đã cập nhật ở mục 6:** competition gốc bị archive (rules 404 / download 403) → dùng dataset MIRROR, không dùng competition API.
+
 > **Đối tượng đọc:** một agent (Claude) trên máy/account khác, KHÔNG có context phiên trước. Đọc hết file này trước khi làm gì. Mọi đường dẫn là tương đối so với gốc repo `f2t/`.
 
 ---
@@ -93,17 +95,19 @@ Sanity test pipeline (KHÔNG cần data, dùng synthetic — chỉ để chắc 
 
 ## 6. TẢI DATASET
 
+**Auth (Kaggle CLI 2.x):** token mới có dạng `KGAT_...`. Lưu: `printf 'KGAT_xxx' > ~/.kaggle/access_token && chmod 600 ~/.kaggle/access_token` (hoặc `export KAGGLE_API_TOKEN=KGAT_xxx`). Token cũ dạng `{username,key}` trong `kaggle.json` chỉ chạy với CLI classic (`pip install "kaggle<2"`). Test: `./venv/bin/kaggle competitions list` ra danh sách = OK.
+
+**Dùng DATASET MIRROR, không dùng competition** (competition gốc đã archive → 403):
 ```bash
 cd recommender-final
 mkdir -p data
-./venv/bin/kaggle competitions download -c instacart-market-basket-analysis -p data
-cd data && unzip -o instacart-market-basket-analysis.zip
-# Một số file bên trong lại là .csv.zip → giải nén tiếp:
-for z in *.csv.zip; do [ -f "$z" ] && unzip -o "$z"; done
-ls -la   # phải thấy: orders.csv, order_products__prior.csv, order_products__train.csv, products.csv, aisles.csv, departments.csv
+./venv/bin/kaggle datasets download -d psparks/instacart-market-basket-analysis -p data
+cd data && unzip -o instacart-market-basket-analysis.zip && rm -f *.zip
+ls -la   # phải thấy: orders.csv, order_products__prior.csv (~551M), order_products__train.csv, products.csv, aisles.csv, departments.csv
+cd ..
 ```
 
-> Nếu `kaggle` báo 403/forbidden: chưa accept competition rules trên web. Nếu báo "command not found": dùng `./venv/bin/kaggle`. Nếu hết đĩa giữa chừng: dọn đĩa, xoá `data/`, làm lại.
+> Mirror là CC0-1.0, CSV y hệt competition. Nếu hết đĩa giữa chừng: dọn đĩa, xoá `data/`, làm lại.
 
 ---
 
