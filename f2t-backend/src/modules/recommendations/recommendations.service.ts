@@ -31,7 +31,11 @@ export class RecommendationsService {
     if (!cartProducts.length) return [];
 
     const cartCategories = [...new Set(cartProducts.map((p) => p.category))];
-    const cartFarmIds = new Set(cartProducts.map((p) => String(p.farmId)));
+    const cartFarmIds = new Set(
+      cartProducts.map((p) =>
+        p.farmId instanceof Types.ObjectId ? p.farmId.toHexString() : (p.farmId as string),
+      ),
+    );
     const cartProductIds = new Set(productIds);
 
     const scoreByCat = new Map<string, number>();
@@ -71,13 +75,18 @@ export class RecommendationsService {
       .lean();
 
     const ranked = candidates
-      .filter((p) => !cartProductIds.has(String(p._id)))
+      .filter((p) => {
+        const idStr = p._id instanceof Types.ObjectId ? p._id.toHexString() : (p._id as string);
+        return !cartProductIds.has(idStr);
+      })
       .map((p) => {
         const ruleScore = scoreByCat.get(p.category) ?? 0.1;
-        const farmBoost = cartFarmIds.has(String(p.farmId)) ? FARM_BOOST : 1.0;
+        const farmStr =
+          p.farmId instanceof Types.ObjectId ? p.farmId.toHexString() : (p.farmId as string);
+        const farmBoost = cartFarmIds.has(farmStr) ? FARM_BOOST : 1.0;
         return { p, score: ruleScore * farmBoost };
       })
-      .sort((a, b) => b.score - a.score || ((b.p.availableQuantity ?? 0) - (a.p.availableQuantity ?? 0)))
+      .sort((a, b) => b.score - a.score || (b.p.availableQuantity - a.p.availableQuantity))
       .slice(0, limit)
       .map((x) => x.p as unknown as Product);
 

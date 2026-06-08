@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { Product } from '@modules/products/schemas/product.schema';
 import { RecommendationsService } from './recommendations.service';
 import { CrossSellQueryDto } from './dto/cross-sell.dto';
 
@@ -14,8 +15,8 @@ export class RecommendationsController {
   @Get('cross-sell')
   @ApiOperation({ summary: 'Sản phẩm "thường mua kèm" theo nội dung giỏ hàng (cross-sell)' })
   @ApiResponse({ status: 200, description: 'Danh sách sản phẩm gợi ý' })
-  async crossSell(@Query() query: CrossSellQueryDto) {
-    const ids = (query.productIds ?? '')
+  async crossSell(@Query() query: CrossSellQueryDto): Promise<Product[]> {
+    const ids = query.productIds
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
