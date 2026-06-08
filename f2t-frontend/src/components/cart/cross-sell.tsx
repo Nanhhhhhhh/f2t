@@ -25,7 +25,7 @@ export const CrossSell = ({ productIds }: Props) => {
               {p.name}
             </Text>
             <Text className="mt-1 text-xs text-neutral-500">
-              {p.pricePerUnit?.toLocaleString('vi-VN')}đ
+              {(p.pricePerUnit ?? 0).toLocaleString('vi-VN')}đ
             </Text>
             <TouchableOpacity
               testID={`cross-sell-add-${p.id}`}
