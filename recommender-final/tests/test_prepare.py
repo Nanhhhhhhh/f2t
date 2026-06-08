@@ -23,3 +23,9 @@ def test_build_baskets_groups_distinct_categories():
     baskets = build_baskets(df)
     assert sorted(baskets[1]) == ["dairy", "leafy"]
     assert baskets[2] == ["fruit"]
+
+def test_map_aisle_handles_nan():
+    import math
+    cmap = {"fresh vegetables": "leafy"}
+    assert map_aisle(float("nan"), float("nan"), cmap) is None
+    assert map_aisle("fresh vegetables", float("nan"), cmap) == "leafy"

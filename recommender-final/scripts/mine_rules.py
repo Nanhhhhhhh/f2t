@@ -9,11 +9,25 @@ from mlxtend.frequent_patterns import fpgrowth, association_rules
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def mine(baskets: list[list[str]], min_support: float = 0.02, min_confidence: float = 0.1):
+    if not baskets:
+        return {}, {}
+
     te = TransactionEncoder()
     arr = te.fit_transform(baskets)
     df = pd.DataFrame(arr, columns=te.columns_)
 
     freq = fpgrowth(df, min_support=min_support, use_colnames=True)
+
+    n = len(baskets)
+    counts: dict[str, int] = {}
+    for b in baskets:
+        for c in set(b):
+            counts[c] = counts.get(c, 0) + 1
+    popularity = {k: round(v / n, 4) for k, v in counts.items()}
+
+    if freq.empty:
+        return {}, popularity
+
     rules_df = association_rules(freq, metric="lift", min_threshold=1.0)
     rules_df = rules_df[rules_df["confidence"] >= min_confidence]
     rules_df = rules_df[
@@ -33,12 +47,6 @@ def mine(baskets: list[list[str]], min_support: float = 0.02, min_confidence: fl
     for a in rules:
         rules[a].sort(key=lambda x: x["lift"], reverse=True)
 
-    n = len(baskets)
-    counts: dict[str, int] = {}
-    for b in baskets:
-        for c in set(b):
-            counts[c] = counts.get(c, 0) + 1
-    popularity = {k: round(v / n, 4) for k, v in counts.items()}
     return rules, popularity
 
 def main(baskets_path: str, out_dir: str, min_support: float, min_confidence: float) -> None:
@@ -46,8 +54,10 @@ def main(baskets_path: str, out_dir: str, min_support: float, min_confidence: fl
     baskets = [s.split("|") for s in df["categories"]]
     rules, popularity = mine(baskets, min_support, min_confidence)
     os.makedirs(out_dir, exist_ok=True)
-    json.dump(rules, open(os.path.join(out_dir, "category_rules.json"), "w"), indent=2)
-    json.dump(popularity, open(os.path.join(out_dir, "category_popularity.json"), "w"), indent=2)
+    with open(os.path.join(out_dir, "category_rules.json"), "w") as f:
+        json.dump(rules, f, indent=2)
+    with open(os.path.join(out_dir, "category_popularity.json"), "w") as f:
+        json.dump(popularity, f, indent=2)
     print(f"Wrote {sum(len(v) for v in rules.values())} rules, {len(popularity)} categories")
 
 if __name__ == "__main__":

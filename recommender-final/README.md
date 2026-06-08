@@ -76,6 +76,6 @@ Defaults for min_support=0.02 and min_confidence=0.10 work well on the full Inst
 
 2. **Instacart != F2T order distribution.** Instacart covers a US supermarket basket; Vietnamese farm-fresh purchasing patterns differ (e.g., mushroom/herb pairing is stronger in VN cuisine). The warm-start rules degrade gracefully as F2T accumulates real orders.
 
-3. **Retrain on real orders matters.** The Phase 2 sidecar exposes a `/retrain` endpoint. Once F2T has sufficient order volume (target: ~500 distinct baskets), retraining on real data replaces the Instacart warm-start and produces product-level rules calibrated to actual user behaviour.
+3. **Retrain on real orders matters.** Once F2T has enough real order volume, re-run `scripts/mine_rules.py` on exported real-order baskets to replace the Instacart warm-start with product-level rules. (The sidecar itself only serves `/recommend` and `/health`; retraining is an offline step.)
 
 4. **No personalisation.** Rules are global (population-level). User-level collaborative filtering is out of scope for Phase 1.

@@ -7,13 +7,15 @@ import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 _ROOT_KEYWORDS = ("carrot", "potato", "onion", "radish", "beet", "ginger", "garlic", "turnip")
+# Note: category 'other' has no Instacart aisle mapping and won't appear in real pipeline output.
 
-def map_aisle(aisle: str, product_name: str, cmap: dict) -> str | None:
-    """Trả category F2T hoặc None nếu phải bỏ."""
-    name = (product_name or "").lower()
+def map_aisle(aisle, product_name, cmap: dict) -> str | None:
+    """Trả category F2T hoặc None nếu phải bỏ. An toàn với NaN (float) từ merge."""
+    name = product_name.lower() if isinstance(product_name, str) else ""
+    aisle_str = aisle.lower() if isinstance(aisle, str) else ""
     if "mushroom" in name:
         return "mushrooms"
-    base = cmap.get((aisle or "").lower())
+    base = cmap.get(aisle_str)
     if base == "leafy" and any(k in name for k in _ROOT_KEYWORDS):
         return "root"
     return base
@@ -36,6 +38,8 @@ def main(data_dir: str, out_path: str) -> None:
         fp = os.path.join(data_dir, fn)
         if os.path.exists(fp):
             frames.append(pd.read_csv(fp, usecols=["order_id", "product_id"]))
+    if not frames:
+        sys.exit("Error: no order_products CSV found in data/. Expected at least one of: order_products__prior.csv, order_products__train.csv")
     order_products = pd.concat(frames, ignore_index=True)
 
     merged = order_products.merge(
