@@ -800,13 +800,17 @@ Nhóm giao diện dành cho Consumer được tổ chức theo luồng nghiệp 
 
 **Tìm kiếm theo vị trí địa lý** (`farms/search.tsx`, `(app)/farms.tsx`) cho phép Consumer lọc trang trại và sản phẩm trong một bán kính địa lý nhất định. Truy vấn được thực hiện thông qua chỉ mục 2dsphere trên collection `farms` trong MongoDB, đảm bảo hiệu năng với dữ liệu địa lý thực [ref: f2t-backend/src/modules/farms/schemas/farm.schema.ts:L113; ledger t1.11-schema-detail].
 
-**Giỏ hàng** (`(app)/cart.tsx`) quản lý danh sách sản phẩm đã chọn, cho phép điều chỉnh số lượng và hiển thị tổng giá trị đơn hàng bao gồm phí giao hàng ước tính. Từ màn hình này, Consumer chuyển sang luồng thanh toán.
+**Giỏ hàng** (`(app)/cart.tsx`) quản lý danh sách sản phẩm đã chọn, cho phép điều chỉnh số lượng và hiển thị tổng giá trị đơn hàng bao gồm phí giao hàng ước tính. Từ màn hình này, Consumer chuyển sang luồng thanh toán. Phía dưới danh sách giỏ, component `CrossSell` gọi `GET /api/recommendations/cross-sell` và hiển thị tối đa 6 sản phẩm "Thường mua kèm" category-level dựa trên association rules [ref: f2t-frontend/src/app/(app)/cart.tsx; f2t-frontend/src/components/cart/cross-sell.tsx; ledger cross-sell-v1].
 
 **Checkout và thanh toán** (`checkout/index.tsx`, `checkout/success.tsx`) tích hợp Stripe Checkout Session: backend tạo session với danh sách line_items từ đơn hàng rồi trả về `url` redirect; frontend mở Stripe WebView để Consumer hoàn tất thanh toán; kết quả xác nhận được backend nhận qua webhook [ref: f2t-backend/src/modules/payments/payments.service.ts:54-118; ledger t2.2-stripe-ghn]. Màn hình `payment/result.tsx` hiển thị trạng thái thành công hoặc lỗi sau khi Stripe redirect.
 
 **Theo dõi đơn hàng** (`(app)/orders/index.tsx`, `(app)/orders/[id].tsx`, `(app)/orders/tracking.tsx`) cho phép Consumer xem lịch sử và trạng thái chi tiết từng đơn. Khi đơn hàng đã có mã vận đơn GHN, màn hình tracking hiển thị thông tin từ GHN Provider; trong trường hợp chưa có mã GHN, hệ thống fallback về Dijkstra trên đồ thị 10 node TP.HCM để ước tính lộ trình [ref: f2t-backend/src/modules/delivery/delivery.service.ts:98-232; ledger t2.2-stripe-ghn].
 
 **Hồ sơ cá nhân** (`(app)/profile.tsx`, `(app)/profile/edit.tsx`) cho phép Consumer xem và chỉnh sửa thông tin tài khoản, bao gồm địa chỉ giao hàng nhúng trực tiếp trong document user [ref: f2t-backend/src/modules/users/schemas/user.schema.ts:L20-97; ledger t1.11-schema-detail].
+
+**Nhóm màn hình đặt lại mật khẩu** gồm bốn màn hình liên tiếp: `forgot-password.tsx` (nhập email để yêu cầu OTP), `verify-otp.tsx` (nhập mã OTP 6 số), `reset-password.tsx` (nhập mật khẩu mới sau khi xác minh OTP), và `(app)/profile/change-password.tsx` (đổi mật khẩu khi đã đăng nhập — không cần OTP) [ref: f2t-frontend/src/app/forgot-password.tsx; f2t-frontend/src/app/verify-otp.tsx; f2t-frontend/src/app/reset-password.tsx; f2t-frontend/src/app/(app)/profile/change-password.tsx; ledger auth-reset-v1].
+
+**Màn hình đánh giá sản phẩm** (`products/add-review.tsx`) cho phép Consumer đánh giá sản phẩm sau khi nhận hàng, bao gồm rating 1–5 sao, nhận xét văn bản và tùy chọn đính kèm ảnh. Danh sách đánh giá từ các Consumer khác được hiển thị trên trang chi tiết sản phẩm `products/[id].tsx`, cung cấp thông tin tham khảo chất lượng từ cộng đồng [ref: f2t-frontend/src/app/products/add-review.tsx; ledger reviews-v1].
 
 **Feed cộng đồng** (`(app)/feed.tsx`, `feed/[id].tsx`, `feed/add-post.tsx`) là không gian chia sẻ bài đăng giữa người dùng trên nền tảng. Đây là chức năng cộng đồng thuần túy dựa trên collection `posts`; hệ thống không triển khai lọc cộng tác (collaborative filtering) hay cá nhân hoá feed. Gợi ý sản phẩm cross-sell category-level (FP-Growth) chỉ xuất hiện trong màn hình **giỏ hàng**, không trong feed [ref: ledger cross-sell-v1].
 
@@ -839,5 +843,11 @@ Nhóm giao diện Admin tập trung vào bốn nhiệm vụ vận hành chính: 
 **★ Shadow Report** (truy cập qua `admin/index.tsx` → endpoint `GET /dynamic-pricing/shadow-report`) là màn hình giám sát chuyên biệt cho hệ thống định giá AI ở chế độ shadow/advisory. Khi biến môi trường `PRICING_MODE=shadow` (mặc định), mọi đề xuất giá từ DDQN được ghi vào MongoDB với status `shadow` mà không tự động áp dụng — Admin có thể theo dõi toàn bộ hành vi mô hình qua endpoint `GET /dynamic-pricing/shadow-report` [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.controller.ts:78-84]. Report tổng hợp các chỉ số KPI: số ngày hoạt động shadow (`shadowDays`), tỷ lệ Safety Layer can thiệp (`safetyClipRate`) — tức tỷ lệ đề xuất bị Safety Layer điều chỉnh lại trước khi ghi — và phân bổ đề xuất theo trạng thái [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:379-405]. Chức năng này cho phép Admin đánh giá mức độ tin cậy và an toàn của mô hình AI trước khi quyết định chuyển sang chế độ `pending_review` (Farm có thể duyệt) hoặc áp dụng tự động.
 
 **Quản lý đơn hàng** (`admin/orders.tsx`) cung cấp cho Admin tầm nhìn toàn hệ thống về đơn hàng, cho phép tra cứu, lọc theo trạng thái và can thiệp vào các đơn có vấn đề.
+
+**Quản lý bài đăng** (`admin/posts.tsx`) cho phép Admin xem danh sách toàn bộ bài đăng trên feed cộng đồng và xóa các bài vi phạm chính sách nền tảng [ref: f2t-frontend/src/app/admin/posts.tsx; ledger admin-v2].
+
+**Quản lý sản phẩm** (`admin/products.tsx`) hiển thị danh sách sản phẩm toàn hệ thống từ mọi trang trại, hỗ trợ Admin giám sát catalog và xử lý các sản phẩm vi phạm quy định.
+
+**Quản lý đánh giá** (`admin/reviews.tsx`) cho phép Admin xem và xóa các đánh giá không phù hợp, bảo đảm chất lượng nội dung do người dùng tạo ra (UGC) trên nền tảng [ref: f2t-frontend/src/app/admin/reviews.tsx; ledger reviews-v1].
 
 **Thống kê hệ thống** được tích hợp vào dashboard tổng quan và có thể mở rộng thêm theo nhu cầu vận hành. Các số liệu nền tảng hiện tại bao gồm phân bổ người dùng theo vai trò, phân bổ đơn hàng theo trạng thái và tổng doanh thu, phục vụ công tác báo cáo và đưa ra quyết định vận hành của đội ngũ quản trị.
