@@ -353,3 +353,21 @@ Khoá luận F2T (5 chương + TLTK + mục lục + 23 diagram) đạt chuẩn t
 5. `docs/thesis/final/00-trang-bia-muc-luc.md:70` — "3.4.2. Chi tiết 10 collections" → phải là "3.4.2. Chi tiết 12 collections" (khớp với chuong-3:L516 "### 3.4.2. Chi tiết 12 collections")
 
 *Report được tạo bởi Independent Verifier Agent T3.18 — 2026-06-09*
+
+---
+
+## T3.18 V3 Fix Re-verify (2026-06-09)
+
+Sau khi fix 9 stale numbers qua 3 rounds:
+- Ch2: 13→15 module, Monolith+1→2 Sidecar, 79→92 endpoint/14→16 ctrl, 10→12 collection
+- Ch5: 10→12 collection, 54→78 test, 21→24 spec
+- Ch1: 10→12 collection, 54→78 test, 21→24 spec
+- diagrams/deployment-architecture.puml: 13→15 module, 10→12 collections
+- diagrams/contribution-map.puml: Monolith+1→2, 10→12 collections
+- diagrams/erd.puml: comment 10→12
+- §4.4.6 duplicate Bảng 4.7/4.8/4.9 → renamed to 4.13/4.14/4.15
+- §4.4.x freshness duplicate Bảng 4.10 → 4.11; 4.11 → 4.12
+
+**V3 re-verify PASS** — 0 hits cho "13 module", "Monolith + 1 Sidecar", "79 endpoint", "10 collection" trong toàn docs/thesis/final/ (ngoại trừ VERIFY-REPORT.md historical).
+
+**VERDICT FINAL: PASS** (V1 ✅ V2 ✅ V3 ✅ V4 ✅ V5 ✅ V6 ✅ — 8 HẠN CHẾ BẮT BUỘC)
