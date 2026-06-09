@@ -70,6 +70,10 @@
 
 [35] Kayikci et al., "Dynamic markdown pricing for perishable goods approaching expiration dates in retail supply chains," 2022.
 
+[36] R. Agrawal and R. Srikant, "Fast algorithms for mining association rules," in *Proc. 20th Int. Conf. Very Large Data Bases (VLDB)*, San Francisco, CA, USA, 1994, pp. 487–499.
+
+[37] J. Han, J. Pei, and Y. Yin, "Mining frequent patterns without candidate generation," in *Proc. ACM SIGMOD Int. Conf. Management of Data*, Dallas, TX, USA, May 2000, pp. 1–12.
+
 ---
 
 *Ghi chú: Các trích dẫn dạng `[ref: path:Lxx]` và `[ref: ledger <id>]` xuất hiện trong khoá luận là tham chiếu mã nguồn nội bộ của hệ thống F2T (file nguồn + số dòng, hoặc bút danh ledger), không thuộc danh mục tài liệu tham khảo ngoài này.*
