@@ -5,6 +5,7 @@ import { User, UserDocument } from '../users/schemas/user.schema';
 import { Farm, FarmDocument } from '../farms/schemas/farm.schema';
 import { Order, OrderDocument } from '../orders/schemas/order.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
+import { Post, PostDocument } from '../posts/schemas/post.schema';
 import { PaginationResponseDto } from '../../common/dto/pagination-response.dto';
 import { AdminUsersQueryDto, AdminFarmsQueryDto, AdminOrdersQueryDto, AdminProductsQueryDto } from './dto/admin.dto';
 
@@ -26,6 +27,7 @@ export class AdminService {
     @InjectModel(Farm.name) private farmModel: Model<FarmDocument>,
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(Post.name) private postModel: Model<PostDocument>,
   ) {}
 
   async findAllUsers(query: AdminUsersQueryDto): Promise<PaginationResponseDto<UserDocument>> {
@@ -231,5 +233,35 @@ export class AdminService {
       newUsersThisMonth,
       newOrdersThisMonth,
     };
+  }
+
+  async getPosts(page = 1, limit = 20, search?: string): Promise<PaginationResponseDto<PostDocument>> {
+    const filter: FilterQuery<PostDocument> = {};
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = { $regex: escaped, $options: 'i' };
+      filter.$or = [
+        { title: searchRegex },
+        { body: searchRegex },
+      ];
+    }
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      this.postModel
+        .find(filter)
+        .populate('authorId', 'firstName lastName email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.postModel.countDocuments(filter).exec(),
+    ]);
+    return new PaginationResponseDto(items, total, page, limit);
+  }
+
+  async deletePost(id: string): Promise<void> {
+    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid ID format');
+    const post = await this.postModel.findByIdAndDelete(id).exec();
+    if (!post) throw new NotFoundException(`Post ${id} not found`);
   }
 }

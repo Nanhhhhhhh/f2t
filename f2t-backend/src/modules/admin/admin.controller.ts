@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Body, Query, UseGuards, HttpCode, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { AdminService, AdminAnalyticsDto } from './admin.service';
 import { AdminUsersQueryDto, AdminFarmsQueryDto, AdminOrdersQueryDto, AdminProductsQueryDto, BanUserDto, ChangeUserRoleDto, VerifyFarmDto } from './dto/admin.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -61,5 +61,20 @@ export class AdminController {
   @Get('analytics')
   getAnalytics(): Promise<AdminAnalyticsDto> {
     return this.adminService.getAnalytics();
+  }
+
+  @Get('posts')
+  getPosts(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getPosts(page, limit, search);
+  }
+
+  @Delete('posts/:id')
+  @HttpCode(204)
+  deletePost(@Param('id') id: string): Promise<void> {
+    return this.adminService.deletePost(id);
   }
 }
