@@ -19,6 +19,10 @@ import {
   VerificationToken,
   VerificationTokenDocument,
 } from './schemas/verification-token.schema';
+import {
+  PasswordResetToken,
+  PasswordResetTokenDocument,
+} from './schemas/password-reset-token.schema';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
 import {
@@ -52,6 +56,8 @@ export class AuthService {
     private configService: ConfigService,
     @InjectModel(VerificationToken.name)
     private verificationTokenModel: Model<VerificationTokenDocument>,
+    @InjectModel(PasswordResetToken.name)
+    private passwordResetTokenModel: Model<PasswordResetTokenDocument>,
     private emailService: EmailService,
     private smsService: SmsService,
   ) {}
@@ -285,5 +291,77 @@ export class AuthService {
 
   private generateOtp(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  private generateOtpCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  async forgotPassword(email: string): Promise<{ success: boolean }> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) return { success: true };
+
+    const otp = this.generateOtpCode();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+    await this.passwordResetTokenModel.deleteMany({ email });
+    await this.passwordResetTokenModel.create({ email, otp: hashedOtp, expiresAt });
+    await this.emailService.sendOtpEmail(email, otp);
+
+    return { success: true };
+  }
+
+  async verifyOtp(email: string, otp: string): Promise<{ token: string }> {
+    const record = await this.passwordResetTokenModel
+      .findOne({ email, used: false, expiresAt: { $gt: new Date() } })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (!record) throw new BadRequestException('OTP không hợp lệ hoặc đã hết hạn');
+
+    const valid = await bcrypt.compare(otp, record.otp);
+    if (!valid) throw new BadRequestException('OTP không đúng');
+
+    record.used = true;
+    await record.save();
+
+    const user = await this.usersService.findByEmail(email);
+    if (!user) throw new BadRequestException('User not found');
+
+    const token = this.jwtService.sign(
+      { sub: String(user._id), purpose: 'password-reset' },
+      { expiresIn: '15m' },
+    );
+    return { token };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean }> {
+    let payload: { sub: string; purpose: string };
+    try {
+      payload = this.jwtService.verify(token);
+    } catch {
+      throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn');
+    }
+    if (payload.purpose !== 'password-reset') throw new BadRequestException('Token không hợp lệ');
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.usersService.updatePassword(payload.sub, hashedPassword);
+    return { success: true };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean }> {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new UnauthorizedException();
+
+    const userWithPassword = await this.usersService.findByEmail(user.email);
+    if (!userWithPassword) throw new UnauthorizedException();
+
+    const valid = await bcrypt.compare(currentPassword, userWithPassword.password);
+    if (!valid) throw new UnauthorizedException('Mật khẩu hiện tại không đúng');
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.usersService.updatePassword(userId, hashedPassword);
+    return { success: true };
   }
 }

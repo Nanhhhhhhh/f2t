@@ -85,6 +85,10 @@ export class UsersService {
     await this.userModel.findByIdAndUpdate(userId, { pushToken }).exec();
   }
 
+  async updatePassword(id: string, hashedPassword: string): Promise<void> {
+    await this.userModel.updateOne({ _id: id }, { password: hashedPassword }).exec();
+  }
+
   findFarmOwner(_farmId: string): UserDocument | null {
     // This is tricky because we don't have Farm model here.
     // However, we can use the injected model if we add it, or use FarmsService.
