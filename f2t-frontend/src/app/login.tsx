@@ -31,7 +31,7 @@ export default function Login() {
       if (verification.needsAny) {
         router.replace('/verification');
       } else if (user?.role === 'admin') {
-        router.replace('/(admin)');
+        router.replace('/admin');
       } else if (user?.role === 'farm') {
         router.replace('/dashboard');
       } else {
