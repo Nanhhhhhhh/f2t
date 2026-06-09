@@ -67,7 +67,7 @@
   - 3.3.9. Module Recommendations (Cross-sell)
 - 3.4. Phân tích, thiết kế cơ sở dữ liệu
   - 3.4.1. Sơ đồ quan hệ thực thể (ERD)
-  - 3.4.2. Chi tiết 10 collections
+  - 3.4.2. Chi tiết 12 collections
   - 3.4.3. Chỉ mục và tối ưu
 - 3.5. Phân tích, thiết kế giao diện chức năng
   - 3.5.1. Consumer
@@ -175,7 +175,8 @@
 - Bảng 4.8 — So sánh ba phương án định giá qua mô phỏng MarketEnv (91 ngày)
 - Bảng 4.9 — Phân bố 11 hành động DDQN
 - Bảng 4.10 — So sánh hệ thống định giá F2T với nghiên cứu quốc tế
-- Bảng 4.11 — Chỉ số phân loại độ tươi (khung chờ điền)
-- Bảng 4.12 — Thống kê 34 luật FP-Growth cross-sell (lift, confidence, antecedent)
-- Bảng 4.13 — Phân bố luật theo antecedent category (8 category × số luật)
-- Bảng 4.14 — So sánh phương án cross-sell: warm-start Instacart vs retrain F2T thật
+- Bảng 4.11 — Confusion Matrix 2×2 phân loại độ tươi (khung chờ điền)
+- Bảng 4.12 — Chỉ số phân loại độ tươi (khung chờ điền)
+- Bảng 4.13 — Thống kê khai phá luật FP-Growth (warm-start Instacart)
+- Bảng 4.14 — Độ phổ biến category (popularity)
+- Bảng 4.15 — Luật tiêu biểu theo lift

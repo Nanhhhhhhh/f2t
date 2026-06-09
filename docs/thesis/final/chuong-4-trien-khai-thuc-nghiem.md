@@ -408,7 +408,7 @@ $$\text{F1-score} = \frac{2 \times \text{Precision} \times \text{Recall}}{\text{
 
 Thời gian suy luận (inference time) được đo bằng đơn vị mili-giây cho một lần gọi `model.predict({"image": img})` với ảnh 299×299 RGB, phản ánh độ trễ thực tế của pipeline phân loại khi tích hợp vào sidecar FastAPI [ref: pricing-sidecar/main.py:324-325].
 
-#### Bảng 4.10 — Confusion Matrix 2×2 (khung chờ điền)
+#### Bảng 4.11 — Confusion Matrix 2×2 (khung chờ điền)
 
 |  | **Dự đoán: fresh** | **Dự đoán: rotten** |
 |---|---|---|
@@ -417,7 +417,7 @@ Thời gian suy luận (inference time) được đo bằng đơn vị mili-giâ
 
 *Ghi chú: Các ô TP/FP/FN/TN sẽ được điền sau khi chạy đánh giá trên tập test. Bảng áp dụng cho từng mô hình (fruit model và root model) riêng biệt.*
 
-#### Bảng 4.11 — Chỉ số phân loại độ tươi (khung chờ điền)
+#### Bảng 4.12 — Chỉ số phân loại độ tươi (khung chờ điền)
 
 | Mô hình | Accuracy | Precision | Recall | F1-score | Inference time (ms) |
 |---|---|---|---|---|---|
@@ -500,7 +500,7 @@ Dữ liệu đầu vào: **Instacart Online Grocery Shopping Dataset 2017**, t�
 
 Chạy pipeline với ngưỡng mặc định (`min_support=0.02`, `min_confidence=0.10`):
 
-**Bảng 4.7 — Thống kê khai phá luật FP-Growth (warm-start Instacart)**
+**Bảng 4.13 — Thống kê khai phá luật FP-Growth (warm-start Instacart)**
 
 | Chỉ số | Giá trị |
 |--------|---------|
@@ -509,7 +509,7 @@ Chạy pipeline với ngưỡng mặc định (`min_support=0.02`, `min_confiden
 | Số antecedent category | **8** |
 | Số category trong luật | **9** (`other` vắng — không có aisle Instacart map, đúng thiết kế) |
 
-**Bảng 4.8 — Độ phổ biến category (popularity)**
+**Bảng 4.14 — Độ phổ biến category (popularity)**
 
 | Category | Popularity |
 |----------|-----------|
@@ -520,7 +520,7 @@ Chạy pipeline với ngưỡng mặc định (`min_support=0.02`, `min_confiden
 | eggs | 0,16 |
 | herbs | 0,11 |
 
-**Bảng 4.9 — Luật tiêu biểu theo lift**
+**Bảng 4.15 — Luật tiêu biểu theo lift**
 
 | Antecedent | Consequent | Lift |
 |------------|------------|------|

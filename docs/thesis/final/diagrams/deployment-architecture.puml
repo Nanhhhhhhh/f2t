@@ -12,7 +12,7 @@ cloud "Thiết bị người dùng" {
 }
 
 node "Backend Server" {
-  component "NestJS Backend\nport 3000\n13 module nghiệp vụ\nTypeScript" as nestjs
+  component "NestJS Backend\nport 3000\n15 module nghiệp vụ\nTypeScript" as nestjs
   component "pricing-sidecar\nFastAPI\nport 8000\nPython + PyTorch + CoreML" as sidecar
 }
 

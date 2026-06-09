@@ -54,13 +54,13 @@ Bảng 2.1 tóm tắt so sánh ba kiến trúc theo năm tiêu chí:
 | Phù hợp nhóm nhỏ | Rất tốt | Kém | Tốt |
 | Debug & tracing | Đơn giản | Phức tạp | Đơn giản (giao tiếp HTTP nội bộ) |
 
-Đối với F2T — dự án do một sinh viên phát triển trong thời gian khoá luận — Microservices là quá phức tạp về mặt vận hành, trong khi Monolithic thuần tuý không thể đáp ứng yêu cầu chạy mô hình AI Python. **Monolith + 1 Sidecar** vì vậy là lựa chọn phù hợp nhất [ref: ledger t1.4-one-sidecar].
+Đối với F2T — dự án do một sinh viên phát triển trong thời gian khoá luận — Microservices là quá phức tạp về mặt vận hành, trong khi Monolithic thuần tuý không thể đáp ứng yêu cầu chạy mô hình AI Python. **Monolith + 2 Sidecar** vì vậy là lựa chọn phù hợp nhất [ref: ledger numbers-v3].
 
 ### 2.2.2. Kiến trúc REST API và giao tiếp giữa các dịch vụ
 
 REST (Representational State Transfer) là phong cách kiến trúc cho hệ thống phân tán dựa trên giao thức HTTP, sử dụng các phương thức GET, POST, PUT, PATCH, DELETE để thao tác tài nguyên được xác định bởi URI [TLTK]. Dữ liệu trao đổi chủ yếu theo định dạng JSON — nhẹ, dễ parse, được hỗ trợ rộng rãi trên mọi nền tảng. REST API tuân thủ nguyên tắc **stateless** (mỗi request chứa đủ thông tin để xử lý độc lập, server không lưu session) và **uniform interface** (tài nguyên được xác định nhất quán qua URI) [TLTK].
 
-Trong hệ thống F2T, tất cả giao tiếp giữa frontend và backend, cũng như giữa backend NestJS và sidecar Python, đều dùng REST API qua HTTP JSON [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]. Backend NestJS expose ≈79 REST endpoint trên 14 controller [ref: ledger t1.15-numbers]; sidecar Python expose 3 endpoint (`/predict`, `/forecast`, `/freshness/classify`) trên cùng một service chạy ở cổng 8000 [ref: pricing-sidecar/main.py:263, 277, 316; ledger t1.4-one-sidecar]. Giao tiếp backend → sidecar diễn ra hoàn toàn nội bộ (localhost), không qua mạng ngoài, nên độ trễ bổ sung là không đáng kể.
+Trong hệ thống F2T, tất cả giao tiếp giữa frontend và backend, cũng như giữa backend NestJS và sidecar Python, đều dùng REST API qua HTTP JSON [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar]. Backend NestJS expose 92 REST endpoint trên 16 controller [ref: ledger numbers-v3]; pricing-sidecar expose 3 endpoint (`/predict`, `/forecast`, `/freshness/classify`) trên cổng 8000 [ref: pricing-sidecar/main.py:263, 277, 316]; recommender-sidecar expose 2 endpoint (`/recommend`, `/health`) trên cổng 8001 [ref: recommender-sidecar/main.py:61,56]. Giao tiếp backend → sidecar diễn ra hoàn toàn nội bộ (localhost), không qua mạng ngoài, nên độ trễ bổ sung là không đáng kể.
 
 Một điểm quan trọng trong thiết kế giao tiếp của F2T là cơ chế **graceful degradation**: khi sidecar không phản hồi (lỗi mạng, sidecar khởi động chậm), backend bắt ngoại lệ và trả về kết quả dự phòng thay vì để request thất bại hoàn toàn [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:283-285; ledger t2.2-security]. Điều này đảm bảo các tính năng TMĐT cốt lõi (duyệt sản phẩm, đặt hàng, thanh toán) không bị gián đoạn ngay cả khi module AI gặp sự cố.
 
@@ -87,7 +87,7 @@ So với Flutter — đối thủ chính trong không gian cross-platform — Re
 
 NestJS là framework Node.js viết bằng TypeScript, lấy cảm hứng từ kiến trúc Angular với hệ thống **Dependency Injection (DI)** tường minh, giúp các thành phần phụ thuộc được tiêm tự động theo cơ chế IoC (Inversion of Control), giảm coupling và tăng khả năng test [TLTK]. So với Express.js thuần tuý — vốn là micro-framework tự do — NestJS áp đặt cấu trúc module rõ ràng, phù hợp hơn cho dự án quy mô vừa với nhiều tính năng nghiệp vụ [TLTK].
 
-F2T sử dụng **@nestjs/common 11.0.1** và **@nestjs/core 11.0.1** [ref: ledger t2.2-tech-versions], tổ chức nghiệp vụ thành 13 module: `admin`, `auth`, `delivery`, `demand-forecasting`, `dynamic-pricing`, `farms`, `notifications`, `orders`, `payments`, `posts`, `products`, `uploads`, `users` [ref: f2t-backend/src/modules/ — 13 thư mục].
+F2T sử dụng **@nestjs/common 11.0.1** và **@nestjs/core 11.0.1** [ref: ledger t2.2-tech-versions], tổ chức nghiệp vụ thành 15 module: `admin`, `auth`, `delivery`, `demand-forecasting`, `dynamic-pricing`, `farms`, `notifications`, `orders`, `payments`, `posts`, `products`, `recommendations`, `reviews`, `uploads`, `users` [ref: f2t-backend/src/modules/ — 15 thư mục; ledger numbers-v3].
 
 Các pattern NestJS được sử dụng trong F2T bao gồm:
 
