@@ -153,6 +153,26 @@ export const EMAIL_TEMPLATES: Record<
       Farm Marketplace Team
     `,
   }),
+
+  new_order: (data) => ({
+    subject: `New Order Received - ${data.orderNumber}`,
+    body: `You have received a new order ${data.orderNumber} worth ${data.orderTotal}.`,
+  }),
+
+  low_stock: (data) => ({
+    subject: `Low Stock Alert`,
+    body: `Product stock is running low. Please restock soon.`,
+  }),
+
+  system: (_data) => ({
+    subject: `System Notification`,
+    body: `You have a new system notification.`,
+  }),
+
+  price_suggestion: (data) => ({
+    subject: `Price Suggestion`,
+    body: `A price update has been suggested for your product.`,
+  }),
 };
 
 // SMS templates (shorter versions)
@@ -186,6 +206,15 @@ export const SMS_TEMPLATES: Record<
 
   payment_failed: (data) =>
     `Payment failed for order ${data.orderNumber}. Please update payment method.`,
+
+  new_order: (data) =>
+    `New order ${data.orderNumber} received! Amount: ${data.orderTotal}`,
+
+  low_stock: (_data) => `Your product stock is running low. Please restock.`,
+
+  system: (_data) => `You have a new system notification.`,
+
+  price_suggestion: (_data) => `A new price suggestion is available.`,
 };
 
 // Push notification templates
@@ -236,6 +265,26 @@ export const PUSH_TEMPLATES: Record<
   payment_failed: (data) => ({
     title: 'Payment Failed',
     body: `Payment failed for order ${data.orderNumber}`,
+  }),
+
+  new_order: (data) => ({
+    title: 'Đơn hàng mới',
+    body: `Bạn có đơn hàng mới ${data.orderNumber}`,
+  }),
+
+  low_stock: (_data) => ({
+    title: 'Sắp hết hàng',
+    body: `Sản phẩm của bạn sắp hết hàng. Vui lòng nhập thêm.`,
+  }),
+
+  system: (_data) => ({
+    title: 'Thông báo hệ thống',
+    body: `Bạn có thông báo mới từ hệ thống.`,
+  }),
+
+  price_suggestion: (_data) => ({
+    title: 'Gợi ý giá',
+    body: `Có gợi ý giá mới cho sản phẩm của bạn.`,
   }),
 };
 

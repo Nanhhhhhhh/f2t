@@ -7,6 +7,7 @@ import {
 import { Types } from 'mongoose';
 import { OrdersService } from '../orders/orders.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FarmsService } from '../farms/farms.service';
 import { NotificationType } from '../notifications/enums/notification-type.enum';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
@@ -43,6 +44,7 @@ export class PaymentsService {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly notificationsService: NotificationsService,
+    private readonly farmsService: FarmsService,
     private readonly configService: ConfigService,
   ) {
     this.stripe = new Stripe(
@@ -147,15 +149,27 @@ export class PaymentsService {
             paidAt: new Date(),
           });
 
-          // Notify consumer
           const order = await this.ordersService.findById(orderId);
           const consumerId = extractId(order.customerId);
+          const farmId = extractId(order.farmId as Types.ObjectId | { _id: Types.ObjectId } | { id: string });
 
+          // Notify consumer
           void this.notificationsService.createAndPush({
             userId: consumerId,
-            type: NotificationType.System,
+            type: NotificationType.PaymentReceived,
             title: 'Thanh toán thành công',
             message: `Đơn hàng #${orderId.slice(-8)} đã được thanh toán thành công.`,
+            referenceId: orderId,
+            referenceType: 'order',
+          });
+
+          // Notify farm owner
+          const farm = await this.farmsService.findOne(farmId);
+          void this.notificationsService.createAndPush({
+            userId: farm.ownerId.toHexString(),
+            type: NotificationType.PaymentReceived,
+            title: 'Nhận được thanh toán',
+            message: `Đơn hàng #${orderId.slice(-8)} đã được khách hàng thanh toán qua Stripe.`,
             referenceId: orderId,
             referenceType: 'order',
           });

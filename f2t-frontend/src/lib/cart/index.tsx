@@ -290,6 +290,19 @@ export const useCart = create<CartState>()(
           return { canAdd: false, reason: 'Product is not available' };
         }
 
+        // Enforce single-farm cart — backend rejects mixed-farm orders
+        const existingFarms = state.farms;
+        if (
+          existingFarms.length > 0 &&
+          !existingFarms.includes(product.farmId)
+        ) {
+          return {
+            canAdd: false,
+            reason:
+              'Giỏ hàng đang có sản phẩm từ farm khác. Vui lòng xóa giỏ hàng trước khi thêm sản phẩm từ farm này.',
+          };
+        }
+
         // Check stock availability
         if (product.availableQuantity < quantity) {
           return {

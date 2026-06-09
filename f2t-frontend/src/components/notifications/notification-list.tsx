@@ -14,16 +14,12 @@ import {
   useMarkNotificationRead,
   useNotifications,
 } from '@/api/notifications';
-import type {
-  Notification,
-  NotificationStatus,
-} from '@/api/notifications/types';
+import type { Notification } from '@/api/notifications/types';
 import { Button, Text, View } from '@/components/ui';
 
 type NotificationListProps = {
   userId: string;
   onNotificationPress?: (notification: Notification) => void;
-  filter?: NotificationStatus;
   limit?: number;
 };
 
@@ -40,7 +36,7 @@ function NotificationItem({
   onMarkRead,
   onDelete,
 }: NotificationItemProps) {
-  const isUnread = notification.status !== 'read';
+  const isUnread = !notification.isRead;
 
   return (
     <TouchableOpacity
@@ -126,12 +122,11 @@ function NotificationItem({
 export function NotificationList({
   userId,
   onNotificationPress,
-  filter,
   limit = 20,
 }: NotificationListProps) {
   const [page, setPage] = useState(1);
   const { data, isLoading, error, refetch } = useNotifications({
-    variables: { status: filter, page, limit },
+    variables: { page, limit },
   });
 
   const markReadMutation = useMarkNotificationRead();
@@ -139,8 +134,7 @@ export function NotificationList({
   const deleteMutation = useDeleteNotification();
 
   const handleNotificationPress = async (notification: Notification) => {
-    // Mark as read if unread
-    if (notification.status !== 'read') {
+    if (!notification.isRead) {
       try {
         await markReadMutation.mutateAsync(notification.id);
         refetch();
@@ -175,7 +169,7 @@ export function NotificationList({
   };
 
   const handleLoadMore = () => {
-    if (data && page < data.pagination.totalPages) {
+    if (data?.data?.hasMore) {
       setPage((prev) => prev + 1);
     }
   };
@@ -208,8 +202,8 @@ export function NotificationList({
     );
   }
 
-  const notifications = data?.notifications || [];
-  const hasUnread = notifications.some((n) => n.status !== 'read');
+  const notifications = data?.data?.items || [];
+  const hasUnread = notifications.some((n) => !n.isRead);
 
   if (notifications.length === 0) {
     return (
@@ -230,7 +224,7 @@ export function NotificationList({
       {/* Header */}
       <View className="flex-row items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700">
         <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-          Notifications ({data?.pagination.total || 0})
+          Notifications ({data?.data?.total || 0})
         </Text>
         {hasUnread && (
           <Button

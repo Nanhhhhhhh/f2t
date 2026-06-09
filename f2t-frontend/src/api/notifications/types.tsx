@@ -9,27 +9,27 @@ export type NotificationType =
   | 'order_ready_for_pickup'
   | 'order_delivered'
   | 'order_cancelled'
+  | 'new_order'
   | 'payment_received'
-  | 'payment_failed';
+  | 'payment_failed'
+  | 'low_stock'
+  | 'system'
+  | 'price_suggestion';
 
 // Notification channels
 export type NotificationChannel = 'email' | 'sms' | 'push' | 'in_app';
-
-// Notification status
-export type NotificationStatus = 'pending' | 'sent' | 'failed' | 'read';
 
 // Notification
 export type Notification = {
   id: string;
   userId: string;
   type: NotificationType;
-  channel: NotificationChannel;
-  status: NotificationStatus;
+  isRead: boolean;
   title: string;
   message: string;
   data?: Record<string, unknown>;
-  sentAt?: string;
-  readAt?: string;
+  referenceId?: string;
+  referenceType?: string;
   createdAt: string;
 };
 
@@ -63,19 +63,20 @@ export type SendNotificationResponse = {
 // Get notifications request
 export type GetNotificationsRequest = {
   type?: NotificationType;
-  status?: NotificationStatus;
   page?: number;
   limit?: number;
 };
 
-// Notifications response
+// Notifications response (envelope from TransformInterceptor)
 export type NotificationsResponse = {
-  notifications: Notification[];
-  pagination: {
+  success: boolean;
+  data: {
+    items: Notification[];
+    total: number;
     page: number;
     limit: number;
-    total: number;
-    totalPages: number;
+    hasMore: boolean;
+    unreadCount: number;
   };
 };
 

@@ -33,6 +33,13 @@ export default function CartScreen() {
     useState<DeliveryOption>('standard');
 
   const handleCheckout = () => {
+    if (cart.farms.length > 1) {
+      Alert.alert(
+        'Không thể thanh toán',
+        'Giỏ hàng chứa sản phẩm từ nhiều farm khác nhau. Vui lòng chỉ giữ lại sản phẩm từ một farm.',
+      );
+      return;
+    }
     router.push('/checkout');
   };
 
