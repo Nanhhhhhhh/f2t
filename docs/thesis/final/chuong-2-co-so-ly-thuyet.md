@@ -20,7 +20,7 @@ Trí tuệ nhân tạo (AI) đang trở thành yếu tố cốt lõi giúp các 
 
 (4) **Nhận diện và phân loại ảnh (Visual AI):** Sử dụng mạng nơ-ron tích chập (CNN) để phân tích ảnh sản phẩm nhằm phân loại chất lượng, phát hiện hư hỏng, hoặc tự động gắn nhãn danh mục — đặc biệt hữu ích trong thực phẩm tươi sống [TLTK].
 
-Cần lưu ý rằng bốn ứng dụng trên là khung lý thuyết chung áp dụng cho TMĐT nói chung. Trong phạm vi hệ thống F2T được trình bày trong khoá luận này, **chỉ ba trong bốn ứng dụng được hiện thực hoá: dự báo nhu cầu (ForecasterLSTM), định giá động (DDQN), và phân loại độ tươi từ ảnh (CoreML)**. F2T **không có hệ thống gợi ý sản phẩm** — không tồn tại module recommender, không có thuật toán lọc cộng tác hay lọc nội dung trong codebase [ref: ledger t1.4-no-recommender].
+Cần lưu ý rằng bốn ứng dụng trên là khung lý thuyết chung áp dụng cho TMĐT nói chung. Trong phạm vi hệ thống F2T được trình bày trong khoá luận này, **cả bốn ứng dụng đều được hiện thực hoá: dự báo nhu cầu (ForecasterLSTM), định giá động (DDQN), phân loại độ tươi từ ảnh (CoreML), và gợi ý sản phẩm trong giỏ hàng (cross-sell FP-Growth association rules, category-level warm-start)** [ref: ledger cross-sell-v1; ledger t1.4-forecaster-not-holt; ledger t0.6-coreml-freshness].
 
 ### 2.1.3. Quản lý dự án với Agile/Scrum
 
@@ -76,7 +76,7 @@ So với Flutter — đối thủ chính trong không gian cross-platform — Re
 
 **Expo** là nền tảng và bộ công cụ xây dựng trên React Native, cung cấp SDK đóng gói sẵn nhiều API native (camera, file system, push notification, location...) và hệ thống build tự động [TLTK]. F2T sử dụng **Expo SDK ~53.0.27** với các thành phần cốt lõi [ref: ledger t2.2-tech-versions]:
 
-- **expo-router ~5.1.11** — routing file-based theo chuẩn Next.js; ≈48 màn hình route phân nhóm trong 8 route group `(app)`, `admin`, `checkout`, `farms`, `feed`, `notifications`, `products`, `settings` và 5 file xác thực gốc [ref: ledger t2.2-frontend-routes; t1.15-numbers].
+- **expo-router ~5.1.11** — routing file-based theo chuẩn Next.js; 56 màn hình route phân nhóm trong 8 route group `(app)`, `admin`, `checkout`, `farms`, `feed`, `notifications`, `products`, `settings` và 5 file xác thực gốc [ref: ledger t2.2-frontend-routes; t1.15-numbers].
 - **react-native 0.79.6** — core bridge React Native.
 - **NativeWind ^4.1.21** — utility-first CSS (Tailwind) cho React Native, tạo style qua className string; cần `useMemo` để ổn định object style tránh render loop do `Object.is` comparison [TLTK].
 - **Zustand ^5.0.5** — thư viện quản lý state global nhẹ, không cần boilerplate Redux, dùng cho auth state, cart, user session [TLTK].
@@ -230,6 +230,30 @@ Sidecar tính điểm tươi `score = fresh_probability`, phân loại thành 3 
 
 ---
 
+### 2.4.4. Khai phá luật kết hợp và FP-Growth
+
+**Khai phá luật kết hợp (Association Rule Mining)** là kỹ thuật học máy không giám sát nhằm tìm kiếm các mẫu đồng xuất hiện thường xuyên trong tập dữ liệu giao dịch [TLTK]. Đây là lĩnh vực **học máy không giám sát** (unsupervised learning) — không cần nhãn; thuật toán khám phá cấu trúc tiềm ẩn từ dữ liệu thô. Bài toán điển hình là **market-basket analysis**: cho tập hợp các giao dịch mua hàng, tìm các tập mặt hàng thường xuất hiện cùng nhau, từ đó sinh ra các luật dạng "nếu mua X thì thường mua thêm Y" [TLTK].
+
+**Ba độ đo cốt lõi** đánh giá chất lượng một luật A → C [TLTK]:
+
+- **Support** (hỗ trợ): tỉ lệ giao dịch chứa cả A và C trong toàn bộ tập dữ liệu.  
+  `support(A → C) = |{t ∈ T : A ∪ C ⊆ t}| / |T|`
+- **Confidence** (tin cậy): trong số các giao dịch chứa A, bao nhiêu phần trăm cũng chứa C.  
+  `confidence(A → C) = support(A ∪ C) / support(A)`
+- **Lift** (độ nâng): mức độ A và C phụ thuộc nhau so với trường hợp ngẫu nhiên. Lift > 1 nghĩa là hai bên xuất hiện cùng nhau nhiều hơn kỳ vọng.  
+  `lift(A → C) = confidence(A → C) / support(C)`
+
+**Thuật toán Apriori** (Agrawal & Srikant, 1994) là thuật toán tiên phong khai thác bài toán này bằng nguyên lý phản đơn điệu: mọi tập con của một frequent itemset cũng phải là frequent [TLTK]. Tuy nhiên, Apriori sinh ra số lượng lớn candidate itemset, gây tốn bộ nhớ và I/O trên tập dữ liệu lớn.
+
+**Thuật toán FP-Growth** (Han, Pei & Yin, 2000) giải quyết điểm yếu trên bằng cấu trúc dữ liệu **FP-tree** (Frequent Pattern tree): nén toàn bộ tập dữ liệu vào một cây prefix chỉ qua 2 lần duyệt dữ liệu, sau đó khai thác trực tiếp từ cây mà **không sinh candidate itemset** [TLTK]. Độ phức tạp thực tế thấp hơn Apriori đáng kể trên các tập sparse và large-scale.
+
+**Áp dụng trong F2T — Cross-sell category-level:**
+Hệ thống sử dụng thư viện `mlxtend` (Python) để chạy FP-Growth trên tập dữ liệu warm-start **Instacart 2017** (2.874.457 giỏ mua hàng) [ref: recommender-final/README.md §"Actual warm-start run"]. Dữ liệu được tiền xử lý bởi `prepare_instacart.py`: map aisle Instacart → 10 category F2T (`leafy`, `root`, `fruit`, `herbs`, `mushrooms`, `grains`, `dairy`, `eggs`, `honey`, `other`) [ref: recommender-final/scripts/prepare_instacart.py]. Sau đó `mine_rules.py` chạy FP-Growth với ngưỡng `min_support=0.02`, `min_confidence=0.10`, xếp hạng kết quả theo lift [ref: recommender-final/scripts/mine_rules.py]. Kết quả là file JSON `category_rules.json` và `category_popularity.json` được nạp vào recommender-sidecar khi khởi động [ref: recommender-sidecar/main.py:17-29].
+
+Quan trọng: đây là **khai phá luật kết hợp category-level** (antecedent và consequent đều là category, không phải product cụ thể), **không phải** collaborative filtering hay deep learning. Dữ liệu là hành vi siêu thị Mỹ (Instacart), được dùng làm warm-start cho đến khi hệ thống tích lũy đủ đơn hàng F2T thật để retrain.
+
+---
+
 ## 2.5. Các hệ thống tương tự
 
 Thị trường TMĐT nông sản Việt Nam đã xuất hiện một số hệ thống đáng chú ý. Bảng 2.2 trình bày so sánh bốn đại diện tiêu biểu với F2T theo các tiêu chí chức năng cốt lõi [TLTK]:
@@ -241,6 +265,7 @@ Thị trường TMĐT nông sản Việt Nam đã xuất hiện một số hệ 
 | Dự báo nhu cầu AI | Không công bố | Không | Không | Không rõ | Có (ForecasterLSTM) |
 | Định giá động AI | Không | Không | Không | Có (nội bộ Lazada) | Có (DDQN advisory) |
 | Phân loại độ tươi từ ảnh | Không | Không | Không | Không | Có (2 model CoreML) |
+| Gợi ý sản phẩm trong giỏ hàng | Không | Không | Không | Không | Có (cross-sell category-level FP-Growth) |
 | Đối tượng nông hộ | Doanh nghiệp + HTX | Siêu thị đối tác | Hộ đặc sản | Đối tác lớn | Nông hộ nhỏ, cá nhân |
 | Nền tảng chính | Web + Mobile | Web + Mobile | Web + App | Mobile | Mobile-first (React Native) |
 
@@ -252,18 +277,18 @@ Thị trường TMĐT nông sản Việt Nam đã xuất hiện một số hệ 
 
 **Lazada Fresh** là mảng thực phẩm tươi của Lazada, được hỗ trợ bởi hạ tầng logistics và AI của Alibaba Group. Ưu điểm: hệ sinh thái logistics mạnh, có khả năng AI nội bộ Lazada. Nhược điểm: chỉ dành cho đối tác kinh doanh lớn, không có kênh cho nông hộ nhỏ, AI pricing không công khai API cho nông hộ sử dụng [TLTK].
 
-Qua phân tích, có thể rút ra nhận xét: **chưa có hệ thống nào trong số các đối thủ nêu trên tích hợp đồng thời ba chức năng AI — dự báo nhu cầu, định giá động và phân loại độ tươi từ ảnh — dành riêng cho nông hộ nhỏ trên nền tảng mobile** [ref: ledger t1.4-no-recommender]. Đây là khoảng trống mà F2T hướng đến lấp đầy.
+Qua phân tích, có thể rút ra nhận xét: **chưa có hệ thống nào trong số các đối thủ nêu trên tích hợp đồng thời bốn chức năng AI — dự báo nhu cầu, định giá động, phân loại độ tươi từ ảnh và gợi ý sản phẩm trong giỏ hàng — dành riêng cho nông hộ nhỏ trên nền tảng mobile** [ref: ledger cross-sell-v1]. Đây là khoảng trống mà F2T hướng đến lấp đầy.
 
 ---
 
 ## 2.6. Nhận xét và định hướng giải pháp
 
-Phân tích các hệ thống tương tự cho thấy ba hạn chế chính của thị trường hiện tại: (1) nông hộ nhỏ lẻ chưa được phục vụ đầy đủ bởi các sàn TMĐT lớn vốn ưu tiên đối tác doanh nghiệp; (2) không có hệ thống nào tích hợp AI định giá thích ứng và phân loại chất lượng ngay trong luồng giao dịch; (3) trải nghiệm mobile chưa được tối ưu cho người dùng nông thôn vốn chủ yếu dùng điện thoại làm thiết bị kết nối chính [TLTK; ref: ledger t1.4-no-recommender].
+Phân tích các hệ thống tương tự cho thấy ba hạn chế chính của thị trường hiện tại: (1) nông hộ nhỏ lẻ chưa được phục vụ đầy đủ bởi các sàn TMĐT lớn vốn ưu tiên đối tác doanh nghiệp; (2) không có hệ thống nào tích hợp AI định giá thích ứng và phân loại chất lượng ngay trong luồng giao dịch; (3) trải nghiệm mobile chưa được tối ưu cho người dùng nông thôn vốn chủ yếu dùng điện thoại làm thiết bị kết nối chính [TLTK; ref: ledger cross-sell-v1].
 
-Từ những khoảng trống đó, F2T định hướng giải pháp theo ba trục chính:
+Từ những khoảng trống đó, F2T định hướng giải pháp theo bốn trục chính:
 
-**Mobile-first:** Toàn bộ trải nghiệm được thiết kế và tối ưu cho màn hình di động trước tiên. React Native + Expo đảm bảo hoạt động đa nền tảng iOS/Android từ một codebase duy nhất; ≈48 màn hình route bao phủ đầy đủ hành trình nông hộ (đăng ký, quản lý trang trại, đăng sản phẩm, xem đề xuất giá, quét tươi) và người tiêu dùng (tìm kiếm địa lý, đặt hàng, thanh toán, theo dõi giao hàng) [ref: ledger t1.15-numbers; t2.2-frontend-routes].
+**Mobile-first:** Toàn bộ trải nghiệm được thiết kế và tối ưu cho màn hình di động trước tiên. React Native + Expo đảm bảo hoạt động đa nền tảng iOS/Android từ một codebase duy nhất; 56 màn hình route bao phủ đầy đủ hành trình nông hộ (đăng ký, quản lý trang trại, đăng sản phẩm, xem đề xuất giá, quét tươi) và người tiêu dùng (tìm kiếm địa lý, đặt hàng, thanh toán, theo dõi giao hàng) [ref: ledger t1.15-numbers; t2.2-frontend-routes].
 
-**AI trong luồng mua hàng — ba chức năng:** (1) **ForecasterLSTM** dự báo nhu cầu 7 ngày tới từ cửa sổ lịch sử 21 bước với obs_dim=10, hỗ trợ nông hộ quyết định thu hoạch và tồn kho [ref: dynamic-pricing-final/src/forecaster/model.py:9-15; ledger t0.4-forecaster-parity]; (2) **SharedMLPDuelingQNet** (DDQN) đề xuất mức điều chỉnh giá tối ưu qua 11 action candidates trên state 10 chiều, với Safety Layer 5 quy tắc bảo vệ nông hộ khỏi giá bất hợp lý [ref: dynamic-pricing-final/src/rl/network.py:51-81; ledger t0.2-ddqn-arch]; (3) **2 model CoreML** phân loại độ tươi fresh/rotten từ ảnh chụp sản phẩm, cung cấp điểm tươi thực-thời cho cả nông hộ và người mua [ref: pricing-sidecar/main.py:318-333; ledger t0.6-coreml-freshness].
+**AI trong luồng mua hàng — bốn chức năng:** (1) **ForecasterLSTM** dự báo nhu cầu 7 ngày tới từ cửa sổ lịch sử 21 bước với obs_dim=10, hỗ trợ nông hộ quyết định thu hoạch và tồn kho [ref: dynamic-pricing-final/src/forecaster/model.py:9-15; ledger t0.4-forecaster-parity]; (2) **SharedMLPDuelingQNet** (DDQN) đề xuất mức điều chỉnh giá tối ưu qua 11 action candidates trên state 10 chiều, với Safety Layer 5 quy tắc bảo vệ nông hộ khỏi giá bất hợp lý [ref: dynamic-pricing-final/src/rl/network.py:51-81; ledger t0.2-ddqn-arch]; (3) **2 model CoreML** phân loại độ tươi fresh/rotten từ ảnh chụp sản phẩm, cung cấp điểm tươi thực-thời cho cả nông hộ và người mua [ref: pricing-sidecar/main.py:318-333; ledger t0.6-coreml-freshness]; và (4) **Cross-sell FP-Growth** gợi ý sản phẩm "thường mua kèm" trong giỏ hàng dựa trên 34 luật kết hợp category-level được khai phá từ 2.874.457 giỏ Instacart warm-start, xếp hạng theo lift với re-rank ưu tiên cùng trang trại [ref: ledger cross-sell-v1].
 
 **Advisory Pricing (giá tư vấn):** Thay vì tự động áp đặt giá, F2T trình bày kết quả DDQN như một **đề xuất tư vấn** (advisory price) — nông hộ nhìn thấy giá gợi ý kèm giải thích và có quyền chấp nhận hoặc bác bỏ. Mô hình `price_overrides` với trường `mode` enum `{shadow, advisory}` và `status` enum `{shadow, pending_review, accepted, rejected, expired}` phản ánh rõ triết lý này: AI là công cụ hỗ trợ quyết định, không phải tự động hoá thay thế nông hộ [ref: f2t-backend/src/modules/dynamic-pricing/schemas/price-override.schema.ts:43-49; ledger t1.11-schema-detail].
