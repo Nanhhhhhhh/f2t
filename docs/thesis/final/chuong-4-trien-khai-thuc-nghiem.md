@@ -57,9 +57,9 @@ Hệ thống khởi động theo trình tự bốn bước: MongoDB được kh�
 
 ### 4.2.1. Cấu trúc mã nguồn
 
-Mã nguồn dự án F2T được tổ chức thành ba thành phần chính: backend NestJS, frontend Expo React Native, và pricing-sidecar Python, tương ứng với kiến trúc Monolith + 1 Sidecar đã phân tích tại Chương 3.
+Mã nguồn dự án F2T được tổ chức thành ba thành phần chính: backend NestJS, frontend Expo React Native, và hai Python sidecar, tương ứng với kiến trúc Monolith + 2 Sidecar đã phân tích tại Chương 3.
 
-**Backend (`f2t-backend/src/modules/`)** gồm 13 module NestJS, mỗi module đóng gói đầy đủ controller, service, schema và các tệp kiểm thử tương ứng [ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar]:
+**Backend (`f2t-backend/src/modules/`)** gồm 15 module NestJS, mỗi module đóng gói đầy đủ controller, service, schema và các tệp kiểm thử tương ứng [ref: f2t-backend/src/modules/ — 15 thư mục; ledger numbers-v3]:
 
 | STT | Module | Chức năng chính |
 |---|---|---|
@@ -76,15 +76,18 @@ Mã nguồn dự án F2T được tổ chức thành ba thành phần chính: ba
 | 11 | `products` | Lọc theo danh mục/giá/tồn kho |
 | 12 | `uploads` | Cloudinary hoặc fallback local `uploads/` |
 | 13 | `users` | Hồ sơ, thống kê, push token |
+| 14 | `recommendations` | Cross-sell FP-Growth, gợi ý "thường mua kèm" |
+| 15 | `reviews` | Đánh giá sản phẩm 1–5 sao, ảnh đính kèm |
 
-**Frontend (`f2t-frontend/src/app/`)** sử dụng Expo Router với định tuyến dựa trên hệ thống tệp, tổ chức thành 8 nhóm route và 5 tệp màn hình gốc, phục vụ tổng cộng ≈48 màn hình [ref: ledger t2.2-frontend-routes, t1.15-numbers]. Các nhóm route chính gồm: `(app)/` (Consumer đã xác thực — đặt hàng, thanh toán, hồ sơ), `(app)/farm/` (Farm owner — quản lý sản phẩm, gợi ý giá), `admin/` (Admin), và các nhóm chức năng mở `checkout/`, `farms/`, `products/`, `feed/`, `notifications/`, `settings/`.
+**Frontend (`f2t-frontend/src/app/`)** sử dụng Expo Router với định tuyến dựa trên hệ thống tệp, tổ chức thành 8 nhóm route và 5 tệp màn hình gốc, phục vụ tổng cộng **56 màn hình route** [ref: ledger numbers-v3]. Các nhóm route chính gồm: `(app)/` (Consumer đã xác thực — đặt hàng, thanh toán, hồ sơ), `(app)/farm/` (Farm owner — quản lý sản phẩm, gợi ý giá), `admin/` (Admin), và các nhóm chức năng mở `checkout/`, `farms/`, `products/`, `feed/`, `notifications/`, `settings/`.
 
-**AI/ML Sidecar (`pricing-sidecar/`)** là một thư mục Python duy nhất chứa toàn bộ logic suy luận AI/ML, phục vụ ba endpoint REST trên cổng 8000 [ref: f2t-backend/src/app.module.ts:57; pricing-sidecar/main.py:263,277,316; ledger t1.4-one-sidecar]:
+**AI/ML Sidecars** gồm hai thư mục Python riêng biệt phục vụ các chức năng AI/ML: `pricing-sidecar/` (cổng 8000) và `recommender-sidecar/` (cổng 8001) [ref: f2t-backend/src/app.module.ts:57; ledger numbers-v3, cross-sell-v1]:
 - `POST /forecast` — Dự báo nhu cầu qua ForecasterLSTM [ref: pricing-sidecar/main.py:263]
 - `POST /predict` — Đề xuất giá động qua DDQN + Safety Layer [ref: pricing-sidecar/main.py:277]
 - `POST /freshness/classify` — Phân loại độ tươi qua CoreML [ref: pricing-sidecar/main.py:316]
+- `POST /cross-sell` — Gợi ý "thường mua kèm" qua FP-Growth association rules [ref: recommender-sidecar/main.py; ledger cross-sell-v1]
 
-Thiết kế một sidecar duy nhất phục vụ cả ba chức năng AI giúp giảm chi phí vận hành, đồng thời cho phép NestJS kết nối toàn bộ năng lực AI/ML qua một biến môi trường `PRICING_SIDECAR_URL` duy nhất [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar].
+Thiết kế tách hai sidecar theo chức năng (định giá/dự báo/phân loại độ tươi và gợi ý cross-sell) giúp mỗi sidecar có thể scale và triển khai độc lập, đồng thời NestJS kết nối qua hai biến môi trường `PRICING_SIDECAR_URL` và `RECOMMENDER_SIDECAR_URL` [ref: f2t-backend/src/app.module.ts:57; ledger numbers-v3].
 
 ### 4.2.2. Tích hợp NestJS ↔ AI Sidecar
 
@@ -184,9 +187,9 @@ Ngoài kiểm thử đơn vị, dự án áp dụng quy trình kiểm tra chất
 
 ### 4.4.1. Đánh giá chức năng tổng quan
 
-Hệ thống F2T được triển khai hoàn chỉnh dưới dạng kiến trúc Monolith + 1 Sidecar, bao gồm 13 module NestJS phía backend [ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar], một pricing-sidecar Python duy nhất trên cổng 8000 phục vụ ba chức năng AI/ML [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar], và ≈48 màn hình route trên ứng dụng di động Expo React Native [ref: ledger t1.15-numbers, t2.2-frontend-routes]. Toàn bộ backend phơi bày khoảng 79 REST endpoint được đếm từ 14 controller thông qua lệnh `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" src --include="*.controller.ts" | wc -l` [ref: ledger t1.15-numbers], phân bố trên 10 collection MongoDB — trong đó KHÔNG có `recommendation_caches` hay `forecast_caches` (artifact cross-sell là file JSON nạp vào bộ nhớ sidecar, không tạo collection MongoDB; kết quả dự báo được cache ở tầng Redis chứ không tạo collection riêng) [ref: ledger cross-sell-v1, t1.4-collections].
+Hệ thống F2T được triển khai hoàn chỉnh dưới dạng kiến trúc Monolith + 2 Sidecar, bao gồm 15 module NestJS phía backend [ref: f2t-backend/src/modules/ — 15 thư mục; ledger numbers-v3], hai Python sidecar: `pricing-sidecar` (cổng 8000, ba chức năng định giá/dự báo/phân loại độ tươi) và `recommender-sidecar` (cổng 8001, cross-sell FP-Growth) [ref: f2t-backend/src/app.module.ts:57; ledger numbers-v3, cross-sell-v1], và **56 màn hình route** trên ứng dụng di động Expo React Native [ref: ledger numbers-v3]. Toàn bộ backend phơi bày **92 REST endpoint** được đếm từ 16 controller (bao gồm `app.controller.ts`) thông qua lệnh `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" src --include="*.controller.ts" | wc -l` [ref: ledger numbers-v3], phân bố trên **12 collection MongoDB** — trong đó KHÔNG có `recommendation_caches` hay `forecast_caches` (artifact cross-sell là file JSON nạp vào bộ nhớ sidecar, không tạo collection MongoDB; kết quả dự báo được cache ở tầng Redis chứ không tạo collection riêng) [ref: ledger cross-sell-v1, numbers-v3].
 
-**Bảng 4.6 — Trạng thái hoàn thành 13 module NestJS**
+**Bảng 4.6 — Trạng thái hoàn thành 15 module NestJS**
 
 | STT | Module | Endpoint tiêu biểu | Trạng thái chức năng |
 |---|---|---|---|
@@ -203,10 +206,12 @@ Hệ thống F2T được triển khai hoàn chỉnh dưới dạng kiến trúc
 | 11 | `products` | GET /products, GET /products/:id | Đã tích hợp đầy đủ |
 | 12 | `uploads` | POST /uploads | Đã tích hợp (Cloudinary hoặc fallback local) |
 | 13 | `users` | GET /users/me, PATCH /users/me | Đã tích hợp đầy đủ |
+| 14 | `recommendations` | GET /recommendations/cross-sell | Đã tích hợp (FP-Growth qua recommender-sidecar cổng 8001) [ref: ledger cross-sell-v1] |
+| 15 | `reviews` | POST /reviews, GET /reviews/product/:id | Đã tích hợp đầy đủ [ref: ledger reviews-v1] |
 
 Cột "Trạng thái chức năng" phản ánh mức độ tích hợp luồng nghiệp vụ hoàn chỉnh; các module AI/ML (`demand-forecasting`, `dynamic-pricing`) có lưu ý về giới hạn độ chính xác mô hình phục vụ được trình bày chi tiết tại §4.4.2 và §4.4.3. Cụ thể, ForecasterLSTM hiện phục vụ bằng cơ chế tile-21× (lặp lại cùng một vector trạng thái 21 lần thay cho chuỗi lịch sử thật 21 ngày) [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations] — xem §4.4.2 để phân tích giới hạn này.
 
-Về giao diện người dùng, ứng dụng Consumer không có màn hình recommender **cá nhân hoá** (collaborative filtering); có cross-sell giỏ hàng category-level hiển thị trong màn hình giỏ hàng qua component `CrossSell` [ref: ledger cross-sell-v1]. Các tính năng AI/ML khác hiển thị với người dùng cuối bao gồm: nhãn độ tươi và giá động được nhúng vào phản hồi danh sách sản phẩm bởi `DynamicPricingInterceptor` [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron], biểu đồ dự báo nhu cầu trên Farm Dashboard, tính năng gợi ý giá DDQN dành cho Farm owner, và tính năng quét độ tươi bằng CoreML cũng dành cho Farm owner [ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml].
+Về giao diện người dùng, ứng dụng Consumer không có màn hình recommender **cá nhân hoá** (collaborative filtering); có cross-sell giỏ hàng category-level hiển thị trong màn hình giỏ hàng qua component `CrossSell` [ref: ledger cross-sell-v1]. Hệ thống tích hợp **bốn chức năng AI/ML** phục vụ người dùng cuối: (1) nhãn độ tươi và giá động được nhúng vào phản hồi danh sách sản phẩm bởi `DynamicPricingInterceptor` [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]; (2) biểu đồ dự báo nhu cầu 7 ngày (ForecasterLSTM) trên Farm Dashboard; (3) gợi ý giá DDQN dành cho Farm owner; (4) **cross-sell giỏ hàng (FP-Growth association rules)** hiển thị tối đa 6 sản phẩm "Thường mua kèm" cho Consumer [ref: ledger cross-sell-v1]. Ngoài ra, tính năng quét độ tươi bằng CoreML cũng phục vụ Farm owner thông qua camera thiết bị [ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml].
 
 ### 4.4.2. Đánh giá dự báo nhu cầu
 
