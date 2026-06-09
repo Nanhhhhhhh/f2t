@@ -12,6 +12,10 @@ import {
   VerificationToken,
   VerificationTokenSchema,
 } from './schemas/verification-token.schema';
+import {
+  PasswordResetToken,
+  PasswordResetTokenSchema,
+} from './schemas/password-reset-token.schema';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
 
@@ -22,6 +26,7 @@ import { SmsService } from './sms.service';
     PassportModule,
     MongooseModule.forFeature([
       { name: VerificationToken.name, schema: VerificationTokenSchema },
+      { name: PasswordResetToken.name, schema: PasswordResetTokenSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
