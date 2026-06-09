@@ -22,34 +22,39 @@ export class ReviewsService {
   ) {}
 
   async create(customerId: string, dto: CreateReviewDto): Promise<ReviewDocument> {
+    // Construct ObjectIds first — throws BSONError if invalid, which is intentional
+    let customerObjId: Types.ObjectId;
+    let productObjId: Types.ObjectId;
+    let orderObjId: Types.ObjectId;
+    try {
+      customerObjId = new Types.ObjectId(customerId);
+      productObjId = new Types.ObjectId(dto.productId);
+      orderObjId = new Types.ObjectId(dto.orderId);
+    } catch {
+      throw new ForbiddenException('Chỉ có thể đánh giá sản phẩm trong đơn hàng đã giao thành công.');
+    }
+
     const user = await this.usersService.findById(customerId);
     const customerName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Người dùng';
     const customerAvatarUrl = user?.avatarUrl;
 
-    let deliveredOrder: OrderDocument | null = null;
-    try {
-      deliveredOrder = await this.orderModel
-        .findOne({
-          _id: new Types.ObjectId(dto.orderId),
-          customerId: new Types.ObjectId(customerId),
-          status: 'delivered',
-          'items.productId': new Types.ObjectId(dto.productId),
-        })
-        .exec();
-    } catch {
-      // invalid ObjectId — treat as not found
-    }
+    const deliveredOrder = await this.orderModel
+      .findOne({
+        _id: orderObjId,
+        customerId: customerObjId,
+        status: 'delivered',
+        'items.productId': productObjId,
+      })
+      .exec();
 
     if (!deliveredOrder) {
-      throw new ForbiddenException(
-        'Chỉ có thể đánh giá sản phẩm trong đơn hàng đã giao thành công.',
-      );
+      throw new ForbiddenException('Chỉ có thể đánh giá sản phẩm trong đơn hàng đã giao thành công.');
     }
 
     const review = await this.reviewModel.create({
-      productId: new Types.ObjectId(dto.productId),
-      orderId: new Types.ObjectId(dto.orderId),
-      customerId: new Types.ObjectId(customerId),
+      productId: productObjId,
+      orderId: orderObjId,
+      customerId: customerObjId,
       customerName,
       customerAvatarUrl,
       rating: dto.rating,
