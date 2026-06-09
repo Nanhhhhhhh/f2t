@@ -328,3 +328,28 @@ Khoá luận F2T (5 chương + TLTK + mục lục + 23 diagram) đạt chuẩn t
 ---
 
 *Report được tạo bởi Adversarial Verifier T2.V — 2026-06-08*
+
+---
+
+## Task 3 Re-verify (2026-06-09)
+
+**VERDICT: FAIL**
+
+| Check | Kết quả | Ghi chú |
+|-------|---------|---------|
+| V1 Citation sweep | PASS | FARM_BOOST:10✓, timeout:48✓, logger.warn:56✓, farmBoost:86✓, controller:15✓, sidecar:17/56/61-62✓, product.schema:140-144✓, reviews.controller:31/45✓ |
+| V2 False-claim sweep | PASS | 0 t1.4-no-recommender; 0 "không có module recommender"; grep hit "collaborative.*warm.start" là false positive (câu phủ định "**không phải** collaborative filtering hay deep learning...warm-start") |
+| V3 Canonical nhất quán | FAIL | 3 stale số trong chuong-2: (1) "13 module" tại L90 và diagrams/deployment-architecture.puml:15 — đúng phải là 15; (2) "Monolith + 1 Sidecar" tại L57 — đúng phải là 2 Sidecar; (3) "79 endpoint" tại L63 — đúng phải là 92. Ngoài ra §3.4.2 TOC title còn "Chi tiết 10 collections" trong khi ch3 L488/L516 đã đổi sang 12. 15 module: 9 hits ✓; 92 endpoint: hiện diện ✓; 12 collection: hiện diện ch3/ch4 ✓ |
+| V4 0 số eval bịa | PASS | 0 precision@k/recall@k không kèm caveat trong §4.4.6; 2.874.457 là thống kê mô tả ✓; 34 luật ✓ |
+| V5 Mục lục khớp heading | PASS | §2.4.4 ✓; §3.3.8 ✓; §3.3.9 ✓; §4.4.6 ✓; tất cả TOC entries khớp heading thật |
+| V6 7 HẠN CHẾ BẮT BUỘC | PASS | 8 occurrences (≥7 yêu cầu); (d) category-level ✓; (e) warm-start Instacart ✓; (f) chưa precision@k ✓; (g) chỉ giỏ hàng ✓ |
+
+**Issues (V3 FAIL — 4 stale numbers in chuong-2):**
+
+1. `docs/thesis/final/chuong-2-co-so-ly-thuyet.md:90` — "13 module" → phải là "15 module" (thêm `recommendations`, `reviews`)
+2. `docs/thesis/final/diagrams/deployment-architecture.puml:15` — "13 module nghiệp vụ" → phải là "15 module nghiệp vụ"
+3. `docs/thesis/final/chuong-2-co-so-ly-thuyet.md:57` — "Monolith + 1 Sidecar" → phải là "Monolith + 2 Sidecar"
+4. `docs/thesis/final/chuong-2-co-so-ly-thuyet.md:63` — "≈79 REST endpoint trên 14 controller" → phải là "92 REST endpoint trên 16 controller"
+5. `docs/thesis/final/00-trang-bia-muc-luc.md:70` — "3.4.2. Chi tiết 10 collections" → phải là "3.4.2. Chi tiết 12 collections" (khớp với chuong-3:L516 "### 3.4.2. Chi tiết 12 collections")
+
+*Report được tạo bởi Independent Verifier Agent T3.18 — 2026-06-09*
