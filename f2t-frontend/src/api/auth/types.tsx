@@ -8,6 +8,7 @@ import type {
   RefreshTokenRequest,
   RegisterRequest,
   ResetPasswordRequest,
+  VerifyOtpRequest,
 } from '@/types/api';
 
 export type {
@@ -20,6 +21,7 @@ export type {
   RefreshTokenRequest,
   RegisterRequest,
   ResetPasswordRequest,
+  VerifyOtpRequest,
 };
 
 // Farm registration combines user registration with farm creation

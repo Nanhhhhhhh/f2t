@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import type { SubmitHandler } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
+import { TouchableOpacity } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as z from 'zod';
 
@@ -31,6 +33,7 @@ export const LoginForm = ({
   onSubmit = () => {},
   onRegister,
 }: LoginFormProps) => {
+  const router = useRouter();
   const { handleSubmit, control } = useForm<FormType>({
     resolver: zodResolver(schema),
   });
@@ -69,6 +72,12 @@ export const LoginForm = ({
           placeholder="***"
           secureTextEntry={true}
         />
+        <TouchableOpacity
+          onPress={() => router.push('/forgot-password')}
+          className="mb-4 self-end"
+        >
+          <Text className="text-sm text-blue-600">Quên mật khẩu?</Text>
+        </TouchableOpacity>
         <Button
           testID="login-button"
           label="Login"
