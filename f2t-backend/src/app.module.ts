@@ -1,3 +1,4 @@
+import { ReviewsModule } from './modules/reviews/reviews.module';
 import { DynamicPricingModule } from "./modules/dynamic-pricing/dynamic-pricing.module";
 import { DemandForecastingModule } from './modules/demand-forecasting/demand-forecasting.module';
 import { RecommendationsModule } from './modules/recommendations/recommendations.module';
@@ -84,6 +85,7 @@ import { RedisModule } from './common/redis/redis.module';
     DynamicPricingModule,
     DemandForecastingModule,
     RecommendationsModule,
+    ReviewsModule,
     RedisModule,
   ],
   controllers: [AppController],

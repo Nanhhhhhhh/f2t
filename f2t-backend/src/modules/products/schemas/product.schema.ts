@@ -137,6 +137,12 @@ export class Product {
   @Prop()
   lastRestockedAt?: Date;
 
+  @Prop({ default: 0 })
+  averageRating!: number;
+
+  @Prop({ default: 0 })
+  reviewCount!: number;
+
   @Prop({ default: false, select: false })
   _seeded?: boolean;
 }
