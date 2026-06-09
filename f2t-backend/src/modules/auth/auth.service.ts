@@ -13,6 +13,8 @@ import { UsersService } from '../users/users.service';
 import { FarmsService } from '../farms/farms.service';
 import { UserDocument } from '../users/schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterFarmDto } from './dto/register-farm.dto';
+import { CreateFarmDto } from '../farms/dto/farm.dto';
 import {
   VerificationToken,
   VerificationTokenDocument,
@@ -98,6 +100,47 @@ export class AuthService {
       throw new ConflictException('User already exists');
     }
     const user = await this.usersService.create(registerDto);
+    return this.login(user);
+  }
+
+  async registerFarm(dto: RegisterFarmDto): Promise<AuthResponse> {
+    const existingUser = await this.usersService.findByEmail(dto.email);
+    if (existingUser) {
+      throw new ConflictException('User already exists');
+    }
+
+    // 1) Tạo user chủ trại (role = farm)
+    const user = await this.usersService.create({
+      email: dto.email,
+      password: dto.password,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      phoneNumber: dto.phoneNumber,
+      role: 'farm',
+      location: dto.location,
+    } as Partial<UserDocument>);
+
+    // 2) Tạo Farm; nếu lỗi thì rollback user vừa tạo
+    try {
+      await this.farmsService.create(String(user._id), {
+        name: dto.farmInfo.name,
+        description: dto.farmInfo.description,
+        coordinates: dto.farmInfo.location.coordinates,
+        address: {
+          street: dto.farmInfo.location.address.street,
+          city: dto.farmInfo.location.address.city,
+          zipCode: dto.farmInfo.location.address.zipCode,
+          country: dto.farmInfo.location.address.country,
+        },
+        contactEmail: dto.farmInfo.contactEmail,
+        contactPhone: dto.farmInfo.contactPhone,
+        deliveryMethods: dto.farmInfo.deliveryMethods,
+      } as CreateFarmDto);
+    } catch (err) {
+      await this.usersService.remove(String(user._id)).catch(() => undefined);
+      throw err;
+    }
+
     return this.login(user);
   }
 

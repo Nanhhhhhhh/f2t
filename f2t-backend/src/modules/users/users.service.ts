@@ -23,6 +23,10 @@ export class UsersService {
     return createdUser.save();
   }
 
+  async remove(id: string): Promise<void> {
+    await this.userModel.deleteOne({ _id: id }).exec();
+  }
+
   async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email }).select('+password').exec();
   }

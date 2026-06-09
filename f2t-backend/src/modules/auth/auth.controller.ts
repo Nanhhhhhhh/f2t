@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService, AuthResponse } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterFarmDto } from './dto/register-farm.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
@@ -58,6 +59,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Register new user' })
   async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
     return this.authService.register(registerDto);
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: 3 } })
+  @Post('register/farm')
+  @ApiOperation({ summary: 'Register new farm owner + farm in one step' })
+  async registerFarm(
+    @Body() registerFarmDto: RegisterFarmDto,
+  ): Promise<AuthResponse> {
+    return this.authService.registerFarm(registerFarmDto);
   }
 
   @Post('refresh-token')
