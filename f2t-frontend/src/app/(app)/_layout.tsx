@@ -108,7 +108,7 @@ export default function TabLayout() {
 
   // Admin users should always use the dedicated admin interface
   if (user?.role === 'admin') {
-    return <Redirect href="/admin" />;
+    return <Redirect href="/(admin)" />;
   }
 
   return (

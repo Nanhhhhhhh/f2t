@@ -23,7 +23,7 @@ export default function AdminReviews() {
   const deleteMutation = useDeleteReview();
 
   const handleDelete = (review: Review) => {
-    Alert.alert('Xác nhận', 'Xóa bài đăng này?', [
+    Alert.alert('Xác nhận', 'Xóa đánh giá này?', [
       { text: 'Hủy', style: 'cancel' },
       {
         text: 'Xóa',

@@ -47,37 +47,37 @@ export default function AdminDashboard() {
         {/* Navigation Buttons */}
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-blue-600 py-3"
-          onPress={() => router.push('/admin/users')}
+          onPress={() => router.push('/(admin)/users')}
         >
           <Text className="text-center font-bold text-white">Users</Text>
         </TouchableOpacity>
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-blue-600 py-3"
-          onPress={() => router.push('/admin/farms')}
+          onPress={() => router.push('/(admin)/farms')}
         >
           <Text className="text-center font-bold text-white">Farms</Text>
         </TouchableOpacity>
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-blue-600 py-3"
-          onPress={() => router.push('/admin/orders')}
+          onPress={() => router.push('/(admin)/orders')}
         >
           <Text className="text-center font-bold text-white">Orders</Text>
         </TouchableOpacity>
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-indigo-600 py-3"
-          onPress={() => router.push('/admin/products')}
+          onPress={() => router.push('/(admin)/products')}
         >
           <Text className="text-center font-bold text-white">Products</Text>
         </TouchableOpacity>
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-indigo-600 py-3"
-          onPress={() => router.push('/admin/posts')}
+          onPress={() => router.push('/(admin)/posts')}
         >
           <Text className="text-center font-bold text-white">Posts</Text>
         </TouchableOpacity>
         <TouchableOpacity
           className="mb-4 w-[31%] rounded-xl bg-indigo-600 py-3"
-          onPress={() => router.push('/admin/reviews')}
+          onPress={() => router.push('/(admin)/reviews')}
         >
           <Text className="text-center font-bold text-white">Reviews</Text>
         </TouchableOpacity>
