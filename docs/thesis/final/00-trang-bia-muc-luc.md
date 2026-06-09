@@ -40,6 +40,7 @@
   - 2.4.1. Dự báo chuỗi thời gian với LSTM
   - 2.4.2. Học tăng cường và DDQN
   - 2.4.3. Phân loại ảnh và CoreML
+  - 2.4.4. Khai phá luật kết hợp và FP-Growth
 - 2.5. Các hệ thống tương tự
 - 2.6. Nhận xét và định hướng giải pháp
 
@@ -61,6 +62,9 @@
   - 3.3.5. Biểu đồ tuần tự
   - 3.3.6. Biểu đồ hoạt động
   - 3.3.7. Thuật toán chi tiết các module AI/ML
+  - 3.3.7d. Cross-sell — Khai phá luật kết hợp FP-Growth
+  - 3.3.8. Module Reviews (Đánh giá sản phẩm)
+  - 3.3.9. Module Recommendations (Cross-sell)
 - 3.4. Phân tích, thiết kế cơ sở dữ liệu
   - 3.4.1. Sơ đồ quan hệ thực thể (ERD)
   - 3.4.2. Chi tiết 10 collections
@@ -88,6 +92,7 @@
   - 4.4.3. Đánh giá định giá động
   - 4.4.4. Đánh giá phân loại độ tươi
   - 4.4.5. Demo sản phẩm
+  - 4.4.6. Đánh giá Cross-sell Giỏ Hàng
 
 **Chương 5. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN**
 
@@ -140,18 +145,19 @@
 - Hình 3.14 — SD-ML-01: Cron định giá động (`sd-ml-01-pricing-cron.puml`)
 - Hình 3.15 — SD-ML-02: Dự báo nhu cầu LSTM (`sd-ml-02-forecast.puml`)
 - Hình 3.16 — SD-ML-03: Chi tiết định giá DDQN (`sd-ml-03-pricing-detail.puml`)
+- Hình 3.17 — SD-ML-04: Cross-sell giỏ hàng (`sd-cross-sell.puml`)
 
 **Biểu đồ hoạt động (Activity Diagram)**
 
-- Hình 3.17 — AD-01: Vòng đời đơn hàng (`ad-01-order-lifecycle.puml`)
-- Hình 3.18 — AD-02: Luồng xác thực JWT (`ad-02-jwt.puml`)
-- Hình 3.19 — AD-ML-01: Luồng ForecasterLSTM (`ad-ml-01-forecaster.puml`)
-- Hình 3.20 — AD-ML-02: Luồng DDQN và Safety Layer (`ad-ml-02-ddqn-safety.puml`)
+- Hình 3.18 — AD-01: Vòng đời đơn hàng (`ad-01-order-lifecycle.puml`)
+- Hình 3.19 — AD-02: Luồng xác thực JWT (`ad-02-jwt.puml`)
+- Hình 3.20 — AD-ML-01: Luồng ForecasterLSTM (`ad-ml-01-forecaster.puml`)
+- Hình 3.21 — AD-ML-02: Luồng DDQN và Safety Layer (`ad-ml-02-ddqn-safety.puml`)
 
 **Biểu đồ mạng nơ-ron**
 
-- Hình 3.21 — Kiến trúc mạng ForecasterLSTM (`net-forecaster-lstm.puml`)
-- Hình 3.22 — Kiến trúc mạng DDQN Dueling (`net-ddqn-dueling.puml`)
+- Hình 3.22 — Kiến trúc mạng ForecasterLSTM (`net-forecaster-lstm.puml`)
+- Hình 3.23 — Kiến trúc mạng DDQN Dueling (`net-ddqn-dueling.puml`)
 
 ---
 
@@ -164,9 +170,12 @@
 - Bảng 4.3 — Thư viện Frontend chính (React Native + Expo)
 - Bảng 4.4 — Thư viện AI/ML (pricing-sidecar)
 - Bảng 4.5 — Phân bố test case theo tệp spec (54 test / 21 tệp)
-- Bảng 4.6 — Trạng thái hoàn thành 13 module NestJS
+- Bảng 4.6 — Trạng thái hoàn thành 15 module NestJS
 - Bảng 4.7 — Kết quả đánh giá ForecasterLSTM (bảng khung)
 - Bảng 4.8 — So sánh ba phương án định giá qua mô phỏng MarketEnv (91 ngày)
 - Bảng 4.9 — Phân bố 11 hành động DDQN
 - Bảng 4.10 — So sánh hệ thống định giá F2T với nghiên cứu quốc tế
 - Bảng 4.11 — Chỉ số phân loại độ tươi (khung chờ điền)
+- Bảng 4.12 — Thống kê 34 luật FP-Growth cross-sell (lift, confidence, antecedent)
+- Bảng 4.13 — Phân bố luật theo antecedent category (8 category × số luật)
+- Bảng 4.14 — So sánh phương án cross-sell: warm-start Instacart vs retrain F2T thật
