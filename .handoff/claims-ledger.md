@@ -325,3 +325,66 @@ Mọi claim kỹ thuật dùng cho thesis (hoặc kết luận Task 0) phải c�
   - **Graceful degrade batch tick**: `dynamic-pricing.service.ts:522-524` — `catch (err) { this.logger.warn(...); return; }` → runPricingTick không crash khi sidecar `/predict` batch lỗi. (Cron đã có ledger `t1.4-interceptor-cron`.)
 - **Verified by:** implementer T2.2 (grep + đọc file trực tiếp) — 2026-06-07
 - **Dùng ở:** thesis §3.3.8 (bảo mật / NFR), §4.2.2 (authentication), §3.3.7 (graceful degradation AI)
+
+---
+
+## Task 3 entries (thesis update 2026-06-09)
+
+### cross-sell-v1
+**Claim:** F2T có module cross-sell recommendations (GĐ1 category-level, warm-start Instacart).
+**Evidence:**
+- Backend module: `f2t-backend/src/modules/recommendations/recommendations.service.ts:10` (FARM_BOOST=1.5), `:48` (timeout 5000ms), `:56` (logger.warn graceful fallback)
+- Controller endpoint: `f2t-backend/src/modules/recommendations/recommendations.controller.ts:11` (@Controller('recommendations')), `:15` (@Get('cross-sell'))
+- Sidecar: `recommender-sidecar/main.py:56` (GET /health), `:61` (POST /recommend)
+- Sidecar internals: `recommender-sidecar/main.py:17` (_load()), `:23` (category_rules.json), `:24` (category_popularity.json)
+- App module: `f2t-backend/src/app.module.ts` — RecommendationsModule đăng ký + RECOMMENDER_SIDECAR_URL
+- Frontend: `f2t-frontend/src/components/cart/cross-sell.tsx` + `f2t-frontend/src/app/(app)/cart.tsx`
+- Pipeline: `recommender-final/scripts/mine_rules.py` (FP-Growth mlxtend), `recommender-final/scripts/prepare_instacart.py`
+- Kết quả train thật: `recommender-final/README.md` §"Actual warm-start run" — 2,874,457 giỏ → 34 luật / 8 antecedent / 9 category
+- **Verified by:** implementer T3.0 — 2026-06-09
+- **Dùng ở:** thesis §2.4.4, §3.3.7, §3.3.9, §4.4.6
+
+### t1.4-no-recommender — LỊCH SỬ (invalid sau cross-sell GĐ1, 2026-06-09)
+Entry cũ khẳng định F2T không có recommender. **Không còn đúng sau commit 3a6e002.** Dùng `cross-sell-v1` thay thế. Câu đúng: "F2T không có recommender cá nhân hoá / lọc cộng tác; CÓ cross-sell giỏ hàng category-level bằng FP-Growth association rules."
+
+### reviews-v1
+**Claim:** F2T có module Reviews (backend + frontend) và product schema có averageRating/reviewCount.
+**Evidence:**
+- Schema: `f2t-backend/src/modules/reviews/schemas/review.schema.ts` (productId, orderId, customerId, rating 1-5, comment max 500, photos, 2 index) — orderId tại `:23`, photos tại `:41`
+- Controller: `f2t-backend/src/modules/reviews/reviews.controller.ts:31` (@Get), `:37` (@Get 'my'), `:45` (@Post), `:53` (@Delete ':id')
+- Product schema: `f2t-backend/src/modules/products/schemas/product.schema.ts:141` (averageRating default 0), `:144` (reviewCount default 0)
+- Frontend: `f2t-frontend/src/app/products/add-review.tsx` + review list in `f2t-frontend/src/app/products/[id].tsx`
+- Admin: `f2t-frontend/src/app/admin/reviews.tsx`
+- **Verified by:** implementer T3.0 — 2026-06-09
+- **Dùng ở:** thesis §3.3.6, §3.3.8, §4.4.1
+
+### auth-reset-v1
+**Claim:** F2T có password reset flow (4 endpoint mới) và register/farm.
+**Evidence:**
+- Schema: `f2t-backend/src/modules/auth/schemas/password-reset-token.schema.ts` (email index, otp bcrypt, expiresAt, used; TTL index expiresAt expireAfterSeconds=0)
+- Endpoints auth.controller.ts: `:69` (POST register/farm), `:135` (POST forgot-password), `:143` (POST verify-otp), `:150` (POST reset-password), `:159` (POST change-password)
+- Frontend: `f2t-frontend/src/app/forgot-password.tsx`, `verify-otp.tsx`, `reset-password.tsx`, `(app)/profile/change-password.tsx`
+- **Verified by:** implementer T3.0 — 2026-06-09
+- **Dùng ở:** thesis §3.3.2 (Auth module), §4.4.1
+
+### admin-v2
+**Claim:** Admin module có thêm GET/DELETE /admin/posts; admin route đổi từ (admin)/ sang admin/.
+**Evidence:**
+- `f2t-backend/src/modules/admin/admin.controller.ts:66` (@Get 'posts'), `:75` (@Delete 'posts/:id')
+- Frontend: `f2t-frontend/src/app/admin/posts.tsx`, `admin/products.tsx`, `admin/reviews.tsx`
+- Route: `f2t-frontend/src/app/admin/_layout.tsx` (không còn (admin)/)
+- **Verified by:** implementer T3.0 — 2026-06-09
+- **Dùng ở:** thesis §3.3.1 (Admin module), §4.4.1
+
+### numbers-v3
+**Claim:** Canonical numbers đã thay đổi (2026-06-09).
+**Evidence (verified commands):**
+- 15 module: `ls f2t-backend/src/modules/ | wc -l` → **15**
+- 2 sidecar: pricing-sidecar/ port 8000 + recommender-sidecar/ port 8001
+- 92 endpoint: `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" f2t-backend/src --include="*.controller.ts" | wc -l` → **92**
+- 24 spec: `find f2t-backend/src -name "*.spec.ts" | wc -l` → **24**
+- 78 test: `grep -rE "^\s+it\(" f2t-backend/src --include="*.spec.ts" | wc -l` → **78**
+- 56 screens: `find f2t-frontend/src/app -name "*.tsx" | grep -v _layout | wc -l` → **56**
+- 12 collections: +reviews, +password_reset_tokens (từ 10)
+- **Verified by:** implementer T3.0 — 2026-06-09
+- **Dùng ở:** thesis §1, §3.3.1, §4.3, §4.4.1, §5.1
