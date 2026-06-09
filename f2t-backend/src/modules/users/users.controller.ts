@@ -4,10 +4,11 @@ import {
   Put,
   Body,
   Param,
+  Query,
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -57,6 +58,15 @@ export class UsersController {
     @CurrentUser() user: RequestUser,
   ): Promise<import('../orders/orders.service').ConsumerStats> {
     return this.ordersService.getConsumerStats(user.userId);
+  }
+
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Search users by name or email' })
+  @ApiQuery({ name: 'q', required: false, type: String })
+  searchUsers(@Query('q') q?: string) {
+    return this.usersService.searchUsers(q ?? '');
   }
 
   @Get(':id')

@@ -89,6 +89,27 @@ export class UsersService {
     await this.userModel.updateOne({ _id: id }, { password: hashedPassword }).exec();
   }
 
+  async searchUsers(query: string): Promise<{ id: string; name: string; avatarUrl?: string }[]> {
+    if (!query || query.trim().length < 2) return [];
+    const regex = new RegExp(query.trim(), 'i');
+    const users = await this.userModel
+      .find({
+        $or: [
+          { firstName: regex },
+          { lastName: regex },
+          { email: regex },
+        ],
+      })
+      .select('firstName lastName avatarUrl')
+      .limit(10)
+      .exec();
+    return users.map((u) => ({
+      id: (u._id as { toHexString(): string }).toHexString(),
+      name: `${u.firstName} ${u.lastName}`.trim(),
+      avatarUrl: u.avatarUrl,
+    }));
+  }
+
   findFarmOwner(_farmId: string): UserDocument | null {
     // This is tricky because we don't have Farm model here.
     // However, we can use the injected model if we add it, or use FarmsService.
