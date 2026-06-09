@@ -187,6 +187,12 @@ export default function EditProfileScreen() {
           onPress={handleSave}
           disabled={updateProfileMutation.isPending || isUploading}
         />
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/profile/change-password')}
+          className="mt-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+        >
+          <Text className="font-medium text-gray-900 dark:text-white">Đổi mật khẩu</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
