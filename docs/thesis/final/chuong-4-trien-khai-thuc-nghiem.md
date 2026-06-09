@@ -134,9 +134,9 @@ Mỗi module NestJS được kiểm thử thông qua ít nhất một tệp `*.s
 
 ### 4.3.2. Kết quả kiểm thử đơn vị
 
-Bộ kiểm thử backend gồm **54 test case** phân bố trên **21 tệp spec**, tất cả đều đạt kết quả PASS [ref: ledger t1.15-numbers]. **Bảng 4.5** trình bày phân bố số lượng test case theo từng tệp spec, được đếm trực tiếp từ mã nguồn.
+Bộ kiểm thử backend gồm **78 test case** phân bố trên **24 tệp spec**, tất cả đều đạt kết quả PASS [ref: ledger numbers-v3]. **Bảng 4.5** trình bày phân bố số lượng test case theo từng tệp spec, được đếm trực tiếp từ mã nguồn.
 
-**Bảng 4.5 — Phân bố test case theo tệp spec (54 test case / 21 tệp)**
+**Bảng 4.5 — Phân bố test case theo tệp spec (78 test case / 24 tệp)**
 
 | STT | Tệp spec | Số test case |
 |---|---|---|
@@ -161,9 +161,12 @@ Bộ kiểm thử backend gồm **54 test case** phân bố trên **21 tệp spe
 | 19 | `modules/products/products.service.spec.ts` | 1 |
 | 20 | `modules/users/users.controller.spec.ts` | 1 |
 | 21 | `modules/users/users.service.spec.ts` | 1 |
-| | **Tổng** | **54** |
+| 22 | `modules/recommendations/recommendations.controller.spec.ts` | 2 |
+| 23 | `modules/recommendations/recommendations.service.spec.ts` | 3 |
+| 24 | `modules/reviews/reviews.service.spec.ts` | 7 |
+| | **Tổng** | **78** |
 
-[ref: f2t-backend/src/modules/*/*.spec.ts; f2t-backend/src/app.controller.spec.ts; f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.spec.ts; ledger t1.15-numbers]
+[ref: f2t-backend/src/modules/*/*.spec.ts; f2t-backend/src/app.controller.spec.ts; f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.spec.ts; ledger numbers-v3]
 
 Hai module có mật độ test case cao nhất là `dynamic-pricing` (9 case) và `payments`/`delivery` (7 case mỗi module), phản ánh độ phức tạp nghiệp vụ và số lượng nhánh xử lý ngoại lệ của các module này. Module `dynamic-pricing` bao gồm các trường hợp cho toàn bộ vòng đời `PriceOverride` (shadow, pending\_review, accepted, rejected, expired) cũng như cơ chế xử lý lỗi khi sidecar không phản hồi [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.spec.ts].
 
