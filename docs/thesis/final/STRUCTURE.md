@@ -32,7 +32,7 @@
 | §3.3.7b Định giá | L351-379 | T2.18 ⭐ | chuong-3 | (net-ddqn) | t1.8-ddqn-hyperparams, t1.4-safety-5-rules | YES |
 | §3.3.7c Phân loại tươi | L381-395 | T2.19 ⭐ | chuong-3 | — | t0.6-coreml-freshness, t0.10 | YES |
 | §3.4.1 ERD | L397-421 | T2.20 ⭐ | chuong-3 | erd | t1.11-schema-detail | YES |
-| §3.4.2 10 collection | L423-447 | T2.20 ⭐ | chuong-3 | erd | t1.11-schema-detail, t1.4-collections | YES |
+| §3.4.2 12 collection | L423-447 | T2.20 ⭐ | chuong-3 | erd | t1.11-schema-detail, t1.4-collections | YES |
 | §3.4.3 Index | L449-477 | T2.21 ⭐ | chuong-3 | — | t1.11-schema-detail | YES |
 | §3.5 Giao diện | L479-485 | T2.22 | chuong-3 | — | t1.4-no-recommender, t2.2-frontend-routes | resolve |
 | §4.1 Môi trường | L489-499 | T2.23 | chuong-4 | — | t2.2-tech-versions, t1.4-one-sidecar | resolve |
@@ -44,13 +44,13 @@
 | §4.4.4 Eval tươi | L589-599 | T2.28 ⭐ | chuong-4 | — | t0.6-coreml-freshness, t0.10 | YES |
 | §4.4.5 Demo | L601-603 | T2.25 | chuong-4 | — | t1.15-numbers | resolve |
 | §5.1 Kết luận | L607-619 | T2.29 ⭐ | chuong-5 | — | t1.15-numbers, t1.4-* | YES |
-| §5.2 Hạn chế | L621-639 | T2.29 ⭐ | chuong-5 | — | t0.10-thesis-limitations | YES (3 giới hạn) |
+| §5.2 Hạn chế | L621-639 | T2.29 ⭐ | chuong-5 | — | t0.10-thesis-limitations | YES (7 giới hạn) |
 | §5.3 Hướng PT | L641-659 | T2.29 ⭐ | chuong-5 | — | t0.10, t1.4-no-recommender | YES |
 | TLTK | L661 | T2.30 | tai-lieu-tham-khao | — | [TLTK] markers | no |
 
 ## Số liệu canonical (dùng nhất quán toàn thesis)
-- 13 module NestJS · 1 pricing-sidecar (port 8000, 3 endpoint) · 10 collection MongoDB
-- 54/54 test (54 case / 21 spec file) · ≈79 REST endpoint (14 controller) · ≈48 màn hình route
+- 15 module NestJS · 2 sidecar (pricing-sidecar :8000 + recommender-sidecar :8001) · 12 collection MongoDB
+- 78/78 test (78 case / 24 spec file) · 92 REST endpoint (14 controller) · 56 màn hình route
 - DDQN: obs **10 chiều** · 11 action linspace(−0.30,0.20,11) · SharedMLPDuelingQNet (hidden=128, cat_embed n_cats=4 dim=8)
 - ForecasterLSTM: obs_dim **10** (post-retrain T0.13) · window=21 · hidden=128 · 2 lớp · dual-head demand/waste_logit
 - Freshness: **2 model CoreML** (fruit/root, nhị phân fresh/rotten), 299×299 feed RGB
@@ -60,6 +60,13 @@
 - (a) Forecaster serve **tile-21× steady-state** (obs_dim=10 khớp env, hết layout mismatch) — main.py:135
 - (b) DoW lệch pha serve <6.2% — main.py:98 vs market_env.py:132
 - (c) Freshness 2/4 model CoreML (leafy/herbs→root)
+
+## Cross-sell — giới hạn bắt buộc §5.2
+
+(a) Category-level không phải product-level — luật dạng category→category, không định danh sản phẩm cụ thể.
+(b) Warm-start Instacart (hành vi siêu thị Mỹ) ≠ đơn F2T thật — chưa retrain trên đơn hàng F2T.
+(c) Chưa có đánh giá định lượng chất lượng gợi ý (precision@k / recall / hit-rate); chỉ có thống kê mô tả luật.
+(d) Chỉ hiển thị trong giỏ hàng (cart-based), không có gợi ý trên trang chủ hay trang sản phẩm.
 
 ## Quy ước trích nguồn ngoài
 - Câu kỹ thuật nội bộ → `[ref: path:Lxx]` / `[ref: ledger <id>]`
