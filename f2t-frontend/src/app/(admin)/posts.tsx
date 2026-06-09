@@ -10,6 +10,8 @@ import {
 
 import { useDeleteAdminPost, useGetAdminPosts } from '@/api/admin';
 import { Text } from '@/components/ui';
+import { showError } from '@/components/ui/utils';
+import type { AxiosError } from 'axios';
 import type { Post } from '@/api/posts/types';
 
 export default function AdminPosts() {
@@ -41,7 +43,10 @@ export default function AdminPosts() {
         text: 'Xóa',
         style: 'destructive',
         onPress: () => {
-          deleteMutation.mutate(post.id, { onSuccess: () => refetch() });
+          deleteMutation.mutate(post.id, {
+            onSuccess: () => refetch(),
+            onError: (error) => showError(error as AxiosError),
+          });
         },
       },
     ]);

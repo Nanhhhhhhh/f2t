@@ -10,6 +10,8 @@ import {
 
 import { useDeleteReview, useGetReviews } from '@/api/reviews';
 import { Text } from '@/components/ui';
+import { showError } from '@/components/ui/utils';
+import type { AxiosError } from 'axios';
 import type { Review } from '@/api/reviews/types';
 
 export default function AdminReviews() {
@@ -29,7 +31,10 @@ export default function AdminReviews() {
         text: 'Xóa',
         style: 'destructive',
         onPress: () => {
-          deleteMutation.mutate(review._id, { onSuccess: () => refetch() });
+          deleteMutation.mutate(review._id, {
+            onSuccess: () => refetch(),
+            onError: (error) => showError(error as AxiosError),
+          });
         },
       },
     ]);
