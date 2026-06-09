@@ -76,7 +76,7 @@ Hệ thống F2T phải đáp ứng sáu nhóm yêu cầu phi chức năng (NFR)
 | **Bảo mật** | Xác thực bằng JWT, mật khẩu lưu trữ dưới dạng bcrypt hash với saltRounds=10 | `JwtAuthGuard` [ref: f2t-backend/src/modules/auth/guards/jwt-auth.guard.ts:1-5]; `bcrypt.hash(password, 10)` [ref: f2t-backend/src/modules/users/users.service.ts:18; ledger t2.2-security] |
 | **Hiệu năng** | Thời gian phản hồi API mục tiêu dưới 500ms cho các endpoint nghiệp vụ thông thường | Chỉ mục MongoDB (2dsphere, compound) [ref: ledger t1.11-schema-detail], NestJS không đồng bộ I/O, cache kết quả dự báo bằng Redis [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:34,66] |
 | **Khả dụng & Graceful Degradation** | Khi sidecar FastAPI không phản hồi, NestJS trả về dữ liệu dự phòng thay vì lỗi 5xx; Consumer không nhận thấy sự cố | `catch` block tại `dynamic-pricing.service.ts:283-285` (predict) và `dynamic-pricing.service.ts:154-161` (freshness) trả null / fallback Weibull [ref: ledger t2.2-security] |
-| **Khả mở rộng** | Sidecar FastAPI (port 8000) có thể scale ngang độc lập với NestJS backend; 13 module NestJS tách biệt nhau [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar] | Kiến trúc monolith NestJS + 1 sidecar riêng biệt |
+| **Khả mở rộng** | Hai sidecar FastAPI (port 8000, 8001) có thể scale ngang độc lập với NestJS backend; 15 module NestJS tách biệt nhau [ref: f2t-backend/src/app.module.ts:57,60; ledger numbers-v3] | Kiến trúc monolith NestJS + 2 sidecar riêng biệt |
 | **Khả bảo trì** | Toàn bộ backend TypeScript/NestJS, sidecar Python typing với Pydantic; lint và kiểm thử 54 test case / 21 file spec [ref: ledger t1.15-numbers] | TypeScript strict, ESLint, Jest với coverage |
 | **Khả dùng (Usability)** | Giao diện mobile-first, ≈48 màn hình route Expo Router [ref: ledger t1.15-numbers]; luồng đặt hàng tối ưu dưới 5 bước | NativeWind TailwindCSS trên React Native |
 
@@ -102,15 +102,22 @@ Sơ đồ phân rã chức năng (FDD) phân cấp toàn bộ chức năng của
 
 ### 3.3.1. Kiến trúc triển khai tổng quan
 
-Hệ thống F2T được triển khai theo kiến trúc **monolith NestJS kết hợp một sidecar ML** (xem Hình deployment-architecture.puml). Quyết định kiến trúc này xuất phát từ bối cảnh đây là hệ thống khóa luận của một sinh viên, trong đó tính đơn giản và khả năng vận hành độc lập quan trọng hơn tính phân tán quy mô lớn.
+Hệ thống F2T được triển khai theo kiến trúc **monolith NestJS kết hợp hai sidecar ML** (xem Hình deployment-architecture.puml). Quyết định kiến trúc này xuất phát từ bối cảnh đây là hệ thống khóa luận của một sinh viên, trong đó tính đơn giản và khả năng vận hành độc lập quan trọng hơn tính phân tán quy mô lớn.
 
-**Backend NestJS 11** [ref: ledger t2.2-tech-versions] chạy trên cổng mặc định 3000 [ref: f2t-backend/src/main.ts:59-60], gồm 13 module [ref: ledger t1.4-one-sidecar]: `admin`, `auth`, `delivery`, `demand-forecasting`, `dynamic-pricing`, `farms`, `notifications`, `orders`, `payments`, `posts`, `products`, `uploads` và `users`. Backend kết nối tới **MongoDB** để lưu trữ dữ liệu nghiệp vụ và tới **Redis** (qua `RedisModule`) để cache kết quả dự báo nhu cầu [ref: f2t-backend/src/app.module.ts:84; f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:34,66]. Toàn bộ cấu hình URL sidecar được đọc từ biến môi trường `PRICING_SIDECAR_URL` với giá trị mặc định `http://localhost:8000` [ref: f2t-backend/src/app.module.ts:57].
+**Backend NestJS 11** [ref: ledger t2.2-tech-versions] chạy trên cổng mặc định 3000 [ref: f2t-backend/src/main.ts:59-60], gồm **15 module** [ref: ledger numbers-v3]: `admin`, `auth`, `delivery`, `demand-forecasting`, `dynamic-pricing`, `farms`, `notifications`, `orders`, `payments`, `posts`, `products`, `recommendations`, `reviews`, `uploads` và `users`. Backend kết nối tới **MongoDB** để lưu trữ dữ liệu nghiệp vụ và tới **Redis** (qua `RedisModule`) để cache kết quả dự báo nhu cầu [ref: f2t-backend/src/app.module.ts:84; f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:34,66]. Toàn bộ cấu hình URL sidecar được đọc từ biến môi trường `PRICING_SIDECAR_URL` với giá trị mặc định `http://localhost:8000` [ref: f2t-backend/src/app.module.ts:57].
 
-**Pricing Sidecar FastAPI** chạy trên cổng 8000 và cung cấp đúng 3 endpoint phục vụ các chức năng AI/ML [ref: ledger t1.4-one-sidecar]:
+**Pricing Sidecar FastAPI** (`pricing-sidecar/`) chạy trên cổng 8000 và cung cấp đúng 3 endpoint phục vụ các chức năng định giá + dự báo + phân loại tươi [ref: ledger t1.4-one-sidecar]:
 
 - `/predict` (POST) — nhận state vector 10 chiều, trả delta giá từ DDQN sau Safety Layer [ref: pricing-sidecar/main.py:277].
 - `/forecast` (POST) — nhận state vector, trả `demand7d` và `pWaste` từ ForecasterLSTM [ref: pricing-sidecar/main.py:263].
 - `/freshness/classify` (POST) — nhận ảnh sản phẩm (JPEG/PNG), trả nhãn "fresh"/"rotten" và xác suất từ 2 model CoreML [ref: pricing-sidecar/main.py:316].
+
+**Recommender Sidecar FastAPI** (`recommender-sidecar/`) chạy trên cổng 8001 và cung cấp 2 endpoint phục vụ chức năng cross-sell [ref: recommender-sidecar/main.py:56,61]:
+
+- `POST /recommend` — nhận `{cart_categories, top_k}`, trả `{recommendations: [{category, score, source}]}` dựa trên category rules FP-Growth.
+- `GET /health` — kiểm tra trạng thái sidecar.
+
+Sidecar nạp artifact JSON (`category_rules.json`, `category_popularity.json`) từ `recommender-final/model/` khi khởi động; **không truy cập MongoDB** [ref: recommender-sidecar/main.py:17-29]. URL được cấu hình qua biến môi trường `RECOMMENDER_SIDECAR_URL` [ref: f2t-backend/src/app.module.ts:60].
 
 **Ứng dụng di động** (React Native / Expo) giao tiếp với NestJS backend qua REST API. Frontend không gọi trực tiếp sidecar — mọi logic AI/ML đều được trừu tượng hóa phía backend.
 
