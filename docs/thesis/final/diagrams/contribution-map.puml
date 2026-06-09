@@ -43,7 +43,7 @@ ghn --> orders
 
 ' Đóng góp annotations
 note top of sidecar
-  ĐG1: Kiến trúc Monolith + 1 Sidecar
+  ĐG1: Kiến trúc Monolith + 2 Sidecar
   Tách AI Python ra khỏi Node.js
   1 FastAPI duy nhất (port 8000, 3 endpoint)
   Graceful degradation khi sidecar lỗi

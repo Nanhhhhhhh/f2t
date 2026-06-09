@@ -26,7 +26,7 @@ Khóa luận này đặt ra sáu mục tiêu nghiên cứu được thiết kế
 
 **MT5.** Tích hợp phân loại độ tươi sản phẩm từ hình ảnh bằng hai model CoreML (fruit và root), phân loại nhị phân fresh/rotten, phục vụ qua endpoint /freshness/classify của pricing-sidecar [ref: pricing-sidecar/main.py:316-318; freshnessmodels/MyFreshnessClassifier-fruit.mlmodel; ledger t1.4-freshness-coreml, t0.6].
 
-**MT6.** Đảm bảo chất lượng phần mềm với tỷ lệ unit test pass đạt ≥95%. Kết quả thực tế: 54/54 test case pass trong 21 file spec [ref: ledger t1.15-numbers].
+**MT6.** Đảm bảo chất lượng phần mềm với tỷ lệ unit test pass đạt ≥95%. Kết quả thực tế: 78/78 test case pass trong 24 file spec [ref: ledger numbers-v3].
 
 ## 1.3. Phạm vi nghiên cứu
 
@@ -70,8 +70,8 @@ Khóa luận được tổ chức thành năm chương với nội dung như sau
 
 **Chương 2 — Cơ sở lý thuyết và tổng quan công nghệ** trình bày nền tảng lý thuyết cho các thành phần kỹ thuật chính: LSTM cho dự báo chuỗi thời gian, Double DQN với Dueling Network cho học tăng cường trong định giá, CoreML cho suy luận ảnh trên thiết bị, kiến trúc hệ thống tổng thể (Monolith + Sidecar), stack công nghệ (NestJS, React Native/Expo, FastAPI, MongoDB), và khảo sát các hệ thống tương tự trên thị trường.
 
-**Chương 3 — Phân tích và thiết kế hệ thống** đi sâu vào quy trình nghiệp vụ (mô hình hóa hiện trạng và quy trình F2T mới), phân rã chức năng, kiến trúc triển khai, các sơ đồ use case (tổng quan và AI/ML), đặc tả ca sử dụng, sơ đồ tuần tự và hoạt động cho cả luồng nghiệp vụ lẫn luồng AI/ML, thiết kế chi tiết ba thành phần học máy (ForecasterLSTM, DDQN+Safety, CoreML freshness), thiết kế cơ sở dữ liệu MongoDB (ERD, 10 collection, chiến lược index), và thiết kế giao diện người dùng.
+**Chương 3 — Phân tích và thiết kế hệ thống** đi sâu vào quy trình nghiệp vụ (mô hình hóa hiện trạng và quy trình F2T mới), phân rã chức năng, kiến trúc triển khai, các sơ đồ use case (tổng quan và AI/ML), đặc tả ca sử dụng, sơ đồ tuần tự và hoạt động cho cả luồng nghiệp vụ lẫn luồng AI/ML, thiết kế chi tiết ba thành phần học máy (ForecasterLSTM, DDQN+Safety, CoreML freshness), thiết kế cơ sở dữ liệu MongoDB (ERD, 12 collection, chiến lược index), và thiết kế giao diện người dùng.
 
-**Chương 4 — Cài đặt và kiểm thử** mô tả môi trường triển khai thực tế, quy trình cài đặt và khởi tạo dữ liệu mẫu, kết quả kiểm thử unit (54/54 test case trong 21 file spec) [ref: ledger numbers-v3], đánh giá chức năng (92 endpoint REST), đánh giá định lượng bốn thành phần AI/ML (ForecasterLSTM offline eval, DDQN reward curve, CoreML accuracy, cross-sell FP-Growth), và demo luồng end-to-end.
+**Chương 4 — Cài đặt và kiểm thử** mô tả môi trường triển khai thực tế, quy trình cài đặt và khởi tạo dữ liệu mẫu, kết quả kiểm thử unit (78/78 test case trong 24 file spec) [ref: ledger numbers-v3], đánh giá chức năng (92 endpoint REST), đánh giá định lượng bốn thành phần AI/ML (ForecasterLSTM offline eval, DDQN reward curve, CoreML accuracy, cross-sell FP-Growth), và demo luồng end-to-end.
 
 **Chương 5 — Kết luận và hướng phát triển** tổng kết các kết quả đạt được so với sáu mục tiêu đề ra, trình bày bảy hạn chế hiện tại của hệ thống một cách trung thực (ba hạn chế kỹ thuật AI: serve tile-21× của forecaster, lệch pha day-of-week nhỏ <6.2%, phạm vi 2/4 danh mục có model CoreML riêng; bốn hạn chế cross-sell: category-level không phải product-level, warm-start Instacart, chưa đánh giá precision@k, chỉ hiển thị trong giỏ hàng), và đề xuất lộ trình phát triển ba giai đoạn cho hệ thống gợi ý.
