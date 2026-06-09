@@ -8,6 +8,8 @@ import { showMessage } from 'react-native-flash-message';
 import { z } from 'zod';
 
 import { useAddPost, useUploadMedia } from '@/api';
+import { TagPicker } from '@/components/tag-picker';
+import type { TagItem } from '@/components/tag-picker';
 import {
   Button,
   ControlledInput,
@@ -56,8 +58,9 @@ export default function AddPost() {
   });
 
   const media = watch('media');
-  const tags = watch('tags');
   const body = watch('body');
+
+  const [tags, setTags] = React.useState<TagItem[]>([]);
 
   // Automatically extract hashtags from body
   React.useEffect(() => {
@@ -128,15 +131,8 @@ export default function AddPost() {
     );
   };
 
-  const removeTag = (id: string) => {
-    setValue(
-      'tags',
-      tags.filter((t) => t.id !== id)
-    );
-  };
-
   const onSubmit = (data: FormType) => {
-    addPost(data, {
+    addPost({ ...data, tags }, {
       onSuccess: () => {
         showMessage({
           message: 'Post added successfully',
@@ -176,29 +172,7 @@ export default function AddPost() {
         />
 
         <Text className="mb-2 mt-4 text-sm font-bold">Tags</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {tags.map((tag) => (
-            <View
-              key={tag.id}
-              className="flex-row items-center rounded-full bg-blue-100 px-3 py-1 dark:bg-blue-900"
-            >
-              <Text className="text-blue-800 dark:text-blue-200">
-                @{tag.name}
-              </Text>
-              <Pressable onPress={() => removeTag(tag.id)} className="ml-2">
-                <Text className="text-blue-800 dark:text-blue-200">×</Text>
-              </Pressable>
-            </View>
-          ))}
-          <Pressable
-            onPress={() => {
-              Alert.alert('Tag Profile', 'Tagging feature coming soon!');
-            }}
-            className="rounded-full border border-gray-300 px-3 py-1 dark:border-gray-700"
-          >
-            <Text className="text-gray-500">+ Tag Profile</Text>
-          </Pressable>
-        </View>
+        <TagPicker tags={tags} onChange={setTags} />
 
         <Text className="mb-2 mt-4 text-sm font-bold">
           Media ({media.length}/10)
