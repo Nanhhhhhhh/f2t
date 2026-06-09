@@ -4,6 +4,7 @@ import { ScrollView, TouchableOpacity } from 'react-native';
 import { useCrossSell } from '@/api/recommendations/use-cross-sell';
 import { Text, View } from '@/components/ui';
 import { useCart } from '@/lib/cart';
+import { formatPrice } from '@/lib/cart/utils';
 import type { Product } from '@/types';
 
 type Props = { productIds: string[] };
@@ -25,7 +26,7 @@ export const CrossSell = ({ productIds }: Props) => {
               {p.name}
             </Text>
             <Text className="mt-1 text-xs text-neutral-500">
-              {(p.pricePerUnit ?? 0).toLocaleString('vi-VN')}đ
+              {formatPrice(p.pricePerUnit ?? 0)}
             </Text>
             <TouchableOpacity
               testID={`cross-sell-add-${p.id}`}

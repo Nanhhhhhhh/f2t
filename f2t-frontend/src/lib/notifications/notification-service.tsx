@@ -38,7 +38,10 @@ class NotificationService {
       orderNumber: order.orderNumber,
       customerName,
       farmName,
-      orderTotal: `$${order.total.toFixed(2)}`,
+      orderTotal: new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'VND',
+      }).format(order.total),
       estimatedDelivery: order.deliveryDate,
       trackingNumber: order.trackingNumber,
     };
@@ -120,7 +123,10 @@ class NotificationService {
   ): NotificationTemplateData {
     return {
       orderNumber: order.orderNumber,
-      orderTotal: `$${order.total.toFixed(2)}`,
+      orderTotal: new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'VND',
+      }).format(order.total),
       estimatedDelivery: order.deliveryDate,
       trackingNumber: order.trackingNumber,
       ...additionalData,
