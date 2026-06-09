@@ -3,7 +3,25 @@
 > Cập nhật mục "Việc tiếp theo" + commit TRƯỚC khi kết thúc mỗi phiên.
 
 ## Phase hiện tại
-**Task 0 ✅ DONE + Task 1 ✅ DONE + TASK 2 ✅ DONE. Toàn bộ khoá luận hoàn chỉnh (5 chương + TLTK + mục lục + 23 diagram) đã viết, verify toàn văn PASS (T2.V), commit + push.**
+**Task 0 ✅ DONE + Task 1 ✅ DONE + TASK 2 ✅ DONE + TASK 3 ✅ DONE (2026-06-09). Thesis đồng bộ với codebase mới: 15 module / 2 sidecar / 4 AI function / 12 collection / 92 endpoint / 56 màn hình. Mọi chương đã update: cross-sell FP-Growth (§2.4.4/§3.3.7d/§3.3.9/§4.4.6), Reviews (§3.3.8/§3.4/§3.5), Auth password reset, Admin enhance. 8 HẠN CHẾ BẮT BUỘC §5.2. VERIFY-REPORT.md PASS (V1-V6).**
+
+> Cập nhật 2026-06-09 (phiên Task 3 — ĐÓNG TASK 3): cập nhật thesis từ 57 commit main sau feature/f2t-ml-verify-thesis. Subagent-Driven Development (T3.0→T3.19):
+> - **T3.0** claims-ledger.md — 6 entry mới (cross-sell-v1, t1.4-no-recommender LỊCH SỬ, reviews-v1, auth-reset-v1, admin-v2, numbers-v3).
+> - **T3.1** STRUCTURE.md — số canonical mới (15/2/4/92/24/78/56/12).
+> - **T3.2 ⭐** §2.4.4 FP-Growth theory + scope fix §2.1.2/§2.5/§2.6 (4 AI functions, xóa t1.4-no-recommender). Verify 2-lớp PASS (7/7).
+> - **T3.3** Sweep "no recommender" Ch3/4/5 — 10 chỗ scoped → cross-sell cat-level; §5.3 tương lai giữ nguyên.
+> - **T3.4** §3.3.1 — 15 module (+recommendations/reviews), 2 sidecar (+recommender-sidecar :8001), auth reset.
+> - **T3.5** §3.3.3 — UC-ML-03 cross-sell + UC-RV-01 review với line citations thật.
+> - **T3.6** §3.3.8 Reviews module — schema table 9 trường, 4 endpoint, averageRating/reviewCount.
+> - **T3.7** §3.3.9 Recommendations module — controller/service pipeline 4 bước/sidecar/frontend.
+> - **T3.8 ⭐** §3.3.7d cross-sell FP-Growth design + sd-cross-sell.puml. Verify 2-lớp PASS (6/6).
+> - **T3.9 ⭐** §3.4 CSDL — +reviews (8 field/2 index) + password_reset_tokens (TTL) + product rating fields; 12 collection. Verify 2-lớp PASS (4/4).
+> - **T3.10-T3.12** §3.5 UI + §4.3 testing + §4.4.1 overview (78/24/92/56/12/15/2).
+> - **T3.13 ⭐** §4.4.6 cross-sell eval — Bảng 4.13-4.15 (thống kê mô tả thật; 0 precision bịa). Verify 2-lớp PASS (5/5).
+> - **T3.14-T3.17** §5.1/5.2/5.3 + TLTK [36][37] + mục lục + Ch1 numbers.
+> - **T3.18 ⭐** VERIFY toàn văn V1-V6 PASS — 0 false-claim, 0 stale number, 8 HẠN CHẾ BẮT BUỘC, Bảng tái đánh số 4.11-4.15. Fix 3 rounds (Ch2/Ch1/Ch5/4 diagrams).
+> - **T3.19** .handoff/ cập nhật (phiên này).
+> Branch: feature/f2t-thesis-merge-main. KHÔNG đụng feature/f2t-ml-verify-thesis.
 
 > Cập nhật 2026-06-08 (phiên Task 2 #4 — ĐÓNG TASK 2): hoàn tất CHƯƠNG 5 + TLTK + VERIFY TOÀN VĂN bằng subagent-driven-development:
 > - **T2.29** Chương 5 (`chuong-5-ket-luan.md`): §5.1 Kết luận (số liệu canonical + 6 ĐG thật), §5.2 Hạn chế (4× "HẠN CHẾ BẮT BUỘC", 3 giới hạn post-retrain: tile-21× obs_dim=10 / DoW<6.2% / freshness 2/4), §5.3 Hướng phát triển (recommender = TƯƠNG LAI chưa có). Verify đối kháng REJECT→fix ĐG2 (interceptor gắn 3 trường dynamicPrice/freshnessScore/priceTag — KHÔNG "suggested_price" bịa; cite :74-77)→PASS. Commit cd6655d.

@@ -63,3 +63,34 @@ Plan: `docs/superpowers/plans/2026-06-07-task2-thesis-full-prose.md`. Đầu ra:
 > **CHƯƠNG 4 DONE ✅ (2026-06-07, phiên #3):** T2.23→T2.28 verify đối kháng PASS + RE-VERIFY toàn chương 2 lớp PASS (0 số eval bịa, canonical nhất quán, 26/26 ref tồn tại). 6 commit `19500b6…520664b` + re-verify đã push.
 
 > **TASK 2 DONE ✅ (2026-06-08, phiên #4):** T2.29 (Chương 5, commit cd6655d) → T2.30 (TLTK IEEE 35 entry + mục lục, commit a23d9c9) → T2.V (verify toàn văn độc lập PASS — `docs/thesis/final/VERIFY-REPORT.md`, V1-V6 0 FAIL). Khoá luận hoàn chỉnh: 5 chương + TLTK + mục lục + 23 diagram, chân thực 100% với code. **CẢ 3 TASK LỚN (0/1/2) HOÀN TẤT.**
+
+---
+
+## Task 3 — Cập nhật thesis theo 57 commit main mới (2026-06-09)
+
+> Branch: `feature/f2t-thesis-merge-main`. Không đụng `feature/f2t-ml-verify-thesis`.
+
+| ID | Mô tả | Phụ thuộc | Status |
+|----|-------|-----------|--------|
+| T3.0 | Fact-pack ledger — 6 entry mới (cross-sell, reviews, auth-reset, admin, numbers) | — | done |
+| T3.1 | STRUCTURE.md — canonical numbers 15/2/4/92/24/78/56/12 | T3.0 | done |
+| T3.2 ⭐ | §2.4.4 FP-Growth theory + §2.1.2/§2.5/§2.6 scope fix (2-lớp verify PASS 7/7) | T3.0 | done |
+| T3.3 | Sweep "no recommender" Ch3/4/5 — 10 chỗ scoped | T3.1 | done |
+| T3.4 | §3.3.1 — 15 module / 2 sidecar | T3.3 | done |
+| T3.5 | §3.3.3 — UC-ML-03 cross-sell + UC-RV-01 review | T3.3 | done |
+| T3.6 | §3.3.8 Reviews module | T3.5 | done |
+| T3.7 | §3.3.9 Recommendations module | T3.5 | done |
+| T3.8 ⭐ | §3.3.7d cross-sell design + sd-cross-sell.puml (2-lớp verify PASS 6/6) | T3.2-T3.7 | done |
+| T3.9 ⭐ | §3.4 CSDL — +reviews/+password_reset_tokens/product rating (2-lớp verify PASS 4/4) | T3.8 | done |
+| T3.10 | §3.5 UI — CrossSell/auth-reset/add-review/admin screens | T3.9 | done |
+| T3.11 | §4.3 testing — 78/24 | T3.10 | done |
+| T3.12 | §4.4.1 overview — canonical mới | T3.11 | done |
+| T3.13 ⭐ | §4.4.6 cross-sell eval — Bảng 4.13-4.15 thật; 0 precision bịa (2-lớp verify PASS 5/5) | T3.12 | done |
+| T3.14 | §5.1/§5.2/§5.3 — 4 AI/8 HẠN CHẾ/GĐ1→GĐ2→GĐ3 | T3.13 | done |
+| T3.15 | TLTK — [36] Agrawal 1994 + [37] Han 2000 | T3.14 | done |
+| T3.16 | Mục lục — §2.4.4/§3.3.7d/§3.3.8/§3.3.9/§4.4.6/Bảng 4.13-4.15 | T3.15 | done |
+| T3.17 | Ch1 — số canonical mới | T3.16 | done |
+| T3.18 ⭐ | VERIFY toàn văn V1-V6 PASS — 0 false-claim, 0 stale, 8 HẠN CHẾ, Bảng re-number | T3.17 | done |
+| T3.19 | .handoff/ STATE.md + task-tree.md | T3.18 | done |
+
+> **TASK 3 DONE ✅ (2026-06-09):** 20 tasks T3.0→T3.19, subagent-driven-development. Thesis đồng bộ 100% với codebase. CẢ 4 TASK LỚN (0/1/2/3) HOÀN TẤT.
