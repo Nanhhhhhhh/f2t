@@ -1,4 +1,5 @@
-import type { ApiResponse, Farm, Order, User } from '@/types';
+import type { ApiResponse, Farm, Order, Product, User } from '@/types';
+import type { Post } from '@/api/posts/types';
 
 export type AdminUsersQuery = {
   page?: number;
@@ -20,6 +21,18 @@ export type AdminOrdersQuery = {
   limit?: number;
   status?: string;
   paymentStatus?: string;
+};
+
+export type AdminPostsQuery = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
+export type AdminProductsQuery = {
+  page?: number;
+  limit?: number;
+  search?: string;
 };
 
 export type AdminAnalytics = {
@@ -60,3 +73,5 @@ export type PaginatedResponse<T> = ApiResponse<{
 export type AdminUsersResponse = PaginatedResponse<User>;
 export type AdminFarmsResponse = PaginatedResponse<Farm>;
 export type AdminOrdersResponse = PaginatedResponse<Order>;
+export type AdminPostsResponse = PaginatedResponse<Post>;
+export type AdminProductsResponse = PaginatedResponse<Product>;

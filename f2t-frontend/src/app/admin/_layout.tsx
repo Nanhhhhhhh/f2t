@@ -55,6 +55,24 @@ export default function AdminLayout() {
             title: 'All Orders',
           }}
         />
+        <Stack.Screen
+          name="products"
+          options={{
+            title: 'All Products',
+          }}
+        />
+        <Stack.Screen
+          name="posts"
+          options={{
+            title: 'All Posts',
+          }}
+        />
+        <Stack.Screen
+          name="reviews"
+          options={{
+            title: 'All Reviews',
+          }}
+        />
       </Stack>
     </AdminRouteGuard>
   );
