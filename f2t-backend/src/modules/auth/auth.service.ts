@@ -293,15 +293,11 @@ export class AuthService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  private generateOtpCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  }
-
   async forgotPassword(email: string): Promise<{ success: boolean }> {
     const user = await this.usersService.findByEmail(email);
     if (!user) return { success: true };
 
-    const otp = this.generateOtpCode();
+    const otp = this.generateOtp();
     const hashedOtp = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 

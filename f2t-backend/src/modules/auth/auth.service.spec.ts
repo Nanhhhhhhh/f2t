@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -15,6 +16,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let usersService: UsersService;
   let emailService: EmailService;
+  let jwtService: JwtService;
   let mockPasswordResetModel: {
     findOne: jest.Mock;
     create: jest.Mock;
@@ -83,6 +85,7 @@ describe('AuthService', () => {
     service = module.get<AuthService>(AuthService);
     usersService = module.get<UsersService>(UsersService);
     emailService = module.get<EmailService>(EmailService);
+    jwtService = module.get<JwtService>(JwtService);
   });
 
   it('should be defined', () => {
@@ -111,6 +114,51 @@ describe('AuthService', () => {
         sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
       });
       await expect(service.verifyOtp('u@test.com', '123456')).rejects.toThrow();
+    });
+
+    it('should set record.used = true, call save(), and return { token } on valid OTP', async () => {
+      const realHash = await bcrypt.hash('123456', 10);
+      const mockRecord = { used: false, otp: realHash, save: jest.fn().mockResolvedValue(undefined) };
+      mockPasswordResetModel.findOne = jest.fn().mockReturnValue({
+        sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(mockRecord) }),
+      });
+      const mockUser = { _id: 'uid1', email: 'u@test.com' } as any;
+      jest.spyOn(usersService, 'findByEmail').mockResolvedValue(mockUser);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('mock-token' as any);
+
+      const result = await service.verifyOtp('u@test.com', '123456');
+
+      expect(mockRecord.used).toBe(true);
+      expect(mockRecord.save).toHaveBeenCalled();
+      expect(result).toHaveProperty('token', 'mock-token');
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should call usersService.updatePassword on valid token with correct purpose', async () => {
+      jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: 'uid1', purpose: 'password-reset' } as any);
+      const updatePasswordSpy = jest.spyOn(usersService, 'updatePassword').mockResolvedValue(undefined as any);
+
+      const result = await service.resetPassword('valid-token', 'newpass123');
+
+      expect(updatePasswordSpy).toHaveBeenCalledWith('uid1', expect.any(String));
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should throw BadRequestException when token has wrong purpose', async () => {
+      jest.spyOn(jwtService, 'verify').mockReturnValue({ sub: 'uid1', purpose: 'email-verify' } as any);
+
+      await expect(service.resetPassword('bad-purpose-token', 'newpass123')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException when jwtService.verify throws', async () => {
+      jest.spyOn(jwtService, 'verify').mockImplementation(() => { throw new Error('jwt expired'); });
+
+      await expect(service.resetPassword('expired-token', 'newpass123')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
