@@ -485,9 +485,9 @@ Endpoint bảo vệ bởi `JwtAuthGuard` [ref: :15]. Nhận `productIds` (comma-
 
 ### 3.4.1. Sơ đồ quan hệ thực thể (ERD)
 
-Cơ sở dữ liệu của hệ thống F2T được xây dựng trên MongoDB và bao gồm đúng **10 collection** [ref: ledger t1.4-collections], trong đó 8 collection phục vụ nghiệp vụ chính và 2 collection chuyên biệt cho module AI/ML định giá động. Toàn bộ quan hệ giữa các thực thể được hình thức hóa trong sơ đồ ERD (xem Hình erd.puml).
+Cơ sở dữ liệu của hệ thống F2T được xây dựng trên MongoDB và bao gồm đúng **12 collection** [ref: ledger t1.4-collections], trong đó 8 collection phục vụ nghiệp vụ chính, 2 collection chuyên biệt cho module AI/ML định giá động, và 2 collection hỗ trợ xác thực/đánh giá (`reviews`, `password_reset_tokens`). Toàn bộ quan hệ giữa các thực thể được hình thức hóa trong sơ đồ ERD (xem Hình erd.puml).
 
-**Cấu trúc tổng quan 10 thực thể và 10 quan hệ:**
+**Cấu trúc tổng quan 12 thực thể và 12 quan hệ:**
 
 Thực thể trung tâm là **users** — biểu diễn cả ba vai trò Consumer, Farm Owner và Admin thông qua trường `role` enum. Từ thực thể này, năm quan hệ tỏa ra:
 
@@ -513,9 +513,9 @@ Quan hệ đặc biệt quan trọng về mặt thiết kế là:
 
 Hệ thống **không** có các collection `recommendation_caches` hay `forecast_caches` — artifact cross-sell là file JSON (`category_rules.json`, `category_popularity.json`) nạp vào bộ nhớ sidecar lúc khởi động, không tạo collection MongoDB; kết quả dự báo được cache ở tầng Redis chứ không tạo collection riêng [ref: recommender-sidecar/main.py:17-29; ledger cross-sell-v1, t1.4-collections].
 
-### 3.4.2. Chi tiết 10 collections
+### 3.4.2. Chi tiết 12 collections
 
-Mục này trình bày chi tiết cấu trúc field, kiểu dữ liệu, enum và quan hệ khóa ngoại của từng collection, được resolve trực tiếp từ 10 file schema trong codebase.
+Mục này trình bày chi tiết cấu trúc field, kiểu dữ liệu, enum và quan hệ khóa ngoại của từng collection, được resolve trực tiếp từ 12 file schema trong codebase.
 
 #### 8 collection nghiệp vụ chính
 
@@ -578,6 +578,8 @@ Mục này trình bày chi tiết cấu trúc field, kiểu dữ liệu, enum v�
 | `nutritionalInfo` | Embedded Object | `{ calories, protein, carbs, fat, fiber, vitamins[] }` — NutritionalInfo L7-14 |
 | `estimatedShelfLife` | Number | Thời gian bảo quản (ngày) — L98-99 |
 | `lastRestockedAt` | Date | Thời điểm nhập hàng gần nhất — L137-138 |
+| `averageRating` | Number | default `0` — trung bình cộng rating từ reviews [ref: f2t-backend/src/modules/products/schemas/product.schema.ts:L141] |
+| `reviewCount` | Number | default `0` — tổng số review [ref: f2t-backend/src/modules/products/schemas/product.schema.ts:L144] |
 
 **Collection `orders`** lưu đơn hàng và chứa `OrderItem` embedded [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L6-34, L95-241].
 
@@ -694,6 +696,43 @@ Thiết kế dùng mảng `readings[{score, scannedAt}]` thay vì một điểm 
 
 Vòng đời của một `price_override` bắt đầu với `status: 'shadow'` — giai đoạn DDQN vừa tính xong nhưng chưa hiển thị cho Farm. Khi PricingTickCron xử lý xong, trạng thái chuyển sang `pending_review` để Farm xem xét. Farm chấp nhận → `accepted`; từ chối → `rejected`; tự động hết hạn → `expired`. Thiết kế 5 trạng thái này đảm bảo tính minh bạch và khả năng kiểm toán của toàn bộ vòng đời đề xuất giá.
 
+#### 2 collection xác thực và đánh giá
+
+**Collection `reviews`** [ref: f2t-backend/src/modules/reviews/schemas/review.schema.ts]
+
+Lưu trữ đánh giá sản phẩm của Consumer sau khi mua hàng. Ràng buộc quan trọng: `orderId` bắt buộc — chỉ người đã có đơn hàng với sản phẩm đó mới có thể review.
+
+| Trường | Kiểu | Ràng buộc |
+|--------|------|-----------|
+| `_id` | ObjectId | PK tự sinh (Mongoose) |
+| `productId` | ObjectId | required, ref Product |
+| `orderId` | ObjectId | required, ref Order |
+| `customerId` | ObjectId | required, ref User |
+| `customerName` | String | required |
+| `customerAvatarUrl` | String | optional |
+| `rating` | Number | required, min 1 – max 5 |
+| `comment` | String | required, maxlength 500 |
+| `photos` | String[] | default `[]` |
+| `createdAt`, `updatedAt` | Date | auto (`timestamps: true`) |
+
+Index: `{ productId: 1 }` — truy vấn review theo sản phẩm; `{ customerId: 1 }` — truy vấn review của người dùng.
+
+---
+
+**Collection `password_reset_tokens`** [ref: f2t-backend/src/modules/auth/schemas/password-reset-token.schema.ts]
+
+Lưu OTP đặt lại mật khẩu. Token được bcrypt-hash trước khi lưu. Tự động xóa sau khi hết hạn nhờ TTL index.
+
+| Trường | Kiểu | Ràng buộc |
+|--------|------|-----------|
+| `_id` | ObjectId | PK tự sinh (Mongoose) |
+| `email` | String | required, index |
+| `otp` | String | required (bcrypt hashed) |
+| `expiresAt` | Date | required |
+| `used` | Boolean | default `false` |
+
+TTL index: `{ expiresAt: 1 }, { expireAfterSeconds: 0 }` — MongoDB tự xóa document khi `expiresAt` đến hạn.
+
 ### 3.4.3. Chỉ mục và tối ưu
 
 Chiến lược chỉ mục của F2T được thiết kế theo bốn nhóm chức năng: (1) chỉ mục địa lý phục vụ tìm kiếm gần kề; (2) chỉ mục TTL tự động dọn dẹp dữ liệu tạm thời; (3) chỉ mục duy nhất đảm bảo tính toàn vẹn dữ liệu; và (4) chỉ mục ghép và đơn tăng tốc các truy vấn nghiệp vụ thường gặp. Toàn bộ chỉ mục được khai báo tường minh trong file schema tương ứng.
@@ -719,15 +758,20 @@ Chiến lược chỉ mục của F2T được thiết kế theo bốn nhóm ch�
 | Text | `posts` | `title + body + hashtags` | — | Tìm kiếm bài đăng theo nội dung và hashtag | `post.schema.ts:L116` |
 | Đơn (Single) | `products` | `farmId`, `category`, `status`, `pricePerUnit` | — | Lọc/sắp xếp sản phẩm theo trang trại, danh mục, trạng thái, giá | `product.schema.ts:L148-151` |
 | Đơn (Single) | `posts` | `createdAt (desc)`, `authorId`, `farmId`, `hashtags` | — | Dòng thời gian feed, lọc bài theo tác giả/trang trại/hashtag | `post.schema.ts:L115,117-119` |
+| Đơn (Single) | `reviews` | `{ productId: 1 }` | — | Truy vấn review theo sản phẩm | `review.schema.ts` |
+| Đơn (Single) | `reviews` | `{ customerId: 1 }` | — | Truy vấn review của người dùng | `review.schema.ts` |
+| TTL | `password_reset_tokens` | `expiresAt` | `expireAfterSeconds: 0` | MongoDB tự xóa token OTP khi `expiresAt` đến hạn | `password-reset-token.schema.ts` |
+| Đơn (Single) | `password_reset_tokens` | `{ email: 1 }` | — | Tra cứu OTP theo email | `password-reset-token.schema.ts` |
 
 **Phân tích chi tiết theo nhóm chức năng:**
 
 **Nhóm 2dsphere — tìm kiếm địa lý:** Chỉ mục `FarmSchema.index({ location: '2dsphere' })` tại `farm.schema.ts:L113` cho phép MongoDB thực thi truy vấn `$near` và `$geoWithin` trên trường `location` kiểu GeoJSON Point. Chỉ mục này là nền tảng cho use case CF-02 (tìm kiếm sản phẩm theo vị trí Consumer) và cho `DynamicPricingService` khi tính `competitor_ref_price` từ các trang trại trong bán kính 10km [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.service.ts:84-124].
 
-**Nhóm TTL — dọn dẹp tự động:** Ba chỉ mục TTL với `expireAfterSeconds: 0` cho phép MongoDB engine tự động xóa document khi trường `expiresAt` vượt qua thời điểm hiện tại, mà không cần bất kỳ cronjob ngoài nào:
+**Nhóm TTL — dọn dẹp tự động:** Bốn chỉ mục TTL với `expireAfterSeconds: 0` cho phép MongoDB engine tự động xóa document khi trường `expiresAt` vượt qua thời điểm hiện tại, mà không cần bất kỳ cronjob ngoài nào:
 - `freshness-cache.schema.ts:L45` — cache độ tươi CoreML hết hạn tự xóa để tránh tích lũy dữ liệu lỗi thời ảnh hưởng đến định giá.
 - `price-override.schema.ts:L68` — đề xuất giá DDQN có vòng đời hữu hạn; sau khi hết hạn, document tự xóa thay vì tồn tại vô thời hạn trong trạng thái `expired`.
 - `verification-token.schema.ts:L31` — token OTP/xác minh email hết hạn tự xóa, đảm bảo vệ sinh bảo mật mà không cần bảo trì thủ công.
+- `password-reset-token.schema.ts` — token OTP đặt lại mật khẩu tự xóa khi `expiresAt` đến hạn, tránh token cũ bị khai thác.
 
 **Nhóm Unique — toàn vẹn dữ liệu:** Chỉ mục `FreshnessCacheSchema.index({ productId: 1 }, { unique: true })` tại `freshness-cache.schema.ts:L44` đảm bảo luật nghiệp vụ "mỗi sản phẩm có đúng một bản ghi cache độ tươi". Trường `userId` trong `notification_preferences` khai báo `unique: true` trực tiếp trong decorator `@Prop` tại `notification-preferences.schema.ts:L24`, đảm bảo mỗi người dùng chỉ có một bộ tùy chọn thông báo.
 
