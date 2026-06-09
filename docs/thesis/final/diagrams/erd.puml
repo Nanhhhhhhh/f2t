@@ -1,6 +1,6 @@
 ' @source: ledger t1.11-schema-detail, t1.4-collections; dany.md §3.4.1 L397-421, §3.4.2 L423-447
 @startuml erd
-' ERD 10 collection MongoDB thật của F2T
+' ERD 12 collection MongoDB thật của F2T
 ' Nguồn: f2t-backend/src/modules/**/schemas/*.schema.ts
 
 !define PK <u>

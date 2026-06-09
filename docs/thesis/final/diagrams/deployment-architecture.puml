@@ -17,7 +17,7 @@ node "Backend Server" {
 }
 
 database "MongoDB" as mongodb {
-  collections "10 collections\n(users, farms, products,\norders, posts, ...)" as cols
+  collections "12 collections\n(users, farms, products,\norders, posts, reviews, ...)" as cols
 }
 
 cloud "Dịch vụ bên thứ ba" {

@@ -28,7 +28,7 @@ rectangle "pricing-sidecar\nFastAPI port 8000\n«1 sidecar duy nhất»" as side
   component "CoreML Freshness\nfruit.mlmodel + root.mlmodel\nnhị phân: fresh/rotten" as coreml #DDA0DD
 }
 
-database "MongoDB\n10 collections" as mongodb
+database "MongoDB\n12 collections" as mongodb
 
 ' Luồng chính
 users --> mobile
