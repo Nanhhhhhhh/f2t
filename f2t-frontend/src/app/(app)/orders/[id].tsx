@@ -56,6 +56,10 @@ const OrderDetailContent = ({ insets }: OrderDetailContentProps) => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [showTimeline, setShowTimeline] = useState(true);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  // True once user completed Stripe redirect — keeps Pay Now hidden even if
+  // the webhook hasn't arrived yet, so the button never bounces back.
+  const [paymentAttempted, setPaymentAttempted] = useState(false);
   const headerStyle = useMemo(() => ({ paddingTop: Math.max(insets.top, 20) }), [insets.top]);
   const user = useAuth.use.user();
   const isConsumer = user?.role === 'consumer';
@@ -84,23 +88,45 @@ const OrderDetailContent = ({ insets }: OrderDetailContentProps) => {
   const showPayNow =
     isConsumer &&
     order?.paymentStatus === 'pending' &&
-    order?.paymentMethod === 'stripe';
+    order?.paymentMethod === 'stripe' &&
+    !paymentAttempted &&
+    !isProcessingPayment;
 
   // Handle pay now
   const handlePayNow = async () => {
     if (!order) return;
     try {
-      const result = await createCheckoutMutation.mutateAsync({
+      const checkoutResult = await createCheckoutMutation.mutateAsync({
         orderId: order.id,
       });
 
-      if (result.data.url) {
-        await WebBrowser.openAuthSessionAsync(
-          result.data.url,
+      if (checkoutResult.data.url) {
+        const browserResult = await WebBrowser.openAuthSessionAsync(
+          checkoutResult.data.url,
           'f2t://payment/result'
         );
-        // After returning from browser, refetch order to see if status updated
-        refetch();
+
+        // Only treat as attempted if Stripe redirected back with status=success.
+        // type='cancel' or type='dismiss' means the user closed without paying.
+        const redirectUrl =
+          browserResult.type === 'success' ? browserResult.url : '';
+        const wasSuccessful = redirectUrl.includes('status=success');
+
+        if (!wasSuccessful) return; // user cancelled — keep Pay Now visible
+
+        // Mark attempted immediately so Pay Now never reappears even if polling
+        // times out (webhook still in-flight).
+        setPaymentAttempted(true);
+        setIsProcessingPayment(true);
+        try {
+          for (let i = 0; i < 6; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            const refreshed = await refetch();
+            if (refreshed.data?.data?.paymentStatus === 'paid') break;
+          }
+        } finally {
+          setIsProcessingPayment(false);
+        }
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -492,18 +518,11 @@ const OrderDetailContent = ({ insets }: OrderDetailContentProps) => {
             </Text>
           </View>
 
-          <View
-            className={
-              order.paymentStatus === 'pending' &&
-              order.paymentMethod === 'stripe'
-                ? 'mb-4'
-                : ''
-            }
-          >
+          <View className={showPayNow || isProcessingPayment ? 'mb-4' : ''}>
             <Text className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
               Payment Status
             </Text>
-            <View className="flex-row items-center">
+            <View className="flex-row items-center gap-2">
               <View
                 className={`rounded-full px-3 py-1 ${
                   order.paymentStatus === 'paid'
@@ -525,6 +544,14 @@ const OrderDetailContent = ({ insets }: OrderDetailContentProps) => {
                   {order.paymentStatus}
                 </Text>
               </View>
+              {isProcessingPayment && (
+                <View className="flex-row items-center gap-1">
+                  <ActivityIndicator size="small" color="#3B82F6" />
+                  <Text className="text-sm text-blue-600 dark:text-blue-400">
+                    Đang xác nhận...
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -536,9 +563,25 @@ const OrderDetailContent = ({ insets }: OrderDetailContentProps) => {
             >
               <ExternalLink size={20} className="mr-2 text-white" />
               <Text className="font-semibold text-white">
-                {createCheckoutMutation.isPending ? 'Processing...' : 'Pay Now'}
+                {createCheckoutMutation.isPending ? 'Đang tạo link...' : 'Pay Now'}
               </Text>
             </TouchableOpacity>
+          )}
+
+          {paymentAttempted && order.paymentStatus === 'pending' && !isProcessingPayment && (
+            <View className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
+              <Text className="mb-2 text-sm text-yellow-800 dark:text-yellow-200">
+                Thanh toán đã gửi, đang chờ xác nhận từ hệ thống. Bấm refresh nếu chưa cập nhật.
+              </Text>
+              <TouchableOpacity
+                onPress={() => void refetch()}
+                className="flex-row items-center justify-center rounded-md bg-yellow-200 py-2 dark:bg-yellow-700"
+              >
+                <Text className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                  Refresh trạng thái
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
         {/* Customer Support */}
