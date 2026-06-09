@@ -307,7 +307,11 @@ export default function ProductDetailScreen() {
 
         {/* Reviews Section */}
         <View className="mt-2 bg-white p-4 dark:bg-gray-800">
-          <ProductReviews productId={product.id} />
+          <ProductReviews
+            productId={product.id}
+            averageRating={product.averageRating}
+            reviewCount={product.reviewCount}
+          />
         </View>
 
         {/* Bottom spacing */}
