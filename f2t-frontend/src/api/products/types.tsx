@@ -13,10 +13,7 @@ export type CreateProductRequest = {
   harvestDate?: string;
   expiryDate?: string;
   organicCertified: boolean;
-  seasonalAvailability?: {
-    startMonth: number; // 1-12
-    endMonth: number; // 1-12
-  };
+  seasonalAvailability?: string[]; // ['spring','summer',...] — khớp schema backend [String]
   nutritionInfo?: {
     calories?: number;
     protein?: number;
@@ -30,7 +27,9 @@ export type CreateProductRequest = {
   isActive: boolean;
 };
 
-export type UpdateProductRequest = Partial<Omit<CreateProductRequest, 'farmId'>> & {
+export type UpdateProductRequest = Partial<
+  Omit<CreateProductRequest, 'farmId'>
+> & {
   id: string;
   pricePerUnit?: number;
   availableQuantity?: number;
