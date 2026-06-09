@@ -25,6 +25,7 @@ export class EmailService {
     );
 
     if (!this.configService.get<string>('SMTP_HOST')) {
+      console.log(`[DEV] OTP for ${to}: ${otp}`);
       return;
     }
 

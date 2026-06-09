@@ -9,8 +9,10 @@ import { Text } from '@/components/ui';
 export default function AdminLayout() {
   const user = useAuth.use.user();
 
-  // Extra safety check at layout level
-  if (user?.role !== 'admin') {
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
+  if (user.role !== 'admin') {
     return <Redirect href="/" />;
   }
 

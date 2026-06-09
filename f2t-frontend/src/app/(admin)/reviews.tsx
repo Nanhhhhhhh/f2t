@@ -31,7 +31,7 @@ export default function AdminReviews() {
         text: 'Xóa',
         style: 'destructive',
         onPress: () => {
-          deleteMutation.mutate(review._id, {
+          deleteMutation.mutate(review.id, {
             onSuccess: () => refetch(),
             onError: (error) => showError(error as AxiosError),
           });
@@ -67,7 +67,7 @@ export default function AdminReviews() {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => item._id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }: { item: Review }) => {
             const stars = '⭐'.repeat(Math.min(item.rating, 5));

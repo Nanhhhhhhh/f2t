@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -51,16 +52,24 @@ export class ReviewsService {
       throw new ForbiddenException('Chỉ có thể đánh giá sản phẩm trong đơn hàng đã giao thành công.');
     }
 
-    const review = await this.reviewModel.create({
-      productId: productObjId,
-      orderId: orderObjId,
-      customerId: customerObjId,
-      customerName,
-      customerAvatarUrl,
-      rating: dto.rating,
-      comment: dto.comment,
-      photos: dto.photos ?? [],
-    });
+    let review: ReviewDocument;
+    try {
+      review = await this.reviewModel.create({
+        productId: productObjId,
+        orderId: orderObjId,
+        customerId: customerObjId,
+        customerName,
+        customerAvatarUrl,
+        rating: dto.rating,
+        comment: dto.comment,
+        photos: dto.photos ?? [],
+      });
+    } catch (err: unknown) {
+      if ((err as { code?: number }).code === 11000) {
+        throw new ConflictException('Bạn đã đánh giá sản phẩm này rồi.');
+      }
+      throw err;
+    }
 
     await this.updateProductRating(dto.productId);
     return review;

@@ -52,18 +52,18 @@ export function TagPicker({ tags, onChange, maxTags = 5 }: Props) {
           const res = await client({
             url: 'farms',
             method: 'GET',
-            params: { searchQuery: searchText, limit: 10 },
+            params: { search: searchText, limit: 10 },
           });
-          const items: { _id: string; name: string }[] =
+          const items: { id: string; name: string }[] =
             res.data.data?.items ?? res.data.data ?? [];
-          setResults(items.map((f) => ({ id: f._id, name: f.name })));
+          setResults(items.map((f) => ({ id: f.id, name: f.name })));
         }
       } catch {
         setResults([]);
       } finally {
         setLoading(false);
       }
-    }, 400);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchText, tab, visible]);
 

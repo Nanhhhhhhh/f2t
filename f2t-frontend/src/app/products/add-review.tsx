@@ -1,12 +1,20 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { Alert, TextInput, TouchableOpacity } from 'react-native';
+import { Alert, Image, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useGetOrders } from '@/api/orders';
 import { useAddReview } from '@/api/reviews';
+import { useUploadMedia } from '@/api/uploads';
 import { Button, Text, View } from '@/components/ui';
 
 const STAR_COUNT = 5;
+
+const styles = StyleSheet.create({
+  textInput: { textAlignVertical: 'top', minHeight: 100 },
+  photo: { width: 80, height: 80, borderRadius: 8 },
+});
 
 const StarPicker = ({
   rating,
@@ -32,6 +40,45 @@ export default function AddReviewScreen() {
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const { mutateAsync: uploadMedia } = useUploadMedia();
+
+  const handleAddPhoto = async () => {
+    if (photos.length >= 3) {
+      Alert.alert('Thông báo', 'Tối đa 3 ảnh.');
+      return;
+    }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Lỗi', 'Cần quyền truy cập thư viện ảnh.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsMultipleSelection: false,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setUploading(true);
+    try {
+      const res = await uploadMedia({
+        file: { uri: asset.uri, name: asset.fileName ?? 'photo.jpg', type: 'image/jpeg' },
+        type: 'image',
+      });
+      setPhotos((prev) => [...prev, res.url]);
+    } catch {
+      Alert.alert('Lỗi', 'Không thể tải ảnh lên. Thử lại.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Find a delivered order containing this product
   const { data: ordersData, isLoading: ordersLoading } = useGetOrders({
@@ -47,6 +94,7 @@ export default function AddReviewScreen() {
     o.items.some((item) => item.productId === productId)
   );
 
+  const queryClient = useQueryClient();
   const { mutate: addReview, isPending } = useAddReview();
 
   const handleSubmit = () => {
@@ -69,9 +117,12 @@ export default function AddReviewScreen() {
         orderId: deliveredOrder.id,
         rating,
         comment: comment.trim(),
+        photos,
       },
       {
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['product'] });
+          queryClient.invalidateQueries({ queryKey: ['reviews'] });
           Alert.alert('Thành công', 'Đánh giá thành công!', [
             { text: 'OK', onPress: () => router.back() },
           ]);
@@ -109,24 +160,44 @@ export default function AddReviewScreen() {
           placeholderTextColor="#9ca3af"
           maxLength={500}
           className="rounded-lg border border-gray-300 p-3 text-gray-900 dark:border-gray-600 dark:text-white"
-          style={{ textAlignVertical: 'top', minHeight: 100 }}
+          style={styles.textInput}
         />
         <Text className="mt-1 text-right text-xs text-gray-400">
           {comment.length}/500
         </Text>
 
-        {/* Photo placeholder */}
+        {/* Photo picker */}
         <Text className="mb-2 mt-4 font-semibold text-gray-900 dark:text-white">
           Ảnh (tùy chọn)
         </Text>
-        <TouchableOpacity
-          onPress={() => Alert.alert('Thông báo', 'Tính năng sẽ sớm có')}
-          className="rounded-lg border border-dashed border-gray-300 p-4 dark:border-gray-600"
-        >
-          <Text className="text-center text-gray-500 dark:text-gray-400">
-            + Thêm ảnh (tối đa 3)
-          </Text>
-        </TouchableOpacity>
+        <View className="flex-row flex-wrap gap-2">
+          {photos.map((uri, i) => (
+            <View key={i} className="relative">
+              <Image
+                source={{ uri }}
+                style={styles.photo}
+              />
+              <TouchableOpacity
+                onPress={() => handleRemovePhoto(i)}
+                className="absolute -right-2 -top-2 h-5 w-5 items-center justify-center rounded-full bg-red-500"
+              >
+                <Text className="text-xs font-bold text-white">×</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          {photos.length < 3 && (
+            <TouchableOpacity
+              onPress={handleAddPhoto}
+              disabled={uploading}
+              className="h-20 w-20 items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-600"
+            >
+              <Text className="text-2xl text-gray-400">+</Text>
+              {uploading && (
+                <Text className="text-xs text-gray-400">Đang tải</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* No delivered order warning */}
         {noOrder && (
@@ -143,7 +214,7 @@ export default function AddReviewScreen() {
             label={isPending ? 'Đang gửi...' : 'Gửi đánh giá'}
             onPress={handleSubmit}
             variant="default"
-            disabled={isPending || noOrder || ordersLoading}
+            disabled={isPending || uploading || noOrder || ordersLoading}
           />
         </View>
       </View>

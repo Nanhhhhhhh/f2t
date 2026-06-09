@@ -78,7 +78,7 @@ export const ProductReviews = ({
       {/* Review list */}
       {reviews.map((review) => (
         <View
-          key={review._id}
+          key={review.id}
           className="mb-4 border-b border-gray-200 pb-4 dark:border-gray-700"
         >
           <View className="mb-1 flex-row items-center justify-between">

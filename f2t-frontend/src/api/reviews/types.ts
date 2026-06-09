@@ -1,5 +1,5 @@
 export type Review = {
-  _id: string;
+  id: string;
   productId: string;
   orderId: string;
   customerId: string;
