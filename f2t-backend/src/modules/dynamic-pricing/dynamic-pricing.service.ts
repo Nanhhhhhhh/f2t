@@ -247,7 +247,7 @@ export class DynamicPricingService {
     const daysToRestock = this.computeDaysToRestock(
       schedule,
       product.category,
-      productFull?.lastRestockedAt as Date | undefined,
+      productFull?.lastRestockedAt,
     );
 
     // Demand forecast
@@ -470,7 +470,7 @@ export class DynamicPricingService {
         .select('_id lastRestockedAt')
         .lean();
       const lastRestockedMap = new Map(
-        productsWithRestock.map((p) => [p._id.toString(), p.lastRestockedAt as Date | undefined]),
+        productsWithRestock.map((p) => [p._id.toString(), p.lastRestockedAt]),
       );
 
       const state_vectors = await Promise.all(
