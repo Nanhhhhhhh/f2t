@@ -2,12 +2,13 @@ import type { AxiosError } from 'axios';
 import { createMutation } from 'react-query-kit';
 
 import { client } from '../common';
-import type { MediaItem, Post } from './types';
+import type { MediaItem, Post, Tag } from './types';
 
 type Variables = {
   title: string;
   body: string;
   media?: MediaItem[];
+  tags?: Tag[];
 };
 type Response = Post;
 
