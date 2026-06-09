@@ -1,5 +1,7 @@
+import { ReviewsModule } from './modules/reviews/reviews.module';
 import { DynamicPricingModule } from "./modules/dynamic-pricing/dynamic-pricing.module";
 import { DemandForecastingModule } from './modules/demand-forecasting/demand-forecasting.module';
+import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 import { Module } from '@nestjs/common';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -55,6 +57,7 @@ import { RedisModule } from './common/redis/redis.module';
         GHN_SERVICE_ID: Joi.number().optional().default(53321),
         UPLOAD_BASE_URL: Joi.string().optional(),
         PRICING_SIDECAR_URL: Joi.string().optional().default("http://localhost:8000"),
+        RECOMMENDER_SIDECAR_URL: Joi.string().optional().default('http://localhost:8001'),
         PRICING_MODE: Joi.string().valid("shadow", "advisory").default("shadow"),
         PRICING_CRON_SCHEDULE: Joi.string().optional().default("0 * * * *"),
         PRICING_SUGGESTION_TTL_HOURS: Joi.number().optional().default(1),
@@ -81,6 +84,8 @@ import { RedisModule } from './common/redis/redis.module';
     AdminModule,
     DynamicPricingModule,
     DemandForecastingModule,
+    RecommendationsModule,
+    ReviewsModule,
     RedisModule,
   ],
   controllers: [AppController],

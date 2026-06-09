@@ -36,6 +36,9 @@ const productFormSchema = z.object({
     .min(0.01, 'Price must be greater than 0')
     .max(10000, 'Price too high'),
   unit: z.string().min(1, 'Unit is required'),
+  status: z
+    .enum(['available', 'sold_out', 'unavailable', 'seasonal'])
+    .optional(),
   availableQuantity: z
     .number()
     .min(0, 'Quantity cannot be negative')
@@ -188,6 +191,14 @@ const PricingSection = ({
     { label: 'Bunch', value: 'bunch' },
     { label: 'Box', value: 'box' },
     { label: 'Bag', value: 'bag' },
+    { label: 'Liter', value: 'liter' },
+  ];
+
+  const statusOptions = [
+    { label: 'Đang bán', value: 'available' },
+    { label: 'Hết hàng', value: 'sold_out' },
+    { label: 'Ngừng bán', value: 'unavailable' },
+    { label: 'Theo mùa', value: 'seasonal' },
   ];
 
   return (
@@ -266,6 +277,23 @@ const PricingSection = ({
             )}
           />
         </View>
+      </View>
+
+      <View className="mb-4">
+        <Controller
+          control={control}
+          name="status"
+          render={({ field: { onChange, value } }) => (
+            <Select
+              label="Trạng thái"
+              value={value}
+              onSelect={onChange}
+              options={statusOptions}
+              placeholder="Chọn trạng thái"
+              error={errors.status?.message}
+            />
+          )}
+        />
       </View>
     </View>
   );
@@ -635,6 +663,7 @@ export const ProductForm = ({
           subcategory: product.subcategory,
           pricePerUnit: product.pricePerUnit,
           unit: product.unit,
+          status: product.status as ProductFormData['status'],
           availableQuantity: product.availableQuantity,
           minimumOrder: product.minimumOrder,
           images: product.images,
@@ -661,6 +690,7 @@ export const ProductForm = ({
           isOrganic: false,
           minimumOrder: 1,
           estimatedShelfLife: 7,
+          status: 'available',
         },
   });
 
@@ -676,33 +706,26 @@ export const ProductForm = ({
         const result = await updateProductMutation.mutateAsync({
           id: product.id,
           ...formData,
-          seasonalAvailability: {
-            startMonth: 1,
-            endMonth: 12,
-          },
         });
         if (result.success && onSuccess) {
           onSuccess(result.data);
         }
       } else {
+        // status is not part of CreateProductDto — server defaults new products to 'available'
+        const { status: _status, ...createData } = formData;
         const result = await createProductMutation.mutateAsync({
           farmId,
-          ...formData,
-          price: formData.pricePerUnit,
-          stockQuantity: formData.availableQuantity,
-          organicCertified: formData.isOrganic,
+          ...createData,
+          price: createData.pricePerUnit,
+          stockQuantity: createData.availableQuantity,
+          organicCertified: createData.isOrganic,
           isActive: true,
-          seasonalAvailability: {
-            startMonth: 1,
-            endMonth: 12,
-          },
         });
         if (result.success && onSuccess) {
           onSuccess(result.data);
         }
       }
-    } catch (error) {
-    }
+    } catch (error) {}
   };
 
   const handleReset = () => {

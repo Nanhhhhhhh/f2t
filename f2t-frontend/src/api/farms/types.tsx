@@ -2,22 +2,22 @@ import type {
   ApiResponse,
   DeliveryZone,
   Farm,
-  FarmLocation,
   OrderStatus,
   PaginationParams,
 } from '@/types';
 
-// Farm API Request Types
+// Farm API Request Types — khớp UpdateFarmDto backend (coordinates + address tách riêng)
 export type CreateFarmProfileRequest = {
   name: string;
   description: string;
-  location: FarmLocation;
+  coordinates: { latitude: number; longitude: number };
+  address: { street: string; city: string; zipCode: string; country: string };
   contactEmail: string;
   contactPhone: string;
   deliveryMethods: ('pickup' | 'farm_delivery' | 'both')[];
-  deliveryZones?: DeliveryZone[];
-  businessHours?: BusinessHours;
   isActive?: boolean;
+  logoUrl?: string;
+  coverImageUrl?: string;
 };
 
 export type UpdateFarmRequest = Partial<CreateFarmProfileRequest> & {
@@ -73,9 +73,25 @@ export type BusinessHours = {
   sunday: { open: string; close: string; isOpen: boolean };
 };
 
+// Payload gửi backend (UpdateBusinessHoursDto): các ngày ở top-level, shape {open,close,closed}
+export type BusinessHoursPayloadDay = {
+  open?: string;
+  close?: string;
+  closed?: boolean;
+};
+export type BusinessHoursPayload = {
+  monday?: BusinessHoursPayloadDay;
+  tuesday?: BusinessHoursPayloadDay;
+  wednesday?: BusinessHoursPayloadDay;
+  thursday?: BusinessHoursPayloadDay;
+  friday?: BusinessHoursPayloadDay;
+  saturday?: BusinessHoursPayloadDay;
+  sunday?: BusinessHoursPayloadDay;
+};
+
 export type UpdateBusinessHoursRequest = {
   farmId: string;
-  businessHours: BusinessHours;
+  businessHours: BusinessHoursPayload;
 };
 
 export type UpdateBusinessHoursResponse = ApiResponse<BusinessHours>;
@@ -83,7 +99,7 @@ export type UpdateBusinessHoursResponse = ApiResponse<BusinessHours>;
 // Farm Delivery Zone Types
 export type UpdateDeliveryZonesRequest = {
   farmId: string;
-  deliveryZones: DeliveryZone[];
+  zones: string[]; // backend UpdateDeliveryZonesDto nhận string[] (tên zone)
 };
 
 export type UpdateDeliveryZonesResponse = ApiResponse<DeliveryZone[]>;

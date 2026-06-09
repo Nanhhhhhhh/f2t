@@ -404,8 +404,14 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Sign Out Button */}
-        <View className="px-4 pb-8 pt-4">
+        {/* Account Actions */}
+        <View className="gap-3 px-4 pb-8 pt-4">
+          <Button
+            label="Đổi mật khẩu"
+            onPress={() => router.push('/profile/change-password')}
+            variant="outline"
+            className="w-full"
+          />
           <Button
             label="Sign Out"
             onPress={handleLogout}

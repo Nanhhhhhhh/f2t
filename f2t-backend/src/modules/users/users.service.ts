@@ -23,6 +23,10 @@ export class UsersService {
     return createdUser.save();
   }
 
+  async remove(id: string): Promise<void> {
+    await this.userModel.deleteOne({ _id: id }).exec();
+  }
+
   async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email }).select('+password').exec();
   }
@@ -79,6 +83,31 @@ export class UsersService {
 
   async updatePushToken(userId: string, pushToken: string): Promise<void> {
     await this.userModel.findByIdAndUpdate(userId, { pushToken }).exec();
+  }
+
+  async updatePassword(id: string, hashedPassword: string): Promise<void> {
+    await this.userModel.updateOne({ _id: id }, { password: hashedPassword }).exec();
+  }
+
+  async searchUsers(query: string): Promise<{ id: string; name: string; avatarUrl?: string }[]> {
+    if (!query || query.trim().length < 2) return [];
+    const regex = new RegExp(query.trim(), 'i');
+    const users = await this.userModel
+      .find({
+        $or: [
+          { firstName: regex },
+          { lastName: regex },
+          { email: regex },
+        ],
+      })
+      .select('firstName lastName avatarUrl')
+      .limit(10)
+      .exec();
+    return users.map((u) => ({
+      id: (u._id as { toHexString(): string }).toHexString(),
+      name: `${u.firstName} ${u.lastName}`.trim(),
+      avatarUrl: u.avatarUrl,
+    }));
   }
 
   findFarmOwner(_farmId: string): UserDocument | null {

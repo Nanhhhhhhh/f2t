@@ -4,8 +4,12 @@ import { Controller, useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { z } from 'zod';
 
-import { useUpdateFarm } from '@/api/farms';
-import type { BusinessHours as FarmApiBusinessHours } from '@/api/farms/types';
+import {
+  useUpdateBusinessHours,
+  useUpdateDeliveryZones,
+  useUpdateFarm,
+} from '@/api/farms';
+import type { BusinessHoursPayload } from '@/api/farms/types';
 import { Button, Checkbox, Input, Select, Text, View } from '@/components/ui';
 import type {
   BusinessHours,
@@ -100,6 +104,8 @@ export const FarmProfileEditForm = ({
     farm.deliveryZones || []
   );
   const updateFarmMutation = useUpdateFarm();
+  const updateBusinessHoursMutation = useUpdateBusinessHours();
+  const updateDeliveryZonesMutation = useUpdateDeliveryZones();
 
   const {
     control,
@@ -172,33 +178,46 @@ export const FarmProfileEditForm = ({
 
   const onSubmit = async (data: FarmProfileFormData) => {
     try {
-      // Transform business hours to match API format
-      const transformedBusinessHours = Object.entries(
+      // 1) Hồ sơ farm cơ bản — khớp UpdateFarmDto (coordinates + address tách riêng)
+      const response = await updateFarmMutation.mutateAsync({
+        id: farm.id,
+        name: data.name,
+        description: data.description,
+        coordinates: data.location.coordinates,
+        address: data.location.address,
+        contactEmail: data.contactEmail,
+        contactPhone: data.contactPhone,
+        deliveryMethods: data.deliveryMethods,
+        isActive: data.isActive,
+      });
+
+      // 2) Giờ mở cửa — endpoint riêng; shape backend {open, close, closed}
+      const businessHours = Object.entries(
         data.businessHours
-      ).reduce<FarmApiBusinessHours>(
+      ).reduce<BusinessHoursPayload>(
         (acc, [day, schedule]) => ({
           ...acc,
           [day]: {
             open: schedule.openTime,
             close: schedule.closeTime,
-            isOpen: schedule.isOpen,
+            closed: !schedule.isOpen,
           },
         }),
-        {} as FarmApiBusinessHours
+        {}
       );
-
-      const updateData = {
-        ...data,
-        businessHours: transformedBusinessHours,
-        deliveryZones,
-        profileImageUrl: data.profileImageUrl,
-        bannerImageUrl: data.bannerImageUrl,
-      };
-
-      const response = await updateFarmMutation.mutateAsync({
-        id: farm.id,
-        ...updateData,
+      await updateBusinessHoursMutation.mutateAsync({
+        farmId: farm.id,
+        businessHours,
       });
+
+      // 3) Vùng giao hàng — endpoint riêng; backend nhận string[] (tên zone)
+      const zones = deliveryZones.map((z) => z.name).filter(Boolean);
+      if (zones.length > 0) {
+        await updateDeliveryZonesMutation.mutateAsync({
+          farmId: farm.id,
+          zones,
+        });
+      }
 
       Alert.alert('Success', 'Farm profile updated successfully!', [
         {

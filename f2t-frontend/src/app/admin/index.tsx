@@ -63,6 +63,24 @@ export default function AdminDashboard() {
         >
           <Text className="text-center font-bold text-white">Orders</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          className="mb-4 w-[31%] rounded-xl bg-indigo-600 py-3"
+          onPress={() => router.push('/admin/products')}
+        >
+          <Text className="text-center font-bold text-white">Products</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="mb-4 w-[31%] rounded-xl bg-indigo-600 py-3"
+          onPress={() => router.push('/admin/posts')}
+        >
+          <Text className="text-center font-bold text-white">Posts</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="mb-4 w-[31%] rounded-xl bg-indigo-600 py-3"
+          onPress={() => router.push('/admin/reviews')}
+        >
+          <Text className="text-center font-bold text-white">Reviews</Text>
+        </TouchableOpacity>
       </View>
 
       <Text className="mb-4 text-xl font-bold text-gray-900">Overview</Text>

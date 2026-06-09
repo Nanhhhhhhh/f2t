@@ -13,6 +13,11 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService, AuthResponse } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterFarmDto } from './dto/register-farm.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
@@ -58,6 +63,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Register new user' })
   async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
     return this.authService.register(registerDto);
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: 3 } })
+  @Post('register/farm')
+  @ApiOperation({ summary: 'Register new farm owner + farm in one step' })
+  async registerFarm(
+    @Body() registerFarmDto: RegisterFarmDto,
+  ): Promise<AuthResponse> {
+    return this.authService.registerFarm(registerFarmDto);
   }
 
   @Post('refresh-token')
@@ -115,5 +129,40 @@ export class AuthController {
   @ApiOperation({ summary: 'Verify phone with OTP' })
   async verifyPhone(@Body() dto: VerifyPhoneDto): Promise<{ success: boolean; message: string; verified: boolean; }> {
     return this.authService.verifyPhone(dto);
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: 3 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request OTP for password reset' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ success: boolean }> {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify OTP and get reset token' })
+  async verifyOtp(@Body() dto: VerifyOtpDto): Promise<{ token: string }> {
+    return this.authService.verifyOtp(dto.email, dto.otp);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using token from verify-otp' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ success: boolean }> {
+    return this.authService.resetPassword(dto.token, dto.newPassword);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password (authenticated)' })
+  async changePassword(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ success: boolean }> {
+    return this.authService.changePassword(user.userId, dto.currentPassword, dto.newPassword);
   }
 }

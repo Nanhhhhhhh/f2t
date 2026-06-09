@@ -13,7 +13,7 @@ const logger = new Logger('RedisModule');
       useFactory: (config: ConfigService) => {
         const url = config.get<string>('REDIS_URL', 'redis://localhost:6379');
         const client = new Redis(url, { lazyConnect: true, enableOfflineQueue: false });
-        client.on('error', (err: Error) => logger.warn(`Redis error: ${err.message}`));
+        client.on('error', (err: Error) => { logger.warn(`Redis error: ${err.message}`); });
         void client.connect().catch(() => {
           logger.warn('Redis unavailable — demand forecast caching disabled');
         });

@@ -6,6 +6,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { Farm, FarmSchema } from '../farms/schemas/farm.schema';
 import { Order, OrderSchema } from '../orders/schemas/order.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
+import { Post, PostSchema } from '../posts/schemas/post.schema';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { Product, ProductSchema } from '../products/schemas/product.schema';
       { name: Farm.name, schema: FarmSchema },
       { name: Order.name, schema: OrderSchema },
       { name: Product.name, schema: ProductSchema },
+      { name: Post.name, schema: PostSchema },
     ]),
   ],
   controllers: [AdminController],

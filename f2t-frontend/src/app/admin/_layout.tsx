@@ -9,8 +9,10 @@ import { Text } from '@/components/ui';
 export default function AdminLayout() {
   const user = useAuth.use.user();
 
-  // Extra safety check at layout level
-  if (user?.role !== 'admin') {
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
+  if (user.role !== 'admin') {
     return <Redirect href="/" />;
   }
 
@@ -53,6 +55,24 @@ export default function AdminLayout() {
           name="orders"
           options={{
             title: 'All Orders',
+          }}
+        />
+        <Stack.Screen
+          name="products"
+          options={{
+            title: 'All Products',
+          }}
+        />
+        <Stack.Screen
+          name="posts"
+          options={{
+            title: 'All Posts',
+          }}
+        />
+        <Stack.Screen
+          name="reviews"
+          options={{
+            title: 'All Reviews',
           }}
         />
       </Stack>

@@ -129,7 +129,7 @@ export const generateCartSummary = (items: CartItem[]) => {
   const itemText = totals.itemCount === 1 ? 'item' : 'items';
   const farmText = totals.farmCount === 1 ? 'farm' : 'farms';
 
-  return `${totals.itemCount} ${itemText} from ${totals.farmCount} ${farmText} • $${totals.total.toFixed(2)}`;
+  return `${totals.itemCount} ${itemText} from ${totals.farmCount} ${farmText} • ${formatPrice(totals.total)}`;
 };
 
 // Check if product is in cart
@@ -172,9 +172,12 @@ export const calculateEstimatedDelivery = (items: CartItem[]) => {
   };
 };
 
-// Format price for display
+// Format price for display (VND — consistent with @/api/products formatPrice)
 export const formatPrice = (price: number): string => {
-  return `$${price.toFixed(2)}`;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(price);
 };
 
 // Format quantity with unit

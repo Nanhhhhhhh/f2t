@@ -9,4 +9,5 @@ export * from './use-refresh-token';
 export * from './use-register';
 export * from './use-reset-password';
 export * from './use-verify-email';
+export * from './use-verify-otp';
 export * from './use-verify-phone';

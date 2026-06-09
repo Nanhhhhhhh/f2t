@@ -97,13 +97,13 @@ export default function TabLayout() {
     [isDark, insets.bottom]
   );
 
-  if (isFirstTime) {
-    return <Redirect href="/onboarding" />;
-  }
-
   // If bypass login is enabled, don't redirect to login screen
   if (status === 'signOut' && !shouldBypassLogin) {
     return <Redirect href="/login" />;
+  }
+
+  if (isFirstTime && status !== 'signIn') {
+    return <Redirect href="/onboarding" />;
   }
 
   // Admin users should always use the dedicated admin interface
@@ -285,6 +285,13 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="profile/edit"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile/change-password"
         options={{
           href: null,
         }}

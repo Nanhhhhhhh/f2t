@@ -4,5 +4,6 @@ export * from './farms';
 export * from './orders';
 export * from './posts';
 export * from './products';
+export * from './reviews';
 export * from './types';
 export * from './uploads';

@@ -283,6 +283,8 @@ export type Product = {
   storageInstructions?: string;
   allergenInfo?: string[];
   certifications?: ProductCertification[];
+  averageRating?: number;
+  reviewCount?: number;
   createdAt: string;
   updatedAt: string;
 };

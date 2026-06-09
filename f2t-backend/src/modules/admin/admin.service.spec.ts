@@ -7,6 +7,7 @@ import { User } from '../users/schemas/user.schema';
 import { Farm } from '../farms/schemas/farm.schema';
 import { Order } from '../orders/schemas/order.schema';
 import { Product } from '../products/schemas/product.schema';
+import { Post } from '../posts/schemas/post.schema';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -34,6 +35,17 @@ describe('AdminService', () => {
 
   const mockProductModel = {};
 
+  const mockPostModel = {
+    find: jest.fn().mockReturnThis(),
+    populate: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    exec: jest.fn(),
+    countDocuments: jest.fn(),
+    findByIdAndDelete: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -42,6 +54,7 @@ describe('AdminService', () => {
         { provide: getModelToken(Farm.name), useValue: mockFarmModel },
         { provide: getModelToken(Order.name), useValue: mockOrderModel },
         { provide: getModelToken(Product.name), useValue: mockProductModel },
+        { provide: getModelToken(Post.name), useValue: mockPostModel },
       ],
     }).compile();
 
@@ -54,7 +67,7 @@ describe('AdminService', () => {
       mockUserModel.countDocuments.mockResolvedValue(0);
       mockUserModel.exec.mockResolvedValue([]);
 
-      const result = await service.findAllUsers({ page: '1', limit: '10' });
+      const result = await service.findAllUsers({ page: 1, limit: 10 });
 
       expect(result.items).toEqual([]);
       expect(result.total).toBe(0);
@@ -113,6 +126,32 @@ describe('AdminService', () => {
 
       const validId = new Types.ObjectId().toHexString();
       await expect(service.verifyFarm(validId, 'verified')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getPosts', () => {
+    it('returns paginated post list', async () => {
+      mockPostModel.exec.mockResolvedValue([]);
+      mockPostModel.countDocuments.mockReturnValue({ exec: jest.fn().mockResolvedValue(0) });
+
+      const result = await service.getPosts(1, 10);
+
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(10);
+      expect(result.hasMore).toBe(false);
+    });
+  });
+
+  describe('deletePost', () => {
+    it('throws NotFoundException when post not found', async () => {
+      mockPostModel.findByIdAndDelete.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      const validId = new Types.ObjectId().toHexString();
+      await expect(service.deletePost(validId)).rejects.toThrow(NotFoundException);
     });
   });
 });
