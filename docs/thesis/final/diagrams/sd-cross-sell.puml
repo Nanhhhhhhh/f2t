@@ -1,0 +1,28 @@
+@startuml sd-cross-sell
+title Sequence Diagram — Cross-sell Giỏ Hàng
+
+actor Consumer
+participant "cart.tsx\n(Frontend)" as FE
+participant "RecommendationsController\n:3000/api/recommendations" as RC
+participant "RecommendationsService" as RS
+participant "MongoDB\nproducts" as DB
+participant "recommender-sidecar\n:8001" as SIDECAR
+
+Consumer -> FE: Mở giỏ hàng\n(có sản phẩm)
+FE -> RC: GET /cross-sell?productIds=...&limit=6\n[JwtAuthGuard]
+RC -> RS: getCrossSell(productIds, limit)
+RS -> DB: Truy vấn category\ncủa productIds
+DB --> RS: [{productId, category}]
+RS -> SIDECAR: POST /recommend\n{cart_categories, top_k}\ntimeout=5000ms
+alt Sidecar phản hồi
+    SIDECAR --> RS: {recommendations:\n[{category,score,source}]}
+    RS -> DB: Hydrate Products\n(lọc available/seasonal,\nqty>0, bỏ item trong giỏ)
+    DB --> RS: [Product]
+    RS -> RS: Re-rank:\nFARM_BOOST=1.5\ncho cùng trang trại
+else Sidecar lỗi/timeout
+    RS -> RS: logger.warn\nFallback: trả sản phẩm\ncùng farm
+end
+RS --> RC: top 6 Product
+RC --> FE: [{id,name,price,...}]
+FE --> Consumer: Hiển thị\n"Thường mua kèm"
+@enduml

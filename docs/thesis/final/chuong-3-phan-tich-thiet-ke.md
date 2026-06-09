@@ -384,6 +384,38 @@ Kết quả suy luận từ lời gọi `model.predict({"image": img})` trả v�
 
 **Giới hạn kỹ thuật:** Hệ thống hiện chỉ có **2 trong 4 danh mục** được trang bị mô hình CoreML riêng (fruit và root); các danh mục `leafy` và `herbs` sử dụng chung mô hình root theo cơ chế fallback thiết kế cố ý. Ngoài ra, không có training script hay dataset ảnh nông sản tự thu thập — hai mô hình `.mlmodel` được tạo bằng Apple Create ML với dữ liệu không công khai, và quá trình huấn luyện không thuộc phạm vi hệ thống F2T. Đây là giới hạn cần công khai khi đánh giá độ tổng quát của mô hình [ref: ledger t0.10-thesis-limitations].
 
+#### 3.3.7d. Cross-sell — Khai phá luật kết hợp FP-Growth
+
+**Bài toán:** Cho giỏ hàng hiện tại của Consumer gồm tập category `C = {c₁, c₂, ...}`, tìm tập sản phẩm thuộc các category `C'` có xu hướng mua kèm cao nhất với `C`, theo thứ tự lift giảm dần, ưu tiên cùng trang trại.
+
+**Pipeline offline (khai phá luật):**
+
+```
+Instacart 2017 orders.csv
+    ↓ prepare_instacart.py
+    map aisle → 10 category F2T (leafy/root/fruit/herbs/mushrooms/grains/dairy/eggs/honey/other)
+    → baskets_category.parquet  (2,874,457 giỏ)
+    ↓ mine_rules.py  (mlxtend FP-Growth)
+    min_support=0.02, min_confidence=0.10
+    xếp theo lift giảm dần
+    → category_rules.json  (34 luật, 8 antecedent, 9 category)
+    → category_popularity.json  (tần suất category)
+```
+
+[ref: recommender-final/scripts/prepare_instacart.py; recommender-final/scripts/mine_rules.py; recommender-final/README.md §"Actual warm-start run"]
+
+**Kết quả khai phá** (warm-start Instacart 2017):
+- Tổng giỏ: **2,874,457** | Luật hội tụ: **34** | Antecedent: **8** | Category hiện diện: **9**
+- Sample rules tiêu biểu: herbs↔root (lift 1.94), mushrooms→root (lift 1.58), leafy→herbs (lift 1.38), dairy→eggs (lift 1.12)
+- Popularity: fruit 0.71, leafy 0.60, dairy 0.59, root 0.32, eggs 0.16, herbs 0.11
+
+**Serving (sidecar):** Recommender Sidecar nạp `category_rules.json` và `category_popularity.json` khi khởi động [ref: recommender-sidecar/main.py:17-33]. Endpoint `POST /recommend` lookup luật có antecedent⊆cart_categories, tính score = tổng lift của các luật match, fallback về popularity nếu không match [ref: recommender-sidecar/main.py:62-83]. Luồng đầy đủ xem Hình sd-cross-sell.
+
+**Giới hạn thiết kế (bắt buộc ghi rõ):**
+1. Category-level: luật chỉ định danh *loại* sản phẩm, không định danh sản phẩm cụ thể — cross-sell suggestions gợi ý theo category, không theo SKU.
+2. Warm-start Instacart ≠ F2T thật: luật học từ hành vi siêu thị Mỹ (US grocery), cần retrain GĐ2 trên đơn hàng F2T thật để phản ánh đúng thói quen mua rau sạch Việt Nam.
+3. Chưa đánh giá precision@k / recall — hiện chỉ có thống kê mô tả luật (34 luật, lift values); đánh giá online A/B test thuộc phạm vi GĐ2.
+
 ### 3.3.8. Module Reviews (Đánh giá sản phẩm)
 
 Module `reviews` cung cấp chức năng đánh giá sản phẩm, liên kết chặt chẽ với module `orders` (ràng buộc `orderId`) và module `products` (cập nhật aggregated rating).
