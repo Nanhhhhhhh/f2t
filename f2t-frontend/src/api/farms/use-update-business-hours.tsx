@@ -20,7 +20,7 @@ export const useUpdateBusinessHours = createMutation<
     return client({
       url: `/farms/${farmId}/business-hours`,
       method: 'PUT',
-      data: { businessHours },
+      data: businessHours,
     }).then((response) => response.data);
   },
   onSuccess: (data, variables) => {

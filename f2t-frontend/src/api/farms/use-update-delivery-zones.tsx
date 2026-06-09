@@ -15,12 +15,12 @@ export const useUpdateDeliveryZones = createMutation<
   Error
 >({
   mutationFn: async (variables) => {
-    const { farmId, deliveryZones } = variables;
+    const { farmId, zones } = variables;
 
     return client({
       url: `/farms/${farmId}/delivery-zones`,
       method: 'PUT',
-      data: { deliveryZones },
+      data: { zones },
     }).then((response) => response.data);
   },
   onSuccess: (data, variables) => {
