@@ -485,3 +485,58 @@ Màn hình Quét độ tươi cho phép Farm owner chụp ảnh sản phẩm và
 **Hình 4.8 — [ảnh chụp màn hình: Admin Dashboard — thống kê tổng quan nền tảng]**
 
 Màn hình Admin Dashboard nạp dữ liệu từ endpoint `/admin/analytics` và hiển thị khối Overview gồm sáu thẻ chỉ số: tổng người dùng, tổng Farm, tổng đơn hàng, tổng doanh thu, số người dùng mới trong tháng và số đơn mới trong tháng; bên dưới là hai bảng phân rã "Orders by Status" (số đơn theo từng trạng thái) và "Farms by Verification" (số Farm theo trạng thái xác minh) [ref: f2t-frontend/src/app/admin/index.tsx:68-108; f2t-frontend/src/api/admin/use-get-admin-analytics.tsx:12-15]. Từ màn hình này, Admin điều hướng sang các màn quản trị con (Users, Farms, Orders) để thực hiện phê duyệt/từ chối Farm, ban/unban tài khoản và thay đổi vai trò — các thao tác được bảo vệ bởi `AdminGuard` ở phía backend [ref: f2t-backend/src/modules/admin/; ledger t1.4-one-sidecar]. (Báo cáo Shadow — danh sách `PriceOverride` ở trạng thái `shadow` — hiện chỉ tồn tại dưới dạng endpoint backend `GET /dynamic-pricing/shadow-report` [ref: f2t-backend/src/modules/dynamic-pricing/dynamic-pricing.controller.ts:78-84] và CHƯA được tích hợp vào màn hình Admin trên ứng dụng di động.)
+
+---
+
+### 4.4.6. Đánh giá Cross-sell Giỏ Hàng (FP-Growth Association Rules)
+
+#### Phương pháp đánh giá
+
+Chức năng cross-sell sử dụng **khai phá luật kết hợp FP-Growth** (học máy không giám sát) trên dữ liệu warm-start. Đánh giá được thực hiện ở hai cấp độ: (1) thống kê mô tả về chất lượng luật khai phá được từ dữ liệu Instacart; (2) kiểm thử tích hợp pipeline serving. Hệ thống **chưa có đánh giá định lượng chất lượng gợi ý** (precision@k / recall@k / hit-rate) trên tập holdout — đây là hạn chế sẽ được giải quyết khi F2T tích lũy đủ đơn hàng thật để retrain GĐ2 [ref: ledger cross-sell-v1].
+
+#### Kết quả thống kê mô tả luật (warm-start Instacart 2017)
+
+Dữ liệu đầu vào: **Instacart Online Grocery Shopping Dataset 2017**, tải từ dataset mirror `psparks/instacart-market-basket-analysis` (license CC0-1.0) [ref: recommender-final/README.md §"Actual warm-start run"].
+
+Chạy pipeline với ngưỡng mặc định (`min_support=0.02`, `min_confidence=0.10`):
+
+**Bảng 4.7 — Thống kê khai phá luật FP-Growth (warm-start Instacart)**
+
+| Chỉ số | Giá trị |
+|--------|---------|
+| Số giỏ hàng sau map+project | **2.874.457** |
+| Số luật hội tụ | **34** |
+| Số antecedent category | **8** |
+| Số category trong luật | **9** (`other` vắng — không có aisle Instacart map, đúng thiết kế) |
+
+**Bảng 4.8 — Độ phổ biến category (popularity)**
+
+| Category | Popularity |
+|----------|-----------|
+| fruit | 0,71 |
+| leafy | 0,60 |
+| dairy | 0,59 |
+| root | 0,32 |
+| eggs | 0,16 |
+| herbs | 0,11 |
+
+**Bảng 4.9 — Luật tiêu biểu theo lift**
+
+| Antecedent | Consequent | Lift |
+|------------|------------|------|
+| herbs | root | 1,94 |
+| mushrooms | root | 1,58 |
+| leafy | herbs | 1,38 |
+| dairy | eggs | 1,12 |
+
+*Lift > 1 nghĩa là hai category xuất hiện cùng nhau nhiều hơn kỳ vọng ngẫu nhiên.*
+
+#### Hạn chế của đánh giá hiện tại
+
+Kết quả trên là **thống kê mô tả** về chất lượng luật khai phá — **không phải** đánh giá chất lượng gợi ý thực tế trên người dùng F2T. Cụ thể:
+
+- **Chưa có precision@k / recall@k:** Chưa thực hiện holdout evaluation — tách một phần giỏ hàng làm ground-truth, dùng phần còn lại làm input, đo tỉ lệ sản phẩm thật trùng với gợi ý.
+- **Warm-start ≠ hành vi F2T thật:** Instacart là hành vi siêu thị Mỹ, sau khi map về 10 category F2T thì các tương quan category phản ánh văn hoá mua sắm Mỹ (ví dụ: herbs↔root lift cao nhất), chưa chắc phản ánh đúng hành vi nông sản Việt Nam.
+- **Product-level không có:** Luật chỉ ở cấp category, không biết người dùng thích cụ thể sản phẩm nào trong category.
+
+Hướng đánh giá GĐ2 (tương lai): chạy `export_real_orders.py` trên đơn hàng F2T thật → mine luật product-level → đánh giá precision@5 / hit-rate@10 trên holdout 20%.
