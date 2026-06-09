@@ -181,7 +181,7 @@ Ngoài kiểm thử đơn vị, dự án áp dụng quy trình kiểm tra chất
 
 ### 4.4.1. Đánh giá chức năng tổng quan
 
-Hệ thống F2T được triển khai hoàn chỉnh dưới dạng kiến trúc Monolith + 1 Sidecar, bao gồm 13 module NestJS phía backend [ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar], một pricing-sidecar Python duy nhất trên cổng 8000 phục vụ ba chức năng AI/ML [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar], và ≈48 màn hình route trên ứng dụng di động Expo React Native [ref: ledger t1.15-numbers, t2.2-frontend-routes]. Toàn bộ backend phơi bày khoảng 79 REST endpoint được đếm từ 14 controller thông qua lệnh `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" src --include="*.controller.ts" | wc -l` [ref: ledger t1.15-numbers], phân bố trên 10 collection MongoDB — trong đó KHÔNG có `recommendation_caches` hay `forecast_caches` (hệ thống không có chức năng gợi ý sản phẩm; kết quả dự báo được cache ở tầng Redis chứ không tạo collection riêng) [ref: ledger t1.4-collections, t1.4-no-recommender].
+Hệ thống F2T được triển khai hoàn chỉnh dưới dạng kiến trúc Monolith + 1 Sidecar, bao gồm 13 module NestJS phía backend [ref: f2t-backend/src/modules/ — 13 thư mục; ledger t1.4-one-sidecar], một pricing-sidecar Python duy nhất trên cổng 8000 phục vụ ba chức năng AI/ML [ref: f2t-backend/src/app.module.ts:57; ledger t1.4-one-sidecar], và ≈48 màn hình route trên ứng dụng di động Expo React Native [ref: ledger t1.15-numbers, t2.2-frontend-routes]. Toàn bộ backend phơi bày khoảng 79 REST endpoint được đếm từ 14 controller thông qua lệnh `grep -rhoE "@(Get|Post|Put|Patch|Delete)\(" src --include="*.controller.ts" | wc -l` [ref: ledger t1.15-numbers], phân bố trên 10 collection MongoDB — trong đó KHÔNG có `recommendation_caches` hay `forecast_caches` (artifact cross-sell là file JSON nạp vào bộ nhớ sidecar, không tạo collection MongoDB; kết quả dự báo được cache ở tầng Redis chứ không tạo collection riêng) [ref: ledger cross-sell-v1, t1.4-collections].
 
 **Bảng 4.6 — Trạng thái hoàn thành 13 module NestJS**
 
@@ -203,7 +203,7 @@ Hệ thống F2T được triển khai hoàn chỉnh dưới dạng kiến trúc
 
 Cột "Trạng thái chức năng" phản ánh mức độ tích hợp luồng nghiệp vụ hoàn chỉnh; các module AI/ML (`demand-forecasting`, `dynamic-pricing`) có lưu ý về giới hạn độ chính xác mô hình phục vụ được trình bày chi tiết tại §4.4.2 và §4.4.3. Cụ thể, ForecasterLSTM hiện phục vụ bằng cơ chế tile-21× (lặp lại cùng một vector trạng thái 21 lần thay cho chuỗi lịch sử thật 21 ngày) [ref: pricing-sidecar/main.py:135; ledger t0.4-forecaster-parity, t0.10-thesis-limitations] — xem §4.4.2 để phân tích giới hạn này.
 
-Về giao diện người dùng, ứng dụng Consumer không có màn hình gợi ý sản phẩm [ref: ledger t1.4-no-recommender]; các tính năng AI/ML hiển thị với người dùng cuối bao gồm: nhãn độ tươi và giá động được nhúng vào phản hồi danh sách sản phẩm bởi `DynamicPricingInterceptor` [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron], biểu đồ dự báo nhu cầu trên Farm Dashboard, tính năng gợi ý giá DDQN dành cho Farm owner, và tính năng quét độ tươi bằng CoreML cũng dành cho Farm owner [ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml].
+Về giao diện người dùng, ứng dụng Consumer không có màn hình recommender **cá nhân hoá** (collaborative filtering); có cross-sell giỏ hàng category-level hiển thị trong màn hình giỏ hàng qua component `CrossSell` [ref: ledger cross-sell-v1]. Các tính năng AI/ML khác hiển thị với người dùng cuối bao gồm: nhãn độ tươi và giá động được nhúng vào phản hồi danh sách sản phẩm bởi `DynamicPricingInterceptor` [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron], biểu đồ dự báo nhu cầu trên Farm Dashboard, tính năng gợi ý giá DDQN dành cho Farm owner, và tính năng quét độ tươi bằng CoreML cũng dành cho Farm owner [ref: pricing-sidecar/main.py:316; ledger t0.6-coreml-freshness, t1.4-freshness-coreml].
 
 ### 4.4.2. Đánh giá dự báo nhu cầu
 
@@ -434,7 +434,7 @@ Phần này trình bày tám màn hình đại diện của ứng dụng F2T, ba
 
 **Hình 4.1 — [ảnh chụp màn hình: màn hình Home Consumer — danh sách sản phẩm nổi bật theo farm lân cận]**
 
-Màn hình Home hiển thị danh sách sản phẩm được lọc theo vị trí địa lý thông qua truy vấn `$geoNear` trên collection `farms` [ref: f2t-backend/src/modules/farms/farms.service.ts]. Mỗi thẻ sản phẩm hiển thị tên, giá gốc, và ảnh bìa. Không có ô "sản phẩm gợi ý" hay phần "Có thể bạn thích" trên màn hình này — ứng dụng Consumer không có module gợi ý sản phẩm [ref: ledger t1.4-no-recommender].
+Màn hình Home hiển thị danh sách sản phẩm được lọc theo vị trí địa lý thông qua truy vấn `$geoNear` trên collection `farms` [ref: f2t-backend/src/modules/farms/farms.service.ts]. Mỗi thẻ sản phẩm hiển thị tên, giá gốc, và ảnh bìa. Không có ô "sản phẩm gợi ý" hay phần "Có thể bạn thích" trên màn hình này — ứng dụng Consumer không có recommender cá nhân hoá (collaborative filtering) trên trang chủ. Gợi ý sản phẩm cross-sell category-level chỉ xuất hiện trong màn hình **giỏ hàng** (`(app)/cart.tsx`) qua component `CrossSell` [ref: ledger cross-sell-v1].
 
 ---
 

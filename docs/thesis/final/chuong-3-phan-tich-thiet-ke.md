@@ -18,7 +18,7 @@ Luồng chính gồm tám giai đoạn: (1) Farm chủ đăng ký tài khoản v
 
 **Luồng AI đan xen** là điểm phân biệt cốt lõi của F2T. Mỗi khi Consumer gọi API lấy danh sách sản phẩm, `DynamicPricingInterceptor` tự động bổ sung vào phản hồi ba trường: `dynamicPrice` (giá động), `freshnessScore` (điểm tươi từ CoreML) và `priceTag` (nhãn "flash\_discount" hoặc "standard") [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77]. Interceptor này hoạt động trong suốt mà không làm thay đổi API contract — Consumer nhận thông tin giá cập nhật nhất mà không cần gọi endpoint riêng. Giá động được tính bởi `PricingTickCron` chạy định kỳ mỗi giờ theo lịch cron mặc định `"0 * * * *"` (có thể cấu hình qua biến môi trường `PRICING_CRON_SCHEDULE`) [ref: f2t-backend/src/modules/dynamic-pricing/pricing-tick.cron.ts:18], gọi sidecar FastAPI `/predict` để mô hình DDQN đề xuất delta giá, sau đó qua Safety Layer 5 quy tắc trước khi ghi vào MongoDB.
 
-Về phía Farm, dashboard hiển thị hai loại hỗ trợ AI: (a) **dự báo nhu cầu 7 ngày** do ForecasterLSTM sinh ra qua endpoint `/forecast` [ref: pricing-sidecar/main.py:263]; (b) **đề xuất giá** từ DDQN (SharedMLPDuelingQNet) — Farm có quyền chấp nhận hoặc từ chối đề xuất, không bị ép giá tự động [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]. Hệ thống không có chức năng gợi ý sản phẩm cho người mua [ref: ledger t1.4-no-recommender].
+Về phía Farm, dashboard hiển thị hai loại hỗ trợ AI: (a) **dự báo nhu cầu 7 ngày** do ForecasterLSTM sinh ra qua endpoint `/forecast` [ref: pricing-sidecar/main.py:263]; (b) **đề xuất giá** từ DDQN (SharedMLPDuelingQNet) — Farm có quyền chấp nhận hoặc từ chối đề xuất, không bị ép giá tự động [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-interceptor-cron]. Hệ thống không có recommender **cá nhân hoá** / lọc cộng tác (collaborative filtering) cho người mua; **có** cross-sell giỏ hàng category-level bằng FP-Growth association rules, hiển thị trong màn hình giỏ hàng (`(app)/cart.tsx`) qua component `CrossSell` [ref: ledger cross-sell-v1].
 
 ### 3.1.3. Ba tác nhân hệ thống
 
@@ -42,7 +42,7 @@ Dựa trên phân tích quy trình nghiệp vụ và đặc điểm ba tác nhâ
 
 1. **CF-01: Đăng ký và xác thực tài khoản** — Đăng ký bằng email, xác thực OTP, đăng nhập JWT.
 2. **CF-02: Tìm kiếm sản phẩm theo vị trí địa lý** — Lọc trang trại và sản phẩm trong bán kính địa lý bằng chỉ mục 2dsphere của MongoDB.
-3. **CF-03: Xem sản phẩm với nhãn tươi và giá động** — Mỗi sản phẩm hiển thị `freshnessScore`, `dynamicPrice` và `priceTag` do `DynamicPricingInterceptor` bổ sung [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77; ledger t1.4-no-recommender].
+3. **CF-03: Xem sản phẩm với nhãn tươi và giá động** — Mỗi sản phẩm hiển thị `freshnessScore`, `dynamicPrice` và `priceTag` do `DynamicPricingInterceptor` bổ sung [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77].
 4. **CF-04: Quản lý giỏ hàng** — Thêm, sửa số lượng, xóa sản phẩm, tính tổng thanh toán.
 5. **CF-05: Thanh toán trực tuyến qua Stripe** — Tạo Stripe Checkout Session, nhận kết quả qua webhook.
 6. **CF-06: Theo dõi giao hàng** — Xem trạng thái đơn hàng và thông tin vận đơn GHN theo thời gian thực.
@@ -88,10 +88,11 @@ Sơ đồ phân rã chức năng (FDD) phân cấp toàn bộ chức năng của
 
 **Nhóm E-commerce** bao gồm: quản lý sản phẩm, tìm kiếm địa lý, giỏ hàng, đặt hàng, thanh toán Stripe và theo dõi giao hàng GHN.
 
-**Nhóm AI/ML** gồm đúng 3 chức năng thực sự có trong hệ thống [ref: ledger t1.4-no-recommender]:
+**Nhóm AI/ML** gồm 4 chức năng thực sự có trong hệ thống [ref: ledger cross-sell-v1]:
 1. **Dự báo nhu cầu** — ForecasterLSTM chạy qua endpoint `/forecast` của sidecar [ref: pricing-sidecar/main.py:263].
 2. **Định giá động** — DDQN (SharedMLPDuelingQNet) kết hợp Safety Layer 5 quy tắc, chạy qua endpoint `/predict` và `PricingTickCron` [ref: pricing-sidecar/main.py:277].
 3. **Phân loại độ tươi** — 2 model CoreML (fruit/root), nhị phân fresh/rotten, chạy qua endpoint `/freshness/classify` [ref: pricing-sidecar/main.py:316].
+4. **Cross-sell giỏ hàng category-level** — FP-Growth association rules (warm-start Instacart), artifact `category_rules.json` + `category_popularity.json` nạp vào bộ nhớ sidecar lúc khởi động; component `CrossSell` hiển thị trong màn hình giỏ hàng [ref: ledger cross-sell-v1].
 
 **Nhóm Quản trị** bao gồm: duyệt farm, quản lý tài khoản, giám sát đơn hàng và thống kê vận hành.
 
@@ -128,7 +129,7 @@ Biểu đồ use case tổng quan mô hình hóa tập hợp đầy đủ các c
 
 ### 3.3.3. Biểu đồ Use Case module AI/ML
 
-Module AI/ML của F2T bổ sung hai use case tích hợp trí tuệ nhân tạo vào quy trình nghiệp vụ e-commerce (xem Hình usecase-aiml.puml). Hệ thống không có use case gợi ý sản phẩm cho người mua — đây là thiết kế cố ý sau khi xác minh không có module recommender trong codebase [ref: ledger t1.4-no-recommender].
+Module AI/ML của F2T bổ sung các use case tích hợp trí tuệ nhân tạo vào quy trình nghiệp vụ e-commerce (xem Hình usecase-aiml.puml). Hệ thống không có recommender **cá nhân hoá** (collaborative filtering / content-based) cho người mua; **có** cross-sell giỏ hàng category-level bằng FP-Growth (UC-ML-04) — gợi ý sản phẩm xuất hiện trong màn hình giỏ hàng, không phải trang chủ hay feed [ref: ledger cross-sell-v1].
 
 **UC-ML-01: Dự báo nhu cầu** — Tác nhân: Farm Owner. Farm Owner xem bảng dự báo nhu cầu 7 ngày cho từng sản phẩm trên dashboard. Phía backend, `DemandForecastingService` gọi `${sidecarUrl}/forecast` [ref: f2t-backend/src/modules/demand-forecasting/demand-forecasting.service.ts:43], sidecar nhận state vector và chạy hàm `_run_forecaster` → `ForecasterLSTM` để trả về giá trị `demand7d` và `pWaste` (xác suất thất thoát) [ref: pricing-sidecar/main.py:263]. Kết quả dự báo giúp Farm Owner điều phối kế hoạch sản xuất và thu hoạch. Đây là use case do sinh viên tự thiết kế tích hợp ML vào nền tảng TMĐT [ref: ledger t1.4-forecaster-not-holt].
 
@@ -402,7 +403,7 @@ Quan hệ đặc biệt quan trọng về mặt thiết kế là:
 
 10. **orders → OrderItem (embedded, 1-N):** Danh sách `items` trong collection `orders` là mảng các document `OrderItem` được nhúng trực tiếp (`@Schema({ _id: false })`), không phải collection riêng [ref: f2t-backend/src/modules/orders/schemas/order.schema.ts:L6-34, L105-106]. Mỗi `OrderItem` lưu trữ **snapshot thông tin sản phẩm tại thời điểm đặt hàng** — bao gồm `productName`, `pricePerUnit`, `unit`, `totalPrice`, `farmId` và `farmName` — để đảm bảo tính toàn vẹn lịch sử đơn hàng ngay cả khi thông tin sản phẩm sau đó bị thay đổi hoặc xóa.
 
-Hệ thống **không** có các collection `recommendation_caches` hay `forecast_caches` — đây là thiết kế cố ý sau khi xác minh không có module recommender trong codebase [ref: ledger t1.4-collections, t1.4-no-recommender].
+Hệ thống **không** có các collection `recommendation_caches` hay `forecast_caches` — artifact cross-sell là file JSON (`category_rules.json`, `category_popularity.json`) nạp vào bộ nhớ sidecar lúc khởi động, không tạo collection MongoDB; kết quả dự báo được cache ở tầng Redis chứ không tạo collection riêng [ref: recommender-sidecar/main.py:17-29; ledger cross-sell-v1, t1.4-collections].
 
 ### 3.4.2. Chi tiết 10 collections
 
@@ -641,7 +642,7 @@ Chiến lược chỉ mục của F2T được thiết kế theo bốn nhóm ch�
 
 Nhóm giao diện dành cho Consumer được tổ chức theo luồng nghiệp vụ tuyến tính: khám phá sản phẩm → đặt hàng → thanh toán → theo dõi giao hàng → tương tác cộng đồng. Toàn bộ nhóm này được xây dựng trên Expo Router với file-system routing, chiếm phần lớn trong tổng số ≈48 màn hình route của ứng dụng [ref: ledger t1.15-numbers, t2.2-frontend-routes].
 
-**Trang chủ và danh sách sản phẩm** (`(app)/home.tsx`, `(app)/products.tsx`) là điểm vào chính của Consumer. Màn hình này thực hiện truy vấn sản phẩm thông thường lên NestJS REST API; không có thuật toán gợi ý hay cá nhân hóa nào được nhúng vào tầng này [ref: ledger t1.4-no-recommender]. Điểm đặc trưng của F2T nằm ở phía backend: `DynamicPricingInterceptor` đăng ký toàn cục dưới dạng `APP_INTERCEPTOR` tự động bổ sung ba trường `dynamicPrice`, `freshnessScore` và `priceTag` vào mỗi phần tử sản phẩm trong phản hồi API trước khi trả về client [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77]. Nhờ đó, màn hình danh sách hiển thị trực tiếp nhãn độ tươi (fresh / aging / critical) và giá động cập nhật theo chu kỳ cron hàng giờ mà không cần thêm bất kỳ logic phía client nào.
+**Trang chủ và danh sách sản phẩm** (`(app)/home.tsx`, `(app)/products.tsx`) là điểm vào chính của Consumer. Màn hình này thực hiện truy vấn sản phẩm thông thường lên NestJS REST API; không có thuật toán gợi ý hay cá nhân hóa nào được nhúng vào tầng này. Gợi ý sản phẩm cross-sell category-level chỉ xuất hiện trong màn hình **giỏ hàng** (`(app)/cart.tsx`) qua component `CrossSell` [ref: ledger cross-sell-v1]. Điểm đặc trưng của F2T nằm ở phía backend: `DynamicPricingInterceptor` đăng ký toàn cục dưới dạng `APP_INTERCEPTOR` tự động bổ sung ba trường `dynamicPrice`, `freshnessScore` và `priceTag` vào mỗi phần tử sản phẩm trong phản hồi API trước khi trả về client [ref: f2t-backend/src/common/interceptors/dynamic-pricing.interceptor.ts:74-77]. Nhờ đó, màn hình danh sách hiển thị trực tiếp nhãn độ tươi (fresh / aging / critical) và giá động cập nhật theo chu kỳ cron hàng giờ mà không cần thêm bất kỳ logic phía client nào.
 
 **Màn hình chi tiết sản phẩm** (`products/[id].tsx`) trình bày đầy đủ thông tin một mặt hàng, trong đó ba trường AI được ưu tiên hiển thị nổi bật: `freshnessScore` (điểm tươi 0–1 từ CoreML), `dynamicPrice` (giá đề xuất sau Safety Layer) và `priceTag` (nhãn phân loại giá). Consumer có thể thêm sản phẩm vào giỏ hàng trực tiếp từ màn hình này.
 
@@ -655,7 +656,7 @@ Nhóm giao diện dành cho Consumer được tổ chức theo luồng nghiệp 
 
 **Hồ sơ cá nhân** (`(app)/profile.tsx`, `(app)/profile/edit.tsx`) cho phép Consumer xem và chỉnh sửa thông tin tài khoản, bao gồm địa chỉ giao hàng nhúng trực tiếp trong document user [ref: f2t-backend/src/modules/users/schemas/user.schema.ts:L20-97; ledger t1.11-schema-detail].
 
-**Feed cộng đồng** (`(app)/feed.tsx`, `feed/[id].tsx`, `feed/add-post.tsx`) là không gian chia sẻ bài đăng giữa người dùng trên nền tảng. Đây là chức năng cộng đồng thuần túy dựa trên collection `posts`; hệ thống không triển khai bất kỳ cơ chế gợi ý sản phẩm, lọc cộng tác hay cá nhân hóa nào [ref: ledger t1.4-no-recommender].
+**Feed cộng đồng** (`(app)/feed.tsx`, `feed/[id].tsx`, `feed/add-post.tsx`) là không gian chia sẻ bài đăng giữa người dùng trên nền tảng. Đây là chức năng cộng đồng thuần túy dựa trên collection `posts`; hệ thống không triển khai lọc cộng tác (collaborative filtering) hay cá nhân hoá feed. Gợi ý sản phẩm cross-sell category-level (FP-Growth) chỉ xuất hiện trong màn hình **giỏ hàng**, không trong feed [ref: ledger cross-sell-v1].
 
 ### 3.5.2. Farm
 
