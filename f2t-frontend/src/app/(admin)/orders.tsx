@@ -12,11 +12,13 @@ import { Text } from '@/components/ui';
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useGetAdminOrders({
       variables: {
         status: statusFilter !== 'all' ? statusFilter : undefined,
+        paymentStatus: paymentFilter !== 'all' ? paymentFilter : undefined,
       },
     });
 
@@ -69,6 +71,25 @@ export default function AdminOrders() {
                 className={`font-medium capitalize ${statusFilter === status ? 'text-white' : 'text-gray-700'}`}
               >
                 {status}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="mb-2"
+        >
+          {['all', 'pending', 'paid', 'failed'].map((pStatus) => (
+            <TouchableOpacity
+              key={pStatus}
+              onPress={() => setPaymentFilter(pStatus)}
+              className={`mr-2 rounded-full px-4 py-2 ${paymentFilter === pStatus ? 'bg-green-600' : 'bg-gray-200'}`}
+            >
+              <Text
+                className={`font-medium capitalize ${paymentFilter === pStatus ? 'text-white' : 'text-gray-700'}`}
+              >
+                {pStatus === 'all' ? 'Tất cả TT' : pStatus}
               </Text>
             </TouchableOpacity>
           ))}
