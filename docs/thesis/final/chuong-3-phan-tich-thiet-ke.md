@@ -384,6 +384,71 @@ Kết quả suy luận từ lời gọi `model.predict({"image": img})` trả v�
 
 **Giới hạn kỹ thuật:** Hệ thống hiện chỉ có **2 trong 4 danh mục** được trang bị mô hình CoreML riêng (fruit và root); các danh mục `leafy` và `herbs` sử dụng chung mô hình root theo cơ chế fallback thiết kế cố ý. Ngoài ra, không có training script hay dataset ảnh nông sản tự thu thập — hai mô hình `.mlmodel` được tạo bằng Apple Create ML với dữ liệu không công khai, và quá trình huấn luyện không thuộc phạm vi hệ thống F2T. Đây là giới hạn cần công khai khi đánh giá độ tổng quát của mô hình [ref: ledger t0.10-thesis-limitations].
 
+### 3.3.8. Module Reviews (Đánh giá sản phẩm)
+
+Module `reviews` cung cấp chức năng đánh giá sản phẩm, liên kết chặt chẽ với module `orders` (ràng buộc `orderId`) và module `products` (cập nhật aggregated rating).
+
+**Controller** `ReviewsController` phơi bày 4 endpoint tại `/api/reviews` [ref: f2t-backend/src/modules/reviews/reviews.controller.ts:27]:
+- `GET /api/reviews` — truy vấn danh sách review theo `productId`, phân trang [ref: :31].
+- `GET /api/reviews/my` — lấy review của người dùng đang đăng nhập [ref: :37].
+- `POST /api/reviews` — tạo review mới; body yêu cầu `productId`, `orderId`, `rating` (1–5), `comment` (max 500 ký tự); tùy chọn `photos` (mảng URL) [ref: :45].
+- `DELETE /api/reviews/:id` — xóa review (chỉ chủ sở hữu hoặc admin) [ref: :53].
+
+**Service** `ReviewsService` sau khi tạo review thành công: thực hiện aggregation MongoDB để tính lại `averageRating` và `reviewCount` trên collection `products`.
+
+**Schema** `Review` [ref: f2t-backend/src/modules/reviews/schemas/review.schema.ts]:
+
+| Trường | Kiểu | Ràng buộc |
+|--------|------|-----------|
+| `productId` | ObjectId | required, ref Product — L20 |
+| `orderId` | ObjectId | required, ref Order — L23 |
+| `customerId` | ObjectId | required, ref User — L26 |
+| `customerName` | String | required — L29 |
+| `customerAvatarUrl` | String | optional — L32 |
+| `rating` | Number | required, min 1 – max 5 — L35 |
+| `comment` | String | required, maxlength 500 — L38 |
+| `photos` | String[] | default [] — L41 |
+| `createdAt`, `updatedAt` | Date | auto (timestamps: true) |
+
+Index: `{ productId: 1 }` — truy vấn theo sản phẩm [ref: :46]; `{ customerId: 1 }` — truy vấn review của người dùng [ref: :47].
+
+Schema `Product` được bổ sung 2 trường [ref: f2t-backend/src/modules/products/schemas/product.schema.ts]:
+- `averageRating: Number` (default 0) — L141
+- `reviewCount: Number` (default 0) — L144
+
+**Frontend:** Consumer đánh giá tại màn hình `products/add-review.tsx` sau khi nhận đơn. Review list hiển thị trực tiếp trên trang chi tiết sản phẩm qua component `components/products/product-reviews.tsx`. Admin quản lý review tại `admin/reviews.tsx`.
+
+---
+
+### 3.3.9. Module Recommendations (Cross-sell)
+
+Module `recommendations` hiện thực chức năng gợi ý sản phẩm "thường mua kèm" trong giỏ hàng dựa trên FP-Growth association rules (category-level).
+
+**Controller** `RecommendationsController` [ref: f2t-backend/src/modules/recommendations/recommendations.controller.ts:11]:
+
+```
+GET /api/recommendations/cross-sell?productIds=<ids>&limit=6
+```
+
+Endpoint bảo vệ bởi `JwtAuthGuard` [ref: :15]. Nhận `productIds` (comma-separated), trả mảng `Product` gợi ý.
+
+**Service** `RecommendationsService.getCrossSell()` thực hiện pipeline 4 bước [ref: f2t-backend/src/modules/recommendations/recommendations.service.ts:23]:
+1. Trích xuất category từ productIds (truy vấn MongoDB `products` collection, field `category` và `farmId`).
+2. Gọi `recommender-sidecar :8001/recommend` với `{cart_categories, top_k}`. Timeout 5000ms [ref: :48]. Nếu sidecar không phản hồi: fallback graceful — `logger.warn` + trả sản phẩm cùng farm, không throw 500 [ref: :56].
+3. Lọc tồn kho: chỉ giữ sản phẩm có `status ∈ {available, seasonal}` và `availableQuantity > 0`; bỏ sản phẩm đã có trong giỏ [ref: :70-72].
+4. Re-rank: sản phẩm cùng trang trại với sản phẩm trong giỏ được nhân hệ số `FARM_BOOST = 1.5` [ref: :10,86-87]. Sắp xếp giảm dần theo score, trả top 6 [ref: :89-90].
+
+**Recommender Sidecar** `recommender-sidecar/main.py`:
+- Nạp `category_rules.json` và `category_popularity.json` từ `recommender-final/model/` lúc khởi động qua hàm `_load()` [ref: recommender-sidecar/main.py:17-35].
+- `POST /recommend` [ref: :61]: lookup luật antecedent⊆cart_categories, tính score = lift (cộng dồn qua các antecedents), dedup consequent, fallback về popularity nếu không có luật match.
+- **Không truy cập MongoDB** — hoàn toàn stateless.
+
+**Cấu hình:** `RECOMMENDER_SIDECAR_URL` (env, default `http://localhost:8001`) đăng ký trong `f2t-backend/src/app.module.ts` [ref: f2t-backend/src/app.module.ts:60].
+
+**Frontend:** Component `CrossSell` trong `f2t-frontend/src/components/cart/cross-sell.tsx` render danh sách "Thường mua kèm". Được gọi trong màn hình giỏ hàng `(app)/cart.tsx`.
+
+---
+
 ## 3.4. Phân tích, thiết kế cơ sở dữ liệu
 
 ### 3.4.1. Sơ đồ quan hệ thực thể (ERD)
