@@ -6,6 +6,7 @@ import {
   formatPrice,
   formatPricePerUnit,
   getCategoryLabel,
+  getFreshnessLabel,
   getProductAvailabilityStatus,
   isProductFresh,
 } from '@/api/products';
@@ -177,197 +178,47 @@ const DynamicPriceBadge = ({
   );
 };
 
+// Freshness label fed by the freshnessScore that DynamicPricingInterceptor injects.
+const FRESHNESS_STYLES = {
+  green: 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300',
+  yellow:
+    'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300',
+  red: 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300',
+} as const;
+
+const FreshnessBadge = ({ score }: { score?: number | null }) => {
+  const freshness = getFreshnessLabel(score);
+  if (!freshness) return null;
+  return (
+    <View
+      className={`self-start rounded-full px-2 py-0.5 ${FRESHNESS_STYLES[freshness.color]}`}
+    >
+      <Text
+        className={`text-xs font-medium ${FRESHNESS_STYLES[freshness.color]}`}
+      >
+        {freshness.display}
+      </Text>
+    </View>
+  );
+};
+
 // Compact variant
 const CompactProductCard = ({
   product,
   onPress,
   onAddToCart,
   showAddToCart = true,
-  dynamicPrice,
+  dynamicPrice: dynamicPriceProp,
   className = '',
-}: ProductCardProps) => (
-  <Pressable
-    onPress={onPress}
-    className={`mb-3 flex-row rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800 ${className}`}
-  >
-    {/* Product Image */}
-    <View className="mr-3 size-16 overflow-hidden rounded-lg">
-      {product.images && product.images.length > 0 ? (
-        <Image
-          source={{ uri: product.images[0] }}
-          className="size-full"
-          contentFit="cover"
-        />
-      ) : (
-        <View className="size-full items-center justify-center bg-gray-100 dark:bg-gray-700">
-          <Text className="text-2xl">🥕</Text>
-        </View>
-      )}
-    </View>
-
-    {/* Product Info */}
-    <View className="flex-1">
-      <View className="mb-1 flex-row items-start justify-between">
-        <Text
-          className="flex-1 font-semibold text-gray-900 dark:text-white"
-          numberOfLines={1}
-        >
-          {product.name}
-        </Text>
-        <ProductStatusBadge product={product} />
-      </View>
-
-      <Text
-        className="mb-1 text-sm text-gray-600 dark:text-gray-400"
-        numberOfLines={1}
-      >
-        {getCategoryLabel(product.category)}
-      </Text>
-
-      <View className="mb-1 flex-row items-center justify-between">
-        <View>
-          <Text className={`font-bold ${dynamicPrice !== null && dynamicPrice !== undefined ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'}`}>
-            {formatPricePerUnit(dynamicPrice ?? product.pricePerUnit, product.unit)}
-          </Text>
-          {(dynamicPrice !== null && dynamicPrice !== undefined) && (
-            <DynamicPriceBadge basePrice={product.pricePerUnit} dynamicPrice={dynamicPrice} />
-          )}
-        </View>
-        <Text className="text-xs text-gray-500 dark:text-gray-500">
-          {product.availableQuantity} {product.unit} available
-        </Text>
-      </View>
-
-      <HarvestTimeDisplay product={product} />
-    </View>
-
-    {/* Add to Cart Button */}
-    {showAddToCart && onAddToCart && (
-      <View className="ml-2 justify-center">
-        <Button
-          label="Add"
-          onPress={onAddToCart}
-          variant="outline"
-          className="px-3 py-1"
-        />
-      </View>
-    )}
-  </Pressable>
-);
-
-// Default variant
-const DefaultProductCard = ({
-  product,
-  onPress,
-  onAddToCart,
-  showFarmInfo = false,
-  showAddToCart = true,
-  dynamicPrice,
-  className = 'w-48',
-}: ProductCardProps) => (
-  <Pressable
-    onPress={onPress}
-    className={`mb-4 flex-1 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${className}`}
-  >
-    {/* Product Image */}
-    <View className="relative w-full overflow-hidden rounded-t-lg" style={IMAGE_ASPECT_STYLE}>
-      {product.images && product.images.length > 0 ? (
-        <Image
-          source={{ uri: product.images[0] }}
-          className="size-full"
-          contentFit="cover"
-        />
-      ) : (
-        <View className="size-full items-center justify-center bg-gray-100 dark:bg-gray-700">
-          <Text className="text-4xl">🥕</Text>
-        </View>
-      )}
-
-      {/* Status Badge Overlay */}
-      <View className="absolute right-2 top-2">
-        <ProductStatusBadge product={product} />
-      </View>
-    </View>
-
-    {/* Product Info */}
-    <View className="flex-1 p-3">
-      <View className="min-h-[44px]">
-        <Text
-          className="mb-1 font-semibold text-gray-900 dark:text-white"
-          numberOfLines={2}
-        >
-          {product.name}
-        </Text>
-      </View>
-
-      <Text className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-        {getCategoryLabel(product.category)}
-      </Text>
-
-      {/* Farm Info */}
-      {showFarmInfo && (
-        <Text
-          className="mb-2 text-xs text-gray-500 dark:text-gray-500"
-          numberOfLines={1}
-        >
-          📍 Farm Location
-        </Text>
-      )}
-
-      {/* Price */}
-      <View className="mb-2 flex-1">
-        <Text className={`text-lg font-bold ${dynamicPrice ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'}`}>
-          {formatPrice(dynamicPrice ?? product.pricePerUnit)}
-        </Text>
-        {dynamicPrice && (
-          <DynamicPriceBadge basePrice={product.pricePerUnit} dynamicPrice={dynamicPrice} />
-        )}
-        <Text className="text-xs text-gray-500 dark:text-gray-500">
-          per {product.unit} • {product.availableQuantity} available
-        </Text>
-      </View>
-
-      {/* Harvest Time */}
-      <View className="mb-2">
-        <HarvestTimeDisplay product={product} />
-      </View>
-
-      {/* Product Tags */}
-      <View className="mb-3 min-h-[24px]">
-        <ProductTags product={product} />
-      </View>
-
-      {/* Add to Cart Button */}
-      {showAddToCart && onAddToCart && (
-        <View className="mt-auto">
-          <Button
-            label="Add to Cart"
-            onPress={onAddToCart}
-            variant="outline"
-            className="w-full"
-          />
-        </View>
-      )}
-    </View>
-  </Pressable>
-);
-
-// Detailed variant
-const DetailedProductCard = ({
-  product,
-  onPress,
-  onAddToCart,
-  showFarmInfo = true,
-  showAddToCart = true,
-  className = '',
-}: ProductCardProps) => (
-  <Pressable
-    onPress={onPress}
-    className={`mb-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${className}`}
-  >
-    <View className="flex-row">
+}: ProductCardProps) => {
+  const dynamicPrice = dynamicPriceProp ?? product.dynamicPrice;
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`mb-3 flex-row rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800 ${className}`}
+    >
       {/* Product Image */}
-      <View className="mr-4 size-24 overflow-hidden rounded-lg">
+      <View className="mr-3 size-16 overflow-hidden rounded-lg">
         {product.images && product.images.length > 0 ? (
           <Image
             source={{ uri: product.images[0] }}
@@ -376,58 +227,157 @@ const DetailedProductCard = ({
           />
         ) : (
           <View className="size-full items-center justify-center bg-gray-100 dark:bg-gray-700">
-            <Text className="text-3xl">🥕</Text>
+            <Text className="text-2xl">🥕</Text>
           </View>
         )}
       </View>
 
       {/* Product Info */}
       <View className="flex-1">
-        <View className="mb-2 flex-row items-start justify-between">
-          <View className="flex-1">
-            <Text
-              className="mb-1 text-lg font-semibold text-gray-900 dark:text-white"
-              numberOfLines={2}
-            >
-              {product.name}
-            </Text>
-            <Text className="text-sm text-gray-600 dark:text-gray-400">
-              {getCategoryLabel(product.category)}
-            </Text>
-          </View>
+        <View className="mb-1 flex-row items-start justify-between">
+          <Text
+            className="flex-1 font-semibold text-gray-900 dark:text-white"
+            numberOfLines={1}
+          >
+            {product.name}
+          </Text>
           <ProductStatusBadge product={product} />
         </View>
 
-        {/* Farm Info */}
-        {showFarmInfo && (
-          <View className="mb-2">
-            <Text className="text-sm text-gray-600 dark:text-gray-400">
-              📍 Farm Location
+        <Text
+          className="mb-1 text-sm text-gray-600 dark:text-gray-400"
+          numberOfLines={1}
+        >
+          {getCategoryLabel(product.category)}
+        </Text>
+
+        <View className="mb-1 flex-row items-center justify-between">
+          <View>
+            <Text
+              className={`font-bold ${dynamicPrice !== null && dynamicPrice !== undefined ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'}`}
+            >
+              {formatPricePerUnit(
+                dynamicPrice ?? product.pricePerUnit,
+                product.unit
+              )}
             </Text>
+            {dynamicPrice !== null && dynamicPrice !== undefined && (
+              <DynamicPriceBadge
+                basePrice={product.pricePerUnit}
+                dynamicPrice={dynamicPrice}
+              />
+            )}
+          </View>
+          <Text className="text-xs text-gray-500 dark:text-gray-500">
+            {product.availableQuantity} {product.unit} available
+          </Text>
+        </View>
+
+        <FreshnessBadge score={product.freshnessScore} />
+
+        <HarvestTimeDisplay product={product} />
+      </View>
+
+      {/* Add to Cart Button */}
+      {showAddToCart && onAddToCart && (
+        <View className="ml-2 justify-center">
+          <Button
+            label="Add"
+            onPress={onAddToCart}
+            variant="outline"
+            className="px-3 py-1"
+          />
+        </View>
+      )}
+    </Pressable>
+  );
+};
+
+// Default variant
+const DefaultProductCard = ({
+  product,
+  onPress,
+  onAddToCart,
+  showFarmInfo = false,
+  showAddToCart = true,
+  dynamicPrice: dynamicPriceProp,
+  className = 'w-48',
+}: ProductCardProps) => {
+  const dynamicPrice = dynamicPriceProp ?? product.dynamicPrice;
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`mb-4 flex-1 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${className}`}
+    >
+      {/* Product Image */}
+      <View
+        className="relative w-full overflow-hidden rounded-t-lg"
+        style={IMAGE_ASPECT_STYLE}
+      >
+        {product.images && product.images.length > 0 ? (
+          <Image
+            source={{ uri: product.images[0] }}
+            className="size-full"
+            contentFit="cover"
+          />
+        ) : (
+          <View className="size-full items-center justify-center bg-gray-100 dark:bg-gray-700">
+            <Text className="text-4xl">🥕</Text>
           </View>
         )}
 
-        {/* Description */}
-        <Text
-          className="mb-2 text-sm text-gray-600 dark:text-gray-400"
-          numberOfLines={2}
-        >
-          {product.description}
+        {/* Status Badge Overlay */}
+        <View className="absolute right-2 top-2">
+          <ProductStatusBadge product={product} />
+        </View>
+      </View>
+
+      {/* Product Info */}
+      <View className="flex-1 p-3">
+        <View className="min-h-[44px]">
+          <Text
+            className="mb-1 font-semibold text-gray-900 dark:text-white"
+            numberOfLines={2}
+          >
+            {product.name}
+          </Text>
+        </View>
+
+        <Text className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+          {getCategoryLabel(product.category)}
         </Text>
 
-        {/* Price and Availability */}
-        <View className="mb-2 flex-row items-center justify-between">
-          <View>
-            <Text className="text-xl font-bold text-gray-900 dark:text-white">
-              {formatPrice(product.pricePerUnit)}
-            </Text>
-            <Text className="text-xs text-gray-500 dark:text-gray-500">
-              per {product.unit} • Min order: {product.minimumOrder}
-            </Text>
-          </View>
-          <Text className="text-sm text-gray-600 dark:text-gray-400">
-            {product.availableQuantity} {product.unit} available
+        {/* Farm Info */}
+        {showFarmInfo && (
+          <Text
+            className="mb-2 text-xs text-gray-500 dark:text-gray-500"
+            numberOfLines={1}
+          >
+            📍 Farm Location
           </Text>
+        )}
+
+        {/* Price */}
+        <View className="mb-2 flex-1">
+          <Text
+            className={`text-lg font-bold ${dynamicPrice ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'}`}
+          >
+            {formatPrice(dynamicPrice ?? product.pricePerUnit)}
+          </Text>
+          {dynamicPrice && (
+            <DynamicPriceBadge
+              basePrice={product.pricePerUnit}
+              dynamicPrice={dynamicPrice}
+            />
+          )}
+          <Text className="text-xs text-gray-500 dark:text-gray-500">
+            per {product.unit} • {product.availableQuantity} available
+          </Text>
+        </View>
+
+        {/* Freshness label (AI) */}
+        <View className="mb-2">
+          <FreshnessBadge score={product.freshnessScore} />
         </View>
 
         {/* Harvest Time */}
@@ -436,32 +386,153 @@ const DetailedProductCard = ({
         </View>
 
         {/* Product Tags */}
-        <View className="mb-3">
+        <View className="mb-3 min-h-[24px]">
           <ProductTags product={product} />
         </View>
 
-        {/* Storage Instructions */}
-        {product.storageInstructions && (
-          <View className="mb-3">
-            <Text className="text-xs text-gray-500 dark:text-gray-500">
-              💡 {product.storageInstructions}
-            </Text>
-          </View>
-        )}
-
         {/* Add to Cart Button */}
         {showAddToCart && onAddToCart && (
-          <Button
-            label="Add to Cart"
-            onPress={onAddToCart}
-            variant="default"
-            className="w-full"
-          />
+          <View className="mt-auto">
+            <Button
+              label="Add to Cart"
+              onPress={onAddToCart}
+              variant="outline"
+              className="w-full"
+            />
+          </View>
         )}
       </View>
-    </View>
-  </Pressable>
-);
+    </Pressable>
+  );
+};
+
+// Detailed variant
+const DetailedProductCard = ({
+  product,
+  onPress,
+  onAddToCart,
+  showFarmInfo = true,
+  showAddToCart = true,
+  dynamicPrice: dynamicPriceProp,
+  className = '',
+}: ProductCardProps) => {
+  const dynamicPrice = dynamicPriceProp ?? product.dynamicPrice;
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`mb-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${className}`}
+    >
+      <View className="flex-row">
+        {/* Product Image */}
+        <View className="mr-4 size-24 overflow-hidden rounded-lg">
+          {product.images && product.images.length > 0 ? (
+            <Image
+              source={{ uri: product.images[0] }}
+              className="size-full"
+              contentFit="cover"
+            />
+          ) : (
+            <View className="size-full items-center justify-center bg-gray-100 dark:bg-gray-700">
+              <Text className="text-3xl">🥕</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Product Info */}
+        <View className="flex-1">
+          <View className="mb-2 flex-row items-start justify-between">
+            <View className="flex-1">
+              <Text
+                className="mb-1 text-lg font-semibold text-gray-900 dark:text-white"
+                numberOfLines={2}
+              >
+                {product.name}
+              </Text>
+              <Text className="text-sm text-gray-600 dark:text-gray-400">
+                {getCategoryLabel(product.category)}
+              </Text>
+            </View>
+            <ProductStatusBadge product={product} />
+          </View>
+
+          {/* Farm Info */}
+          {showFarmInfo && (
+            <View className="mb-2">
+              <Text className="text-sm text-gray-600 dark:text-gray-400">
+                📍 Farm Location
+              </Text>
+            </View>
+          )}
+
+          {/* Description */}
+          <Text
+            className="mb-2 text-sm text-gray-600 dark:text-gray-400"
+            numberOfLines={2}
+          >
+            {product.description}
+          </Text>
+
+          {/* Price and Availability */}
+          <View className="mb-2 flex-row items-center justify-between">
+            <View>
+              <Text
+                className={`text-xl font-bold ${dynamicPrice !== null && dynamicPrice !== undefined ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'}`}
+              >
+                {formatPrice(dynamicPrice ?? product.pricePerUnit)}
+              </Text>
+              {dynamicPrice !== null && dynamicPrice !== undefined && (
+                <DynamicPriceBadge
+                  basePrice={product.pricePerUnit}
+                  dynamicPrice={dynamicPrice}
+                />
+              )}
+              <Text className="text-xs text-gray-500 dark:text-gray-500">
+                per {product.unit} • Min order: {product.minimumOrder}
+              </Text>
+            </View>
+            <Text className="text-sm text-gray-600 dark:text-gray-400">
+              {product.availableQuantity} {product.unit} available
+            </Text>
+          </View>
+
+          {/* Freshness label (AI) */}
+          <View className="mb-2">
+            <FreshnessBadge score={product.freshnessScore} />
+          </View>
+
+          {/* Harvest Time */}
+          <View className="mb-2">
+            <HarvestTimeDisplay product={product} />
+          </View>
+
+          {/* Product Tags */}
+          <View className="mb-3">
+            <ProductTags product={product} />
+          </View>
+
+          {/* Storage Instructions */}
+          {product.storageInstructions && (
+            <View className="mb-3">
+              <Text className="text-xs text-gray-500 dark:text-gray-500">
+                💡 {product.storageInstructions}
+              </Text>
+            </View>
+          )}
+
+          {/* Add to Cart Button */}
+          {showAddToCart && onAddToCart && (
+            <Button
+              label="Add to Cart"
+              onPress={onAddToCart}
+              variant="default"
+              className="w-full"
+            />
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+};
 
 export const ProductCard = (props: ProductCardProps) => {
   const { variant = 'default' } = props;

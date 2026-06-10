@@ -15,6 +15,15 @@ jest.mock('@/api/products', () => ({
   getProductAvailabilityStatus: () => 'available' as const,
   isProductInSeason: () => true,
   isProductFresh: () => true,
+  getFreshnessLabel: (score?: number | null) =>
+    score === null || score === undefined
+      ? null
+      : {
+          tag: 'fresh' as const,
+          label: 'Tươi',
+          color: 'green' as const,
+          display: `Tươi · ${Math.round(score * 100)}%`,
+        },
 }));
 
 // Helper function to create mock product
@@ -150,6 +159,33 @@ describe('ProductCard', () => {
     });
   });
 
+  describe('AI fields (DynamicPricingInterceptor)', () => {
+    it('shows dynamic price, struck base price and AI badge when product has dynamicPrice', () => {
+      const aiProduct = createMockProduct({ dynamicPrice: 3.5 });
+
+      render(<ProductCard product={aiProduct} onPress={mockOnPress} />);
+
+      expect(screen.getByText('$3.50')).toBeTruthy();
+      expect(screen.getByText('$4.99')).toBeTruthy();
+      expect(screen.getByText('AI')).toBeTruthy();
+    });
+
+    it('shows the freshness label when product has freshnessScore', () => {
+      const aiProduct = createMockProduct({ freshnessScore: 0.82 });
+
+      render(<ProductCard product={aiProduct} onPress={mockOnPress} />);
+
+      expect(screen.getByText('Tươi · 82%')).toBeTruthy();
+    });
+
+    it('renders no AI badge or freshness label in shadow mode (fields absent)', () => {
+      render(<ProductCard product={mockProduct} onPress={mockOnPress} />);
+
+      expect(screen.queryByText('AI')).toBeNull();
+      expect(screen.queryByText(/·\s*\d+%/)).toBeNull();
+    });
+  });
+
   describe('Compact variant', () => {
     it('renders in compact layout', () => {
       render(
@@ -183,6 +219,25 @@ describe('ProductCard', () => {
       expect(
         screen.getByText('Very Long Product Name That Should Be Truncated')
       ).toBeTruthy();
+    });
+
+    it('shows dynamic price, AI badge and freshness label when AI fields present', () => {
+      const aiProduct = createMockProduct({
+        dynamicPrice: 3.5,
+        freshnessScore: 0.82,
+      });
+
+      render(
+        <ProductCard
+          product={aiProduct}
+          variant="compact"
+          onPress={mockOnPress}
+        />
+      );
+
+      expect(screen.getByText('$3.50 per kg')).toBeTruthy();
+      expect(screen.getByText('AI')).toBeTruthy();
+      expect(screen.getByText('Tươi · 82%')).toBeTruthy();
     });
   });
 
@@ -219,6 +274,25 @@ describe('ProductCard', () => {
       );
 
       expect(screen.getByText('📍 Farm Location')).toBeTruthy();
+    });
+
+    it('shows dynamic price, AI badge and freshness label when AI fields present', () => {
+      const aiProduct = createMockProduct({
+        dynamicPrice: 3.5,
+        freshnessScore: 0.82,
+      });
+
+      render(
+        <ProductCard
+          product={aiProduct}
+          variant="detailed"
+          onPress={mockOnPress}
+        />
+      );
+
+      expect(screen.getByText('$3.50')).toBeTruthy();
+      expect(screen.getByText('AI')).toBeTruthy();
+      expect(screen.getByText('Tươi · 82%')).toBeTruthy();
     });
   });
 

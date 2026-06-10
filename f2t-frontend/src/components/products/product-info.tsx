@@ -5,6 +5,7 @@ import {
   formatHarvestTime,
   formatPricePerUnit,
   getCategoryLabel,
+  getFreshnessLabel,
   getProductAvailabilityStatus,
   isProductFresh,
 } from '@/api/products';
@@ -192,6 +193,68 @@ const StorageInfo = ({ product }: { product: Product }) => {
   );
 };
 
+// AI freshness label fed by the freshnessScore that DynamicPricingInterceptor injects.
+const FRESHNESS_STYLES = {
+  green: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300',
+  yellow:
+    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300',
+  red: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300',
+} as const;
+
+const FreshnessLabel = ({ score }: { score?: number | null }) => {
+  const freshness = getFreshnessLabel(score);
+  if (!freshness) return null;
+  return (
+    <View
+      className={`mb-3 self-start rounded-full px-3 py-1 ${FRESHNESS_STYLES[freshness.color]}`}
+    >
+      <Text
+        className={`text-sm font-medium ${FRESHNESS_STYLES[freshness.color]}`}
+      >
+        {freshness.display}
+      </Text>
+    </View>
+  );
+};
+
+// AI dynamic price block: shows the advisory price, the struck base price and a
+// priceTag badge. Rendered only when DynamicPricingInterceptor supplied a price.
+const DynamicPriceBlock = ({ product }: { product: Product }) => {
+  if (product.dynamicPrice === null || product.dynamicPrice === undefined) {
+    return null;
+  }
+  const isFlash = product.priceTag === 'flash_discount';
+  const tagLabel = isFlash ? 'Giảm giá chớp nhoáng' : 'Giá tiêu chuẩn';
+  const tagStyle = isFlash
+    ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+    : 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300';
+
+  return (
+    <View className="mb-4">
+      <Text className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+        {formatPricePerUnit(product.dynamicPrice, product.unit)}
+      </Text>
+      <View className="mt-1 flex-row items-center gap-2">
+        <Text className="text-gray-400 line-through dark:text-gray-500">
+          {formatPricePerUnit(product.pricePerUnit, product.unit)}
+        </Text>
+        <View className={`rounded-full px-2 py-0.5 ${tagStyle}`}>
+          <Text className={`text-xs font-bold ${tagStyle}`}>{tagLabel}</Text>
+        </View>
+        <View className="rounded-full bg-orange-100 px-2 py-0.5 dark:bg-orange-900/20">
+          <Text className="text-xs font-bold text-orange-700 dark:text-orange-300">
+            AI
+          </Text>
+        </View>
+      </View>
+      <Text className="mt-1 text-gray-600 dark:text-gray-400">
+        {product.availableQuantity} {product.unit}s available
+        {product.minimumOrder > 1 && ` • Min order: ${product.minimumOrder}`}
+      </Text>
+    </View>
+  );
+};
+
 export const ProductInfo = ({ product, onViewFarm }: ProductInfoProps) => {
   return (
     <View>
@@ -218,16 +281,24 @@ export const ProductInfo = ({ product, onViewFarm }: ProductInfoProps) => {
         </Text>
       </View>
 
-      {/* Price */}
-      <View className="mb-4">
-        <Text className="text-3xl font-bold text-gray-900 dark:text-white">
-          {formatPricePerUnit(product.pricePerUnit, product.unit)}
-        </Text>
-        <Text className="text-gray-600 dark:text-gray-400">
-          {product.availableQuantity} {product.unit}s available
-          {product.minimumOrder > 1 && ` • Min order: ${product.minimumOrder}`}
-        </Text>
-      </View>
+      {/* Price — AI dynamic price when available, otherwise the base price */}
+      {product.dynamicPrice !== null && product.dynamicPrice !== undefined ? (
+        <DynamicPriceBlock product={product} />
+      ) : (
+        <View className="mb-4">
+          <Text className="text-3xl font-bold text-gray-900 dark:text-white">
+            {formatPricePerUnit(product.pricePerUnit, product.unit)}
+          </Text>
+          <Text className="text-gray-600 dark:text-gray-400">
+            {product.availableQuantity} {product.unit}s available
+            {product.minimumOrder > 1 &&
+              ` • Min order: ${product.minimumOrder}`}
+          </Text>
+        </View>
+      )}
+
+      {/* Freshness label (AI) */}
+      <FreshnessLabel score={product.freshnessScore} />
 
       {/* Product tags */}
       <View className="mb-4">

@@ -24,6 +24,15 @@ jest.mock('@/api/products', () => ({
   getProductAvailabilityStatus: () => 'available' as const,
   isProductInSeason: () => true,
   isProductFresh: () => true,
+  getFreshnessLabel: (score?: number | null) =>
+    score === null || score === undefined
+      ? null
+      : {
+          tag: 'fresh' as const,
+          label: 'Tươi',
+          color: 'green' as const,
+          display: `Tươi · ${Math.round(score * 100)}%`,
+        },
 }));
 
 jest.mock('@/api/farms', () => ({
@@ -148,6 +157,34 @@ describe('Product Detail Components', () => {
 
       fireEvent.press(screen.getByText('View Farm →'));
       expect(mockOnViewFarm).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows AI dynamic price, struck base price and flash_discount tag', () => {
+      const aiProduct = createMockProduct({
+        dynamicPrice: 3.5,
+        priceTag: 'flash_discount',
+      });
+
+      render(<ProductInfo product={aiProduct} onViewFarm={mockOnViewFarm} />);
+
+      expect(screen.getByText('$3.50 per kg')).toBeTruthy();
+      expect(screen.getByText('$4.99 per kg')).toBeTruthy();
+      expect(screen.getByText('Giảm giá chớp nhoáng')).toBeTruthy();
+    });
+
+    it('shows the freshness label when freshnessScore is present', () => {
+      const aiProduct = createMockProduct({ freshnessScore: 0.82 });
+
+      render(<ProductInfo product={aiProduct} onViewFarm={mockOnViewFarm} />);
+
+      expect(screen.getByText('Tươi · 82%')).toBeTruthy();
+    });
+
+    it('renders no AI price or freshness label in shadow mode (fields absent)', () => {
+      render(<ProductInfo product={mockProduct} onViewFarm={mockOnViewFarm} />);
+
+      expect(screen.queryByText('Giảm giá chớp nhoáng')).toBeNull();
+      expect(screen.queryByText(/·\s*\d+%/)).toBeNull();
     });
   });
 

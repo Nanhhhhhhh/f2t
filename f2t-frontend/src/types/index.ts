@@ -285,6 +285,11 @@ export type Product = {
   certifications?: ProductCertification[];
   averageRating?: number;
   reviewCount?: number;
+  // AI/ML fields injected by the backend DynamicPricingInterceptor on /products
+  // responses when PRICING_MODE=advisory. Absent in the default shadow mode.
+  dynamicPrice?: number | null;
+  freshnessScore?: number | null;
+  priceTag?: 'flash_discount' | 'standard';
   createdAt: string;
   updatedAt: string;
 };
@@ -326,11 +331,11 @@ export type Order = {
   consumerId?: string; // legacy alias
   farmId: string;
   customerName?: string; // enriched by admin $lookup
-  farmName?: string;    // enriched by admin $lookup
+  farmName?: string; // enriched by admin $lookup
   items: OrderItem[];
   status: OrderStatus;
   totalAmount: number;
-  total?: number;       // alias used by some endpoints
+  total?: number; // alias used by some endpoints
   subtotalAmount: number;
   deliveryFee: number;
   deliveryMethod: DeliveryMethod;

@@ -107,6 +107,38 @@ export const isProductInSeason = (product: {
   }
 };
 
+// AI freshness label derived from the freshnessScore that DynamicPricingInterceptor
+// injects into product responses. Thresholds mirror the backend computeFreshnessTag:
+// score >= 0.8 → fresh, >= 0.4 → aging, otherwise critical.
+export type FreshnessLabel = {
+  tag: 'fresh' | 'aging' | 'critical';
+  label: string;
+  color: 'green' | 'yellow' | 'red';
+  display: string;
+};
+
+export const getFreshnessLabel = (
+  score?: number | null
+): FreshnessLabel | null => {
+  if (score === null || score === undefined) return null;
+
+  const config =
+    score >= 0.8
+      ? { tag: 'fresh' as const, label: 'Tươi', color: 'green' as const }
+      : score >= 0.4
+        ? { tag: 'aging' as const, label: 'Hơi cũ', color: 'yellow' as const }
+        : {
+            tag: 'critical' as const,
+            label: 'Sắp hỏng',
+            color: 'red' as const,
+          };
+
+  return {
+    ...config,
+    display: `${config.label} · ${Math.round(score * 100)}%`,
+  };
+};
+
 export const isProductFresh = (harvestDate?: string): boolean => {
   if (!harvestDate) return false;
 

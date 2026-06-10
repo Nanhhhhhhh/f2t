@@ -4,6 +4,7 @@ import {
   formatPricePerUnit,
   formatUnit,
   getCategoryLabel,
+  getFreshnessLabel,
   getProductAvailabilityStatus,
   isProductExpired,
   isProductFresh,
@@ -276,6 +277,44 @@ describe('Product Utility Functions', () => {
     it('sorts in descending order', () => {
       const result = sortProducts(mockSortProducts, 'price', 'desc');
       expect(result.map((p) => p.price)).toEqual([4.99, 2.99, 1.99]);
+    });
+  });
+
+  describe('getFreshnessLabel', () => {
+    it('returns null when score is null or undefined', () => {
+      expect(getFreshnessLabel(null)).toBeNull();
+      expect(getFreshnessLabel(undefined)).toBeNull();
+    });
+
+    it('maps score >= 0.8 to the fresh tag', () => {
+      const result = getFreshnessLabel(0.82);
+      expect(result).toEqual({
+        tag: 'fresh',
+        label: 'Tươi',
+        color: 'green',
+        display: 'Tươi · 82%',
+      });
+    });
+
+    it('maps score in [0.4, 0.8) to the aging tag', () => {
+      const result = getFreshnessLabel(0.5);
+      expect(result?.tag).toBe('aging');
+      expect(result?.label).toBe('Hơi cũ');
+      expect(result?.color).toBe('yellow');
+      expect(result?.display).toBe('Hơi cũ · 50%');
+    });
+
+    it('maps score < 0.4 to the critical tag', () => {
+      const result = getFreshnessLabel(0.2);
+      expect(result?.tag).toBe('critical');
+      expect(result?.label).toBe('Sắp hỏng');
+      expect(result?.color).toBe('red');
+      expect(result?.display).toBe('Sắp hỏng · 20%');
+    });
+
+    it('uses 0.8 and 0.4 as inclusive lower bounds', () => {
+      expect(getFreshnessLabel(0.8)?.tag).toBe('fresh');
+      expect(getFreshnessLabel(0.4)?.tag).toBe('aging');
     });
   });
 });
