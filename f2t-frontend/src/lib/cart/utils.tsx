@@ -1,4 +1,13 @@
+import type { Product } from '@/types';
+
 import type { CartItem } from './index';
+
+// Effective unit price charged: AI advisory price (dynamicPrice, set when a farm
+// has an accepted DDQN override) takes precedence over the base pricePerUnit.
+// Mirrors the backend OrdersService snapshot logic so the cart total matches the
+// amount the order will actually be charged.
+export const getEffectiveUnitPrice = (product: Product): number =>
+  product.dynamicPrice ?? product.pricePerUnit;
 
 // Format cart item for display
 export const formatCartItem = (item: CartItem) => {
@@ -7,8 +16,8 @@ export const formatCartItem = (item: CartItem) => {
     name: item.product.name,
     quantity: item.quantity,
     unit: item.product.unit,
-    pricePerUnit: item.product.pricePerUnit,
-    totalPrice: item.product.pricePerUnit * item.quantity,
+    pricePerUnit: getEffectiveUnitPrice(item.product),
+    totalPrice: getEffectiveUnitPrice(item.product) * item.quantity,
     farmName: item.product.farmId, // This would be resolved from farm data
     addedAt: new Date(item.addedAt).toLocaleDateString(),
     notes: item.notes,
@@ -18,7 +27,7 @@ export const formatCartItem = (item: CartItem) => {
 // Calculate cart totals
 export const calculateCartTotals = (items: CartItem[]) => {
   const subtotal = items.reduce((total, item) => {
-    return total + item.product.pricePerUnit * item.quantity;
+    return total + getEffectiveUnitPrice(item.product) * item.quantity;
   }, 0);
 
   // Calculate delivery fees (simplified - would be more complex in real app)
@@ -58,7 +67,7 @@ export const groupCartItemsByFarm = (items: CartItem[]) => {
     farmId,
     items: farmItems,
     subtotal: farmItems.reduce((total, item) => {
-      return total + item.product.pricePerUnit * item.quantity;
+      return total + getEffectiveUnitPrice(item.product) * item.quantity;
     }, 0),
     itemCount: farmItems.reduce((count, item) => count + item.quantity, 0),
   }));
@@ -120,7 +129,6 @@ export const validateCartForCheckout = (items: CartItem[]) => {
 // Generate cart summary text
 export const generateCartSummary = (items: CartItem[]) => {
   const totals = calculateCartTotals(items);
-  
 
   if (items.length === 0) {
     return 'Your cart is empty';
@@ -205,12 +213,11 @@ export const sortCartItems = (items: CartItem[]): CartItem[] => {
 // Get cart statistics
 export const getCartStatistics = (items: CartItem[]) => {
   const totals = calculateCartTotals(items);
-  
 
   const organicItems = items.filter((item) => item.product.isOrganic).length;
   const seasonalItems = items.filter((item) => {
     // Simplified seasonal check
-    
+
     return (
       item.product.seasonalAvailability?.includes('year_round') ||
       item.product.seasonalAvailability?.includes('summer')
@@ -225,12 +232,16 @@ export const getCartStatistics = (items: CartItem[]) => {
       totals.itemCount > 0 ? totals.subtotal / totals.itemCount : 0,
     mostExpensiveItem: items.reduce(
       (max, item) =>
-        item.product.pricePerUnit > max.product.pricePerUnit ? item : max,
+        getEffectiveUnitPrice(item.product) > getEffectiveUnitPrice(max.product)
+          ? item
+          : max,
       items[0] || null
     ),
     cheapestItem: items.reduce(
       (min, item) =>
-        item.product.pricePerUnit < min.product.pricePerUnit ? item : min,
+        getEffectiveUnitPrice(item.product) < getEffectiveUnitPrice(min.product)
+          ? item
+          : min,
       items[0] || null
     ),
   };

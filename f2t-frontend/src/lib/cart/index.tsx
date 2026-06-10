@@ -4,6 +4,8 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { Product } from '@/types';
 
+import { getEffectiveUnitPrice } from './utils';
+
 // MMKV storage instance for cart persistence
 const storage = new MMKV();
 
@@ -66,7 +68,7 @@ interface CartState {
 // Helper functions
 const calculateTotalPrice = (items: CartItem[]): number => {
   return items.reduce((total, item) => {
-    return total + item.product.pricePerUnit * item.quantity;
+    return total + getEffectiveUnitPrice(item.product) * item.quantity;
   }, 0);
 };
 
@@ -347,8 +349,7 @@ export const useCart = create<CartState>()(
               ...updateComputedValues({ ...state, items }),
             }));
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       },
 
       // Clear storage

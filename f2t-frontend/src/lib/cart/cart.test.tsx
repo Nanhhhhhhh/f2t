@@ -104,6 +104,18 @@ describe('Cart Store', () => {
       expect(result.current.totalPrice).toBe(9.98);
     });
 
+    it('should use AI dynamicPrice for totals when present', () => {
+      const { result } = renderHook(() => useCart());
+      const product = createMockProduct({ dynamicPrice: 3.0 });
+
+      act(() => {
+        result.current.addItem(product, 2);
+      });
+
+      // 3.0 (AI) * 2, not 4.99 (base) * 2
+      expect(result.current.totalPrice).toBe(6.0);
+    });
+
     it('should update quantity when adding existing product', () => {
       const { result } = renderHook(() => useCart());
       const product = createMockProduct();

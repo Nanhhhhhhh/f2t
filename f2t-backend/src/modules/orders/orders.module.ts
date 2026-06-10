@@ -7,6 +7,7 @@ import { ProductsModule } from '../products/products.module';
 import { FarmsModule } from '../farms/farms.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { DeliveryModule } from '../delivery/delivery.module';
+import { DynamicPricingModule } from '../dynamic-pricing/dynamic-pricing.module';
 import { forwardRef } from '@nestjs/common';
 
 @Module({
@@ -16,6 +17,7 @@ import { forwardRef } from '@nestjs/common';
     FarmsModule,
     forwardRef(() => NotificationsModule),
     forwardRef(() => DeliveryModule),
+    DynamicPricingModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

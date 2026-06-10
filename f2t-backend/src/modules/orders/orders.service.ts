@@ -14,6 +14,7 @@ import { CreateOrderDto, GetOrdersFilterDto } from './dto/order.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/enums/notification-type.enum';
 import { DeliveryService } from '../delivery/delivery.service';
+import { DynamicPricingService } from '../dynamic-pricing/dynamic-pricing.service';
 import { Inject, forwardRef } from '@nestjs/common';
 
 const extractId = (
@@ -49,6 +50,7 @@ export class OrdersService {
     private notificationsService: NotificationsService,
     @Inject(forwardRef(() => DeliveryService))
     private deliveryService: DeliveryService,
+    private dynamicPricingService: DynamicPricingService,
   ) {}
 
   async create(
@@ -106,6 +108,14 @@ export class OrdersService {
     let subtotal = 0;
     let totalItems = 0;
 
+    // AI advisory pricing: when a farm has accepted a DDQN price suggestion, the
+    // accepted override (targetPrice) becomes the authoritative price charged for
+    // the order. Products without an accepted override keep their base price.
+    const acceptedOverrides =
+      await this.dynamicPricingService.getAcceptedOverridesForProducts(
+        items.map((item) => item.productId),
+      );
+
     for (const item of items) {
       const product = await this.productsService.findOne(item.productId);
 
@@ -119,7 +129,11 @@ export class OrdersService {
         throw new BadRequestException(`Insufficient stock for ${product.name}`);
       }
 
-      const totalPrice = product.pricePerUnit * item.quantity;
+      const override = acceptedOverrides.get(
+        (product._id as Types.ObjectId).toHexString(),
+      );
+      const unitPrice = override?.targetPrice ?? product.pricePerUnit;
+      const totalPrice = unitPrice * item.quantity;
       subtotal += totalPrice;
       totalItems += item.quantity;
 
@@ -129,7 +143,7 @@ export class OrdersService {
         productName: product.name,
         productImage: product.images[0],
         quantity: item.quantity,
-        pricePerUnit: product.pricePerUnit,
+        pricePerUnit: unitPrice,
         unit: product.unit,
         totalPrice,
         farmId: farm._id,
