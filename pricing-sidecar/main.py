@@ -135,7 +135,14 @@ def _build_obs(
 
 
 def _run_forecaster(obs: np.ndarray, category: str) -> tuple[float, float]:
-    """Tile current obs 21x → run ForecasterLSTM → (demand7d, p_waste)."""
+    """Tile current obs 21x → run ForecasterLSTM → (d_hat, p_waste).
+
+    Returns the raw forecaster outputs, byte-identical to the training-time
+    encoder (src/rl/forecaster_encoder.py): d_hat = out["demand"] (unclamped),
+    p_waste = sigmoid(waste_logit). Do NOT clamp d_hat here — the DDQN obs must
+    reproduce the exact values rl_shared_forecaster_best.pt was trained on. The
+    /forecast endpoint clamps for display; /predict feeds these straight in.
+    """
     global forecaster_net, forecaster_obs_dim
     if forecaster_net is None:
         return 0.0, 0.0
@@ -146,7 +153,7 @@ def _run_forecaster(obs: np.ndarray, category: str) -> tuple[float, float]:
         cidx = torch.tensor([CAT_TO_IDX[category]], dtype=torch.long)
         with torch.no_grad():
             out = forecaster_net(feat, cidx)
-        d_hat   = float(max(0.0, out["demand"].item()))
+        d_hat   = float(out["demand"].item())
         p_waste = float(torch.sigmoid(out["waste_logit"]).item())
         return d_hat, p_waste
     except Exception as e:
@@ -279,8 +286,10 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
         sv.competitor_ref_price, sv.days_to_restock, sv.prev_delta,
         sv.demand_7d, sv.category,
     )
-    demand7d, p_waste = _run_forecaster(obs, sv.category)
-    return ForecastResponse(productId=sv.productId, demand7d=demand7d, pWaste=p_waste)
+    d_hat, p_waste = _run_forecaster(obs, sv.category)
+    # Clamp for the public-facing demand figure only; the raw d_hat still feeds
+    # /predict unchanged so the DDQN obs matches training.
+    return ForecastResponse(productId=sv.productId, demand7d=max(0.0, d_hat), pWaste=p_waste)
 
 
 @app.post("/predict", response_model=PredictResponse)
