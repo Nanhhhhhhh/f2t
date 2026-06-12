@@ -60,7 +60,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────────
-DDQN_CKPT       = os.path.join(_DP_ROOT, "checkpoints", "rl_shared_best.pt")
+DDQN_CKPT       = os.path.join(_DP_ROOT, "checkpoints", "rl_shared_forecaster_best.pt")
 FORECASTER_CKPT = os.path.join(_DP_ROOT, "checkpoints", "forecaster_v4_best.pt")
 FRESHNESS_DIR   = os.environ.get(
     "FRESHNESS_DIR",
@@ -73,6 +73,15 @@ OBS_DIM     = 10
 N_ACTIONS   = 11
 N_CATS      = 4
 OBS_WINDOW  = 21
+
+# Forecaster-augmented DDQN: the policy obs is the 10-dim market state plus
+# [d_hat, p_waste] from the frozen ForecasterLSTM (EXTRA_DIM=2), matching how
+# rl_shared_forecaster_best.pt was trained (train.py concatenates fc_feats onto
+# the flat obs). Set USE_FORECASTER_OBS=False to fall back to the 10-dim
+# rl_shared_best.pt checkpoint.
+USE_FORECASTER_OBS = True
+EXTRA_DIM          = 2
+DDQN_OBS_DIM       = OBS_DIM + (EXTRA_DIM if USE_FORECASTER_OBS else 0)
 
 DAILY_DECAY     = {"leafy": 0.850, "root": 0.950, "fruit": 0.880, "herbs": 0.800}
 WASTE_THRESHOLD = 0.50
@@ -153,7 +162,7 @@ async def lifespan(app: FastAPI):
     try:
         ckpt = torch.load(DDQN_CKPT, map_location="cpu", weights_only=False)
         ddqn_net = SharedMLPDuelingQNet(
-            obs_dim=OBS_DIM, n_cats=N_CATS, cat_embed_dim=8, hidden=128, n_actions=N_ACTIONS
+            obs_dim=DDQN_OBS_DIM, n_cats=N_CATS, cat_embed_dim=8, hidden=128, n_actions=N_ACTIONS
         )
         sd = ckpt["online"]
         if any(k.startswith("_orig_mod.") for k in sd):
@@ -253,7 +262,7 @@ class ClassifyResponse(BaseModel):
 def health():
     return {
         "status": "ok",
-        "model": "dynamic-pricing-final (DDQN, obs_dim=10)",
+        "model": f"dynamic-pricing-final (DDQN, obs_dim={DDQN_OBS_DIM})",
         "ddqn_loaded": ddqn_net is not None,
         "forecaster_loaded": forecaster_net is not None,
         "coreml_loaded": list(freshness_models.keys()),
@@ -288,6 +297,11 @@ def predict(req: PredictRequest) -> PredictResponse:
             sv.competitor_ref_price, sv.days_to_restock, sv.prev_delta,
             sv.demand_7d, sv.category,
         )
+        if USE_FORECASTER_OBS:
+            # Append frozen-forecaster features [d_hat, p_waste] → obs_dim 10 → 12,
+            # matching training (train.py: np.concatenate([flat_obs, fc_feats])).
+            d_hat, p_waste = _run_forecaster(obs, sv.category)
+            obs = np.concatenate([obs, np.array([d_hat, p_waste], dtype=np.float32)])
         obs_t   = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
         cat_t   = torch.tensor([CAT_TO_IDX[sv.category]], dtype=torch.long)
         mask_np = compute_mask(sv.freshness, sv.category)

@@ -22,7 +22,7 @@ def test_health_reports_new_model():
         resp = client.get("/health")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["model"] == "dynamic-pricing-final (DDQN, obs_dim=10)"
+        assert data["model"] == "dynamic-pricing-final (DDQN, obs_dim=12)"
         assert data["ddqn_loaded"] is True
         assert data["forecaster_loaded"] is True
 
