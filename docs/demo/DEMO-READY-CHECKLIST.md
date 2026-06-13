@@ -238,7 +238,7 @@ PASS: 3 recommendations returned, all `source == "rule"`, scores > 1.0.
 
 1. As farm owner, navigate to the freshness scan feature.
 2. Submit a scan (camera or manual input).
-3. Confirm a freshness tag (`fresh` / `near_expiry` / `critical`) is returned and displayed.
+3. Confirm a freshness tag (`fresh` / `aging` / `critical`) is returned and displayed.
 
 ### 4f. ML Observatory — live events
 
