@@ -1,10 +1,16 @@
+import asyncio
 import json
+import json as _json
 import logging
 import os
 from typing import Literal
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+import events
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,6 +42,33 @@ def _load() -> None:
 
 app = FastAPI(title="F2T Recommender Sidecar")
 _load()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get("OBS_CORS", "*").split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/_events")
+def events_poll(since: int = 0):
+    return {"events": events.get_since(since), "latest": events.latest_seq()}
+
+
+@app.get("/_events/stream")
+async def events_stream(since: int = 0):
+    async def gen():
+        last = since
+        try:
+            while True:
+                for e in events.get_since(last):
+                    last = e["seq"]
+                    yield f"data: {_json.dumps(e)}\n\n"
+                await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
+            return
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 class RecommendRequest(BaseModel):
@@ -73,6 +106,12 @@ def recommend(req: RecommendRequest) -> RecommendResponse:
     if scores:
         ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)[: req.top_k]
         recs = [Recommendation(category=c, score=round(s, 4), source="rule") for c, s in ranked]
+        events.record("recommend", {
+            "cart_categories": req.cart_categories,
+            "top_k": req.top_k,
+            "recommendations": [r.model_dump() for r in recs],
+            "source": "rule",
+        })
         return RecommendResponse(recommendations=recs)
 
     pop = sorted(
@@ -81,4 +120,10 @@ def recommend(req: RecommendRequest) -> RecommendResponse:
         reverse=True,
     )[: req.top_k]
     recs = [Recommendation(category=c, score=round(s, 4), source="fallback") for c, s in pop]
+    events.record("recommend", {
+        "cart_categories": req.cart_categories,
+        "top_k": req.top_k,
+        "recommendations": [r.model_dump() for r in recs],
+        "source": "fallback",
+    })
     return RecommendResponse(recommendations=recs)
