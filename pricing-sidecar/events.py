@@ -9,7 +9,7 @@ import time
 from collections import deque
 from threading import Lock
 
-_MAX = 200
+_MAX = 200  # keep last ~200 events; memory negligible, covers a demo session of traffic
 _events: "deque[dict]" = deque(maxlen=_MAX)
 _seq = 0
 _lock = Lock()
@@ -26,7 +26,7 @@ def record(kind: str, payload: dict) -> dict:
 
 def get_since(since: int) -> list[dict]:
     with _lock:
-        return [e for e in _events if e["seq"] > since]
+        return [e for e in _events if e["seq"] > since]  # O(n) scan over ≤_MAX events — acceptable at this scale
 
 
 def latest_seq() -> int:
@@ -38,5 +38,5 @@ def _reset(maxlen: int = _MAX) -> None:
     """Test helper: clear buffer and reset the sequence counter."""
     global _events, _seq
     with _lock:
-        _events = deque(maxlen=maxlen)
+        _events = deque(maxlen=maxlen)  # reassigning the name is safe: record()/get_since() look up _events by module name at each call
         _seq = 0

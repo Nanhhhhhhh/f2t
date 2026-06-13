@@ -1,8 +1,14 @@
+import pytest
 import events
 
 
+@pytest.fixture(autouse=True)
+def fresh_buffer():
+    events._reset()
+    yield
+
+
 def test_record_assigns_monotonic_seq():
-    events._reset()  # test helper
     e1 = events.record("predict", {"productId": "a"})
     e2 = events.record("predict", {"productId": "b"})
     assert e1["seq"] == 1
@@ -13,7 +19,6 @@ def test_record_assigns_monotonic_seq():
 
 
 def test_get_since_returns_only_newer():
-    events._reset()
     events.record("predict", {"productId": "a"})
     events.record("predict", {"productId": "b"})
     newer = events.get_since(1)
