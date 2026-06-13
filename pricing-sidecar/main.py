@@ -235,11 +235,14 @@ def events_poll(since: int = 0):
 async def events_stream(since: int = 0):
     async def gen():
         last = since
-        while True:
-            for e in events.get_since(last):
-                last = e["seq"]
-                yield f"data: {_json.dumps(e)}\n\n"
-            await asyncio.sleep(0.5)
+        try:
+            while True:
+                for e in events.get_since(last):
+                    last = e["seq"]
+                    yield f"data: {_json.dumps(e)}\n\n"
+                await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
+            return
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 

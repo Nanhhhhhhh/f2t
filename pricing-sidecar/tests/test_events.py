@@ -1,4 +1,7 @@
 import pytest
+import torch
+from unittest.mock import patch
+from fastapi.testclient import TestClient
 import events
 
 
@@ -33,12 +36,6 @@ def test_ring_buffer_caps_size():
     all_evts = events.get_since(0)
     assert len(all_evts) == 3
     assert [e["i"] for e in all_evts] == [2, 3, 4]
-
-
-import pytest
-import torch
-from unittest.mock import patch
-from fastapi.testclient import TestClient
 
 # Mock torch.load so app init does not require real checkpoints (mirrors test_predict.py).
 patch("torch.load", side_effect=FileNotFoundError("Mocked")).start()
