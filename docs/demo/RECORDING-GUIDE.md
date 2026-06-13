@@ -24,7 +24,9 @@ curl -s -X POST http://localhost:8000/predict \
   -d '{"state_vectors":[{"productId":"demo1","category":"fruit","freshness":0.35,"inventory_ratio":0.9,"base_price":20000,"competitor_ref_price":19000,"demand_7d":10}]}'
 ```
 
-Expected output: `"targetPrice":15000.0, "delta_pct":-25.0, "safety_clipped":true, "freshness_tag":"critical"`.
+Ví dụ (giá trị chính xác phụ thuộc action của DDQN): `"targetPrice":15000.0, "delta_pct":-25.0, "safety_clipped":true, "freshness_tag":"critical"`.
+
+Tiêu chí PASS thực sự xem DEMO-READY-CHECKLIST.md §4 — chỉ cần freshness_tag=critical và targetPrice ≤ 15000.
 
 ---
 
@@ -167,6 +169,8 @@ The single-region approach is simpler and avoids sync issues between two separat
 ### Dashboard to use for Part 2
 
 Use the **Vite dashboard** at `http://localhost:5173` (directory: `ml-observatory/`) as the primary visual — it shows the real-time event log with all fields visible in a table format. The **Streamlit dashboard** at `http://localhost:8501` is also running; you can briefly switch to it if you want to show a chart view, but keep the Vite dashboard as the anchor.
+
+> **Lưu ý:** Streamlit cần click 'Refresh feed' (hoặc tương tác widget) để hiện event mới — nó KHÔNG tự cập nhật như dashboard web (SSE). Khuyến nghị dùng dashboard web cho cảnh live.
 
 ---
 

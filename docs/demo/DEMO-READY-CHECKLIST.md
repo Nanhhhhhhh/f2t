@@ -136,12 +136,12 @@ curl -s http://localhost:8001/health | python3 -m json.tool
 ```json
 {
     "status": "ok",
-    "model_version": "1780904997",
+    "model_version": "<unix-timestamp — thay đổi theo máy>",
     "n_rules": 8
 }
 ```
 
-PASS criteria: `status == "ok"`, `n_rules > 0`.
+PASS criteria: `status == "ok"`, `n_rules > 0` (the exact `model_version` timestamp varies per machine and is not part of the PASS criteria).
 
 ### 2c. Backend API
 
