@@ -39,8 +39,8 @@ def poll(base, seq_key, feed_key):
 
 
 hc1, hc2 = st.columns(2)
-hc1.metric("pricing :8000", health(PRICING).get("status", "down"))
-hc2.metric("reco :8001", health(RECO).get("status", "down"))
+hc1.metric(f"pricing ({PRICING})", health(PRICING).get("status", "down"))
+hc2.metric(f"reco ({RECO})", health(RECO).get("status", "down"))
 
 col1, col2 = st.columns(2)
 
@@ -49,13 +49,16 @@ with col1:
     with st.form("predict"):
         cat = st.selectbox("category", ["fruit", "root", "leafy", "herbs"])
         fr = st.slider("freshness", 0.0, 1.0, 0.9, 0.05)
-        inv = st.number_input("inventory_ratio", value=0.5)
+        inv = st.number_input("inventory_ratio", value=0.5, min_value=0.0, max_value=1.0)
         bp = st.number_input("base_price", value=10000.0)
         cp = st.number_input("competitor_ref_price", value=9500.0)
         if st.form_submit_button("Probe /predict"):
-            requests.post(f"{PRICING}/predict", json={"state_vectors": [{
-                "productId": "probe", "category": cat, "freshness": fr,
-                "inventory_ratio": inv, "base_price": bp, "competitor_ref_price": cp}]}, timeout=5)
+            try:
+                requests.post(f"{PRICING}/predict", json={"state_vectors": [{
+                    "productId": "probe", "category": cat, "freshness": fr,
+                    "inventory_ratio": inv, "base_price": bp, "competitor_ref_price": cp}]}, timeout=5)
+            except Exception:
+                st.warning("Pricing sidecar không phản hồi (:8000)")
     poll(PRICING, "p_seq", "p_feed")
     for e in st.session_state.p_feed:
         if e["kind"] != "predict":
@@ -71,9 +74,12 @@ with col2:
         carts = st.text_input("cart_categories (phẩy)", "leafy,fruit")
         tk = st.number_input("top_k", value=5, step=1)
         if st.form_submit_button("Probe /recommend"):
-            requests.post(f"{RECO}/recommend", json={
-                "cart_categories": [c.strip() for c in carts.split(",") if c.strip()],
-                "top_k": int(tk)}, timeout=5)
+            try:
+                requests.post(f"{RECO}/recommend", json={
+                    "cart_categories": [c.strip() for c in carts.split(",") if c.strip()],
+                    "top_k": int(tk)}, timeout=5)
+            except Exception:
+                st.warning("Recommender sidecar không phản hồi (:8001)")
     poll(RECO, "r_seq", "r_feed")
     for e in st.session_state.r_feed:
         if e["kind"] != "recommend":
