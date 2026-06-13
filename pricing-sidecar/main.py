@@ -11,8 +11,15 @@ from typing import Optional
 import numpy as np
 import torch
 
+import asyncio
+import json as _json
+
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+import events
 
 # ── Pull model definitions from dynamic-pricing-final ─────────────────
 _DP_ROOT = os.environ.get(
@@ -211,6 +218,30 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get("OBS_CORS", "*").split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/_events")
+def events_poll(since: int = 0):
+    return {"events": events.get_since(since), "latest": events.latest_seq()}
+
+
+@app.get("/_events/stream")
+async def events_stream(since: int = 0):
+    async def gen():
+        last = since
+        while True:
+            for e in events.get_since(last):
+                last = e["seq"]
+                yield f"data: {_json.dumps(e)}\n\n"
+            await asyncio.sleep(0.5)
+    return StreamingResponse(gen(), media_type="text/event-stream")
+
 
 # ── Pydantic models ───────────────────────────────────────────────────
 class ProductStateVector(BaseModel):
@@ -289,6 +320,7 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
     d_hat, p_waste = _run_forecaster(obs, sv.category)
     # Clamp for the public-facing demand figure only; the raw d_hat still feeds
     # /predict unchanged so the DDQN obs matches training.
+    events.record("forecast", {"productId": sv.productId, "demand7d": max(0.0, d_hat), "pWaste": p_waste})
     return ForecastResponse(productId=sv.productId, demand7d=max(0.0, d_hat), pWaste=p_waste)
 
 
@@ -326,6 +358,19 @@ def predict(req: PredictRequest) -> PredictResponse:
         tag = "fresh" if sv.freshness >= 0.8 else ("aging" if sv.freshness >= 0.4 else "critical")
         delta_pct = round((final_price / sv.base_price - 1.0) * 100, 2)
 
+        events.record("predict", {
+            "productId": sv.productId,
+            "category": sv.category,
+            "obs": [round(float(x), 4) for x in obs.tolist()],
+            "action_idx": action_idx,
+            "n_actions": len(CANDIDATES),
+            "candidate_delta": round(float(CANDIDATES[action_idx]), 4),
+            "targetPrice": final_price,
+            "delta_pct": delta_pct,
+            "safety_clipped": was_clipped,
+            "freshness_tag": tag,
+            "base_price": sv.base_price,
+        })
         results.append(PriceOverride(
             productId=sv.productId,
             targetPrice=final_price,
@@ -353,4 +398,5 @@ def classify_freshness(req: ClassifyRequest) -> ClassifyResponse:
     score = float(probs.get("fresh", 1.0 - probs.get("rotten", 0.0)))
     confidence = float(probs.get(label, 0.0))
     tag = "fresh" if score >= 0.8 else ("aging" if score >= 0.4 else "critical")
+    events.record("freshness", {"category": req.category, "score": score, "tag": tag, "label": label, "confidence": confidence})
     return ClassifyResponse(score=score, tag=tag, label=label, confidence=confidence)
