@@ -4,6 +4,7 @@ export const RECO = import.meta.env.VITE_RECO_URL || "http://localhost:8001";
 export async function health(base) {
   try {
     const r = await fetch(`${base}/health`);
+    if (!r.ok) return { status: "down" };
     return await r.json();
   } catch {
     return { status: "down" };
@@ -14,6 +15,7 @@ export async function predict(body) {
   const r = await fetch(`${PRICING}/predict`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
+  if (!r.ok) return null;
   return r.json();
 }
 
@@ -21,11 +23,15 @@ export async function recommend(body) {
   const r = await fetch(`${RECO}/recommend`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
+  if (!r.ok) return null;
   return r.json();
 }
 
 export function streamEvents(base, onEvent) {
   const es = new EventSource(`${base}/_events/stream`);
-  es.onmessage = (m) => onEvent(JSON.parse(m.data));
+  es.onmessage = (m) => {
+    try { onEvent(JSON.parse(m.data)); } catch { /* ignore malformed/keep-alive frames */ }
+  };
+  es.onerror = () => { /* EventSource auto-reconnects; swallow noise */ };
   return es;
 }

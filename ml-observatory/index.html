@@ -18,7 +18,7 @@
           <label>category
             <select name="category"><option>fruit</option><option>root</option><option>leafy</option><option>herbs</option></select></label>
           <label>freshness <input name="freshness" type="number" step="0.05" value="0.9" min="0" max="1"></label>
-          <label>inventory_ratio <input name="inventory_ratio" type="number" step="0.1" value="0.5"></label>
+          <label>inventory_ratio <input name="inventory_ratio" type="number" step="0.1" min="0" max="1" value="0.5"></label>
           <label>base_price <input name="base_price" type="number" value="10000"></label>
           <label>competitor_ref_price <input name="competitor_ref_price" type="number" value="9500"></label>
           <button type="submit">Probe /predict</button>
