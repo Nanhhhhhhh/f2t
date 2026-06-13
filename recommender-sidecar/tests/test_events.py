@@ -1,6 +1,14 @@
 import importlib
 import json
+import pytest
+import events
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture(autouse=True)
+def fresh_buffer():
+    events._reset()
+    yield
 
 
 def _client(monkeypatch, tmp_path):
@@ -35,3 +43,11 @@ def test_events_poll_endpoint(monkeypatch, tmp_path):
     _, c = _client(monkeypatch, tmp_path)
     r = c.get("/_events?since=0")
     assert r.status_code == 200 and "events" in r.json()
+
+
+def test_recommend_fallback_emits_event(monkeypatch, tmp_path):
+    main, c = _client(monkeypatch, tmp_path)
+    c.post("/recommend", json={"cart_categories": ["mushrooms"], "top_k": 2})
+    evts = [e for e in events.get_since(0) if e["kind"] == "recommend"]
+    assert evts and evts[-1]["source"] == "fallback"
+    assert len(evts[-1]["recommendations"]) > 0

@@ -1,6 +1,5 @@
 import asyncio
 import json
-import json as _json
 import logging
 import os
 from typing import Literal
@@ -64,7 +63,7 @@ async def events_stream(since: int = 0):
             while True:
                 for e in events.get_since(last):
                     last = e["seq"]
-                    yield f"data: {_json.dumps(e)}\n\n"
+                    yield f"data: {json.dumps(e)}\n\n"
                 await asyncio.sleep(0.5)
         except asyncio.CancelledError:
             return

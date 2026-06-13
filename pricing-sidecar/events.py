@@ -38,5 +38,5 @@ def _reset(maxlen: int = _MAX) -> None:
     """Test helper: clear buffer and reset the sequence counter."""
     global _events, _seq
     with _lock:
-        _events = deque(maxlen=maxlen)  # reassigning the name is safe: record()/get_since() look up _events by module name at each call
+        _events = deque(maxlen=maxlen)  # safe under _lock: concurrent record()/get_since() block until the new deque is installed
         _seq = 0
