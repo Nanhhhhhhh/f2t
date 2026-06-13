@@ -15,8 +15,8 @@ Pre-recording checklist for the F2T thesis demo video. Complete every step in or
 | `JWT_REFRESH_SECRET` | YES | different random string |
 | `UPLOAD_BASE_URL` | YES | LAN IP, not localhost — e.g. `http://192.168.x.x:3000` (so the physical device loads images) |
 | `GHN_TOKEN` | **UNSET** | leave absent; triggers Dijkstra mock delivery fallback (what the demo uses) |
-| `PRICING_SIDECAR_URL` | optional | defaults to `http://localhost:8000` |
-| `RECOMMENDER_SIDECAR_URL` | optional | defaults to `http://localhost:8001` |
+| `PRICING_SIDECAR_URL` | optional | defaults to `http://localhost:8000` — only set if the pricing sidecar runs on a different host/port |
+| `RECOMMENDER_SIDECAR_URL` | optional | defaults to `http://localhost:8001` — only set if the recommender sidecar runs on a different host/port |
 | `STRIPE_*` | optional | Stripe Checkout + WebView still works without live webhook in demo |
 
 ### Model artifacts (already present — do not re-train)
@@ -25,14 +25,16 @@ Pre-recording checklist for the F2T thesis demo video. Complete every step in or
   - `rl_shared_forecaster_best.pt` — DDQN weights with forecaster, obs_dim 12
   - `forecaster_v4_best.pt` — LSTM forecaster weights
   - `rl_shared_best.pt` — baseline DDQN (not used by sidecar, kept for reference)
-- CoreML models bundled inside `pricing-sidecar/` (fruit + root only)
+- CoreML models: `freshnessmodels/` (fruit + root); the pricing sidecar reads them via `FRESHNESS_DIR`, which defaults to `../freshnessmodels`
 - Recommender artifacts: `recommender-final/model/category_rules.json`, `category_popularity.json`
 
 ---
 
-## 1. Start Order (6 terminals)
+## 1. Start Order (7 terminals)
 
-Open six terminal tabs. Start them in this order; wait for each service to be listening before starting the next.
+Open seven terminal tabs. Start them in this order; wait for each service to be listening before starting the next.
+
+> **Note:** Terminal 1 (seed) is a one-shot command — it exits after completion, so its tab can be reused for the frontend (Terminal 7).
 
 ### Terminal 1 — Seed the database (one-time, before backend starts)
 
@@ -41,7 +43,7 @@ cd /Users/macos/f2t/f2t-backend
 npm run seed
 ```
 
-Wait for "Seeding complete" (or equivalent success log). This populates demo accounts, farms, products, and orders.
+Wait for the process to exit with no `[ERROR]` output (exit code 0); `seed.ts` has no explicit success banner. This populates demo accounts, farms, products, and orders.
 
 ### Terminal 2 — Backend
 
@@ -101,7 +103,7 @@ Open on the physical device or simulator once the Metro bundler is ready.
 
 ## 2. Health Gate
 
-Run all four checks. All must pass before recording.
+Run all five checks. All must pass before recording.
 
 ### 2a. Pricing sidecar
 
@@ -191,13 +193,18 @@ curl -s -X POST http://localhost:8000/predict \
   -d '{"state_vectors":[{"productId":"demo1","category":"fruit","freshness":0.35,"inventory_ratio":0.9,"base_price":20000,"competitor_ref_price":19000,"demand_7d":10}]}'
 ```
 
-**Expected response:**
+**Example output — exact numbers depend on the DDQN action:**
 
 ```json
 {"overrides":[{"productId":"demo1","targetPrice":15000.0,"delta_pct":-25.0,"safety_clipped":true,"freshness_tag":"critical"}]}
 ```
 
-PASS: `safety_clipped == true`, `freshness_tag == "critical"`, `targetPrice < base_price`. This confirms the safety clip fires for a near-spoilage fruit item.
+PASS criteria:
+- `freshness_tag == "critical"` (freshness 0.35 < 0.4)
+- `targetPrice <= 15000` (safety Rule 4 caps fruit at base×0.75 when freshness < 0.4)
+- response is well-formed (`overrides` array with the 5 fields present)
+
+(values may differ by a few % depending on the DDQN action; the assertions above are what matters)
 
 ### 4b. Cross-sell recommendations — /recommend (curl)
 
