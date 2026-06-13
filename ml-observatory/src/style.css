@@ -1,0 +1,20 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; }
+body { margin: 0; background: #0f1115; color: #e6e6e6; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #2a2e37; }
+h1 { font-size: 18px; margin: 0; }
+main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
+.col h2 { font-size: 15px; }
+.muted { color: #7a828f; font-weight: normal; }
+.probe { display: grid; gap: 6px; background: #161a22; padding: 12px; border-radius: 8px; }
+.probe label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.probe input, .probe select { background: #0f1115; color: #e6e6e6; border: 1px solid #2a2e37; border-radius: 4px; padding: 3px 6px; }
+button { background: #2f6df6; color: white; border: 0; border-radius: 6px; padding: 8px; cursor: pointer; }
+.feed { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.card { background: #161a22; border-left: 3px solid #2f6df6; border-radius: 6px; padding: 10px; font-size: 13px; animation: flash .6s; }
+.card.clip { border-left-color: #f6a52f; }
+.card.fallback { border-left-color: #888; }
+.kv { display: flex; flex-wrap: wrap; gap: 4px 12px; color: #b9c0cc; }
+.bar { height: 6px; background: #2f6df6; border-radius: 3px; }
+@keyframes flash { from { background: #24314d; } to { background: #161a22; } }
+#health span { margin-left: 10px; font-size: 12px; }
+.ok { color: #4ad07a; } .down { color: #f0506e; }
