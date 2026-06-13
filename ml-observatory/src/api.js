@@ -12,19 +12,27 @@ export async function health(base) {
 }
 
 export async function predict(body) {
-  const r = await fetch(`${PRICING}/predict`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  if (!r.ok) return null;
-  return r.json();
+  try {
+    const r = await fetch(`${PRICING}/predict`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function recommend(body) {
-  const r = await fetch(`${RECO}/recommend`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  if (!r.ok) return null;
-  return r.json();
+  try {
+    const r = await fetch(`${RECO}/recommend`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
 }
 
 export function streamEvents(base, onEvent) {
