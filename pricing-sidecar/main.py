@@ -361,6 +361,13 @@ def predict(req: PredictRequest) -> PredictResponse:
         tag = "fresh" if sv.freshness >= 0.8 else ("aging" if sv.freshness >= 0.4 else "critical")
         delta_pct = round((final_price / sv.base_price - 1.0) * 100, 2)
 
+        # Real DQN internals for observability. Masked actions are -inf in q
+        # (network.masked_fill(~mask, -inf)) → not JSON-serializable, so emit
+        # them as null and pair with the boolean action_mask.
+        q_raw = q.squeeze().tolist()
+        q_values = [None if (x != x or x == float("-inf") or x == float("inf"))
+                    else round(float(x), 4) for x in q_raw]
+
         events.record("predict", {
             "productId": sv.productId,
             "category": sv.category,
@@ -368,6 +375,10 @@ def predict(req: PredictRequest) -> PredictResponse:
             "action_idx": action_idx,
             "n_actions": len(CANDIDATES),
             "candidate_delta": round(float(CANDIDATES[action_idx]), 4),
+            "candidates": [round(float(c), 4) for c in CANDIDATES.tolist()],
+            "q_values": q_values,
+            "action_mask": [bool(m) for m in mask_np.tolist()],
+            "raw_target": round(float(target_price), 2),
             "targetPrice": final_price,
             "delta_pct": delta_pct,
             "safety_clipped": was_clipped,
