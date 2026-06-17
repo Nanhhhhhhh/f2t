@@ -235,6 +235,9 @@ export class FarmsService {
     if (farm.ownerId.toHexString() !== ownerId) {
       throw new ForbiddenException('You do not own this farm');
     }
+    // Cascade: xoá luôn product của farm để không để lại "orphan" (product trỏ tới
+    // farm đã bị xoá).
+    await this.productModel.deleteMany({ farmId: farm._id }).exec();
     await this.farmModel.findByIdAndDelete(id).exec();
   }
 

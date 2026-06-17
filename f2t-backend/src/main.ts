@@ -34,7 +34,9 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true },
+      // KHÔNG bật enableImplicitConversion: nó ép chuỗi 'false' → boolean true cho mọi
+      // query param boolean (organicOnly/inStock/…) khiến filter chạy sai. Các DTO đã
+      // khai báo @Type(()=>Number) / @Transform rõ ràng để tự ép kiểu đúng.
     }),
   );
 

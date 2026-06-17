@@ -49,7 +49,7 @@ const useDashboardData = () => {
   };
 
   const handleEditProfile = () => {
-    router.push('/farm/edit');
+    router.push('/farm-edit');
   };
 
   const handleManageInventory = () => {

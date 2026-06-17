@@ -92,6 +92,33 @@ export class OrdersService {
 
     const farm = await this.farmsService.findOne(farmId);
 
+    // 1b. Validate the chosen delivery method is actually offered by this farm.
+    // Farm vocab is 'pickup' | 'farm_delivery' | 'both'; checkout sends
+    // 'pickup' | 'delivery' — map them before comparing.
+    const requestedMethod = finalOrderData.deliveryMethod;
+    if (requestedMethod) {
+      const supported = (farm.deliveryMethods ?? []) as string[];
+      const supportsPickup =
+        supported.includes('pickup') || supported.includes('both');
+      const supportsDelivery =
+        supported.includes('farm_delivery') ||
+        supported.includes('delivery') ||
+        supported.includes('both');
+      const wantsPickup = requestedMethod === 'pickup';
+      const wantsDelivery =
+        requestedMethod === 'delivery' || requestedMethod === 'farm_delivery';
+      if (wantsPickup && !supportsPickup) {
+        throw new BadRequestException(
+          `${farm.name} does not offer pickup. Please choose a delivery method this farm supports.`,
+        );
+      }
+      if (wantsDelivery && !supportsDelivery) {
+        throw new BadRequestException(
+          `${farm.name} does not offer delivery. Please choose farm pickup instead.`,
+        );
+      }
+    }
+
     // 2. Fetch and snapshot products
     const orderItems: Array<{
       productId: unknown;

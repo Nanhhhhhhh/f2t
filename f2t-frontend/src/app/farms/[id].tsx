@@ -4,15 +4,9 @@ import React, { useState } from 'react';
 import { Alert, RefreshControl, ScrollView } from 'react-native';
 
 import { formatFarmAddress, useGetFarm } from '@/api/farms';
-import { FarmRouteGuard } from '@/components/auth';
-import {
-  FarmDistance,
-  FarmProfileWrappedEditForm,
-  FarmStatus,
-} from '@/components/farms';
-import { Button, Text, View } from '@/components/ui';
+import { FarmDistance, FarmStatus } from '@/components/farms';
+import { Button, Image, Text, View } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import type { Farm } from '@/types';
 
 export default function FarmProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,7 +15,6 @@ export default function FarmProfileScreen() {
   const currentUserFarm = useAuth.use.farm();
   const isFarmUser = useAuth.use.isFarm();
 
-  const [isEditing, setIsEditing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch farm data
@@ -53,15 +46,6 @@ export default function FarmProfileScreen() {
     } finally {
       setRefreshing(false);
     }
-  };
-
-  const handleEditSuccess = (updatedFarm: Farm) => {
-    setIsEditing(false);
-    refetch(); // Refresh data after successful edit
-  };
-
-  const handleEditCancel = () => {
-    setIsEditing(false);
   };
 
   const handleContactFarm = () => {
@@ -141,18 +125,6 @@ export default function FarmProfileScreen() {
     );
   }
 
-  // Edit mode
-  if (isEditing && isOwner) {
-    return (
-      <FarmRouteGuard>
-        <FarmProfileWrappedEditForm
-          farm={farm}
-          onSuccess={handleEditSuccess}
-          onCancel={handleEditCancel}
-        />
-      </FarmRouteGuard>
-    );
-  }
 
   // Main profile view
   return (
@@ -164,14 +136,15 @@ export default function FarmProfileScreen() {
     >
       {/* Hero Section */}
       <View className="bg-white dark:bg-gray-800">
-        {farm.bannerImageUrl && (
-          <View className="h-48 bg-gray-200 dark:bg-gray-700">
-            {/* Banner image would go here */}
-            <View className="flex-1 items-center justify-center">
-              <Text className="text-gray-500 dark:text-gray-400">
-                Farm Banner
-              </Text>
-            </View>
+        {farm.bannerImageUrl ? (
+          <Image
+            source={{ uri: farm.bannerImageUrl }}
+            className="h-48 w-full bg-gray-200 dark:bg-gray-700"
+            contentFit="cover"
+          />
+        ) : (
+          <View className="h-48 items-center justify-center bg-gray-200 dark:bg-gray-700">
+            <Text className="text-gray-500 dark:text-gray-400">Farm Banner</Text>
           </View>
         )}
 
@@ -186,14 +159,17 @@ export default function FarmProfileScreen() {
               </Text>
             </View>
 
-            {farm.profileImageUrl && (
-              <View className="ml-4 size-20 rounded-full bg-gray-200 dark:bg-gray-700">
-                {/* Profile image would go here */}
-                <View className="flex-1 items-center justify-center">
-                  <Text className="text-xs text-gray-500 dark:text-gray-400">
-                    Logo
-                  </Text>
-                </View>
+            {farm.profileImageUrl ? (
+              <Image
+                source={{ uri: farm.profileImageUrl }}
+                className="ml-4 size-20 rounded-full bg-gray-200 dark:bg-gray-700"
+                contentFit="cover"
+              />
+            ) : (
+              <View className="ml-4 size-20 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                <Text className="text-xs text-gray-500 dark:text-gray-400">
+                  Logo
+                </Text>
               </View>
             )}
           </View>
@@ -206,7 +182,7 @@ export default function FarmProfileScreen() {
               {isOwner && (
                 <Button
                   label="Edit Profile"
-                  onPress={() => setIsEditing(true)}
+                  onPress={() => router.push('/farm-edit')}
                   variant="outline"
                   className="px-4"
                 />

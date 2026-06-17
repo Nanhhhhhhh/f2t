@@ -62,7 +62,14 @@ async function bootstrap() {
     // reviews & price_overrides have no _seeded flag → demo-only collections, wipe all
     cleared += (await reviewModel.deleteMany({})).deletedCount;
     cleared += (await overrideModel.deleteMany({})).deletedCount;
-    log(`cleared ${cleared} previous docs`);
+    // Dọn "orphan": product trỏ tới farm không còn tồn tại (vd farm bị xoá ở lần
+    // seed trước nhưng product người dùng tạo dưới farm đó vẫn còn).
+    const remainingFarmIds = await farmModel.distinct('_id');
+    const orphans = await productModel.deleteMany({
+      farmId: { $nin: remainingFarmIds },
+    });
+    cleared += orphans.deletedCount;
+    log(`cleared ${cleared} previous docs (gồm ${orphans.deletedCount} product orphan)`);
 
     const hashedPassword = await bcrypt.hash(SEED_PASSWORD, 10);
     const hashedAdmin = await bcrypt.hash(ADMIN_PASSWORD, 10);
@@ -92,10 +99,12 @@ async function bootstrap() {
 
     // ── 3. Farm owners ──────────────────────────────────────────────────
     const farmOwnerSpecs = [
-      { email: 'farm1@f2t.vn', firstName: 'Nguyễn Văn', lastName: 'Thắng', phone: '0911000001', lat: 11.9404, lng: 108.4583, street: '12 Trần Hưng Đạo', city: 'Đà Lạt' },
-      { email: 'farm2@f2t.vn', firstName: 'Trần Thị', lastName: 'Mai', phone: '0911000002', lat: 10.5355, lng: 106.4137, street: '45 Hùng Vương', city: 'Long An' },
-      { email: 'farm3@f2t.vn', firstName: 'Lê Quốc', lastName: 'Việt', phone: '0911000003', lat: 11.0089, lng: 106.513, street: '8 Tỉnh Lộ 8', city: 'Củ Chi, Hồ Chí Minh' },
-      { email: 'farm4@f2t.vn', firstName: 'Phạm Thị', lastName: 'Hồng', phone: '0911000004', lat: 11.5753, lng: 108.0686, street: '90 Quốc Lộ 20', city: 'Lâm Đồng' },
+      // Toạ độ rải quanh Hà Nội (gốc 21.0285, 105.8542) theo các mức bán kính của bộ lọc:
+      // farm1 ~4km, farm2 ~9km, farm3 ~22km, farm4 ~45km (4 hướng khác nhau).
+      { email: 'farm1@f2t.vn', firstName: 'Nguyễn Văn', lastName: 'Thắng', phone: '0911000001', lat: 21.0539, lng: 105.8815, street: '12 Lạc Long Quân', city: 'Tây Hồ, Hà Nội' },
+      { email: 'farm2@f2t.vn', firstName: 'Trần Thị', lastName: 'Mai', phone: '0911000002', lat: 20.9713, lng: 105.9155, street: '45 Cổ Bi', city: 'Gia Lâm, Hà Nội' },
+      { email: 'farm3@f2t.vn', firstName: 'Lê Quốc', lastName: 'Việt', phone: '0911000003', lat: 20.8885, lng: 105.7045, street: '8 Quốc Lộ 6', city: 'Chương Mỹ, Hà Nội' },
+      { email: 'farm4@f2t.vn', firstName: 'Phạm Thị', lastName: 'Hồng', phone: '0911000004', lat: 21.3144, lng: 105.547, street: '90 Tỉnh Lộ 87A', city: 'Sơn Tây, Hà Nội' },
     ];
     const farmUsers: any[] = [];
     for (const s of farmOwnerSpecs) {
@@ -147,10 +156,10 @@ async function bootstrap() {
       sunday: { isOpen: false, openTime: '00:00', closeTime: '00:00' },
     };
     const farmSpecs = [
-      { name: 'Nông Trại Xanh Đà Lạt', desc: 'Chuyên rau củ ôn đới canh tác hữu cơ trên cao nguyên Đà Lạt, đạt chuẩn VietGAP.', verification: 'verified' },
-      { name: 'Vườn Trái Cây Phú Mỹ', desc: 'Trái cây nhiệt đới đặc sản miền Tây, thu hoạch và giao trong ngày.', verification: 'verified' },
-      { name: 'Trang Trại Sạch Củ Chi', desc: 'Nông sản & thực phẩm sạch ven đô, từ rau củ tới trứng gà ta thả vườn.', verification: 'verified' },
-      { name: 'Nông Sản Cao Nguyên Lâm Đồng', desc: 'Hợp tác xã mới gia nhập F2T, cung cấp nấm, sữa tươi và rau cao nguyên.', verification: 'pending' },
+      { name: 'Nông Trại Hữu Cơ Tây Hồ', desc: 'Vườn rau hữu cơ ven Hồ Tây, canh tác đạt chuẩn VietGAP, giao trong ngày nội thành.', verification: 'verified' },
+      { name: 'Vườn Rau Sạch Gia Lâm', desc: 'Rau ăn lá và trái cây theo mùa vùng bãi sông Đuống, thu hoạch và giao trong ngày.', verification: 'verified' },
+      { name: 'Trang Trại Sạch Chương Mỹ', desc: 'Nông sản & thực phẩm sạch ngoại thành, từ rau củ tới trứng gà ta thả vườn.', verification: 'verified' },
+      { name: 'Nông Sản Ngoại Thành Sơn Tây', desc: 'Hợp tác xã mới gia nhập F2T, cung cấp nấm, sữa tươi và rau vùng Ba Vì – Sơn Tây.', verification: 'pending' },
     ];
     const farms: any[] = [];
     for (let i = 0; i < farmSpecs.length; i++) {

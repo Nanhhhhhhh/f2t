@@ -287,23 +287,14 @@ export const useCart = create<CartState>()(
       canAddItem: (product: Product, quantity: number) => {
         const state = get();
 
-        // Check if product is available
-        if (product.status !== 'available') {
+        // Check if product is purchasable. 'available' và 'seasonal' đều mua được
+        // (seasonal chỉ là nhãn mùa vụ); chỉ chặn 'sold_out' / 'unavailable'.
+        if (!['available', 'seasonal'].includes(product.status)) {
           return { canAdd: false, reason: 'Product is not available' };
         }
 
-        // Enforce single-farm cart — backend rejects mixed-farm orders
-        const existingFarms = state.farms;
-        if (
-          existingFarms.length > 0 &&
-          !existingFarms.includes(product.farmId)
-        ) {
-          return {
-            canAdd: false,
-            reason:
-              'Giỏ hàng đang có sản phẩm từ farm khác. Vui lòng xóa giỏ hàng trước khi thêm sản phẩm từ farm này.',
-          };
-        }
+        // Giỏ hàng CHO PHÉP nhiều farm. Việc bắt buộc 1 farm/đơn được kiểm tra ở
+        // bước thanh toán (chọn sản phẩm cùng farm), không chặn khi thêm vào giỏ.
 
         // Check stock availability
         if (product.availableQuantity < quantity) {

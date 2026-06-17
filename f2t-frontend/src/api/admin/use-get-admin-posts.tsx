@@ -10,10 +10,10 @@ export const useGetAdminPosts = createInfiniteQuery<
   AxiosError
 >({
   queryKey: ['admin-posts'],
-  fetcher: async ({
-    pageParam = 1,
-    ...params
-  }: AdminPostsQuery & { pageParam?: number }) => {
+  fetcher: async (
+    params: AdminPostsQuery,
+    { pageParam = 1 }: { pageParam?: number },
+  ) => {
     return client({
       url: '/admin/posts',
       method: 'GET',

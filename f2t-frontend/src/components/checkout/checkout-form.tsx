@@ -80,6 +80,8 @@ type CheckoutFormProps = {
   onSubmit: (data: CheckoutFormData) => void;
   isLoading: boolean;
   initialData?: Partial<CheckoutFormData>;
+  // Phương thức giao mà farm thực sự hỗ trợ ('pickup' | 'farm_delivery' | 'both').
+  supportedDeliveryMethods?: string[];
 };
 
 // Checkout form component
@@ -87,6 +89,7 @@ export const CheckoutForm = ({
   onSubmit,
   isLoading,
   initialData,
+  supportedDeliveryMethods,
 }: CheckoutFormProps) => {
   const [deliveryDate, setDeliveryDate] = useState('');
 
@@ -124,6 +127,36 @@ export const CheckoutForm = ({
   });
 
   const watchedDeliveryMethod = watch('deliveryMethod');
+
+  // Chỉ cho chọn phương thức giao mà farm hỗ trợ. Farm vocab: pickup/farm_delivery/both.
+  // Nếu chưa biết (undefined) thì hiện tất cả.
+  const supportsPickup =
+    !supportedDeliveryMethods?.length ||
+    supportedDeliveryMethods.includes('pickup') ||
+    supportedDeliveryMethods.includes('both');
+  const supportsDelivery =
+    !supportedDeliveryMethods?.length ||
+    supportedDeliveryMethods.includes('farm_delivery') ||
+    supportedDeliveryMethods.includes('both');
+  const availableDeliveryOptions = deliveryMethodOptions.filter(
+    (o) =>
+      (o.value === 'pickup' && supportsPickup) ||
+      (o.value === 'delivery' && supportsDelivery)
+  );
+
+  // Nếu lựa chọn hiện tại không được farm hỗ trợ, tự chuyển về option khả dụng đầu tiên.
+  useEffect(() => {
+    if (
+      availableDeliveryOptions.length > 0 &&
+      !availableDeliveryOptions.some((o) => o.value === watchedDeliveryMethod)
+    ) {
+      setValue(
+        'deliveryMethod',
+        availableDeliveryOptions[0].value as 'pickup' | 'delivery'
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supportedDeliveryMethods, watchedDeliveryMethod]);
 
   // Generate delivery date options (next 7 days)
   const getDeliveryDateOptions = () => {
@@ -331,11 +364,17 @@ export const CheckoutForm = ({
                   placeholder="Select delivery method"
                   value={value}
                   onSelect={onChange}
-                  options={deliveryMethodOptions}
+                  options={availableDeliveryOptions}
                   error={errors.deliveryMethod?.message}
                 />
               )}
             />
+
+            {availableDeliveryOptions.length === 1 && (
+              <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                This farm only offers {availableDeliveryOptions[0].label.toLowerCase()}.
+              </Text>
+            )}
 
             {watchedDeliveryMethod === 'delivery' && (
               <>

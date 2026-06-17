@@ -10,10 +10,10 @@ export const useGetAdminOrders = createInfiniteQuery<
   AxiosError
 >({
   queryKey: ['admin-orders'],
-  fetcher: async ({
-    pageParam = 1,
-    ...params
-  }: AdminOrdersQuery & { pageParam?: number }) => {
+  fetcher: async (
+    params: AdminOrdersQuery,
+    { pageParam = 1 }: { pageParam?: number },
+  ) => {
     return client({
       url: '/admin/orders',
       method: 'GET',

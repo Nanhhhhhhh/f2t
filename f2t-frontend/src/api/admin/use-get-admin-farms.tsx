@@ -10,10 +10,10 @@ export const useGetAdminFarms = createInfiniteQuery<
   AxiosError
 >({
   queryKey: ['admin-farms'],
-  fetcher: async ({
-    pageParam = 1,
-    ...params
-  }: AdminFarmsQuery & { pageParam?: number }) => {
+  fetcher: async (
+    params: AdminFarmsQuery,
+    { pageParam = 1 }: { pageParam?: number },
+  ) => {
     return client({
       url: '/admin/farms',
       method: 'GET',

@@ -59,3 +59,6 @@ f2t-frontend/ios/Pods/
 
 # Expo
 expo-env.d.ts
+
+# Redis dump artifact
+dump.rdb

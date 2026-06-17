@@ -7,7 +7,6 @@ import { firstValueFrom } from 'rxjs';
 import { Product, ProductDocument } from '@modules/products/schemas/product.schema';
 import { SidecarRecommendResponse } from './dto/recommend-sidecar.dto';
 
-const FARM_BOOST = 1.5;
 const ACTIVE_STATUS = ['available', 'seasonal'];
 
 @Injectable()
@@ -31,11 +30,6 @@ export class RecommendationsService {
     if (!cartProducts.length) return [];
 
     const cartCategories = [...new Set(cartProducts.map((p) => p.category))];
-    const cartFarmIds = new Set(
-      cartProducts.map((p) =>
-        p.farmId instanceof Types.ObjectId ? p.farmId.toHexString() : (p.farmId as string),
-      ),
-    );
     const cartProductIds = new Set(productIds);
 
     const scoreByCat = new Map<string, number>();
@@ -56,17 +50,12 @@ export class RecommendationsService {
       this.logger.warn(`Recommender sidecar error: ${String(e)}`);
     }
 
-    const orClauses: Record<string, unknown>[] = [];
-    if (recCategories.length) orClauses.push({ category: { $in: recCategories } });
-    orClauses.push({
-      farmId: {
-        $in: cartProducts.map((p) => p.farmId),
-      },
-    });
-
+    // Chỉ gợi ý sản phẩm CÙNG FARM với giỏ — đơn hàng F2T theo 1 farm, nên sản phẩm
+    // farm khác không thể thêm vào cùng giỏ (nút "Thêm" sẽ lỗi). Category mà recommender
+    // gợi ý chỉ dùng để xếp hạng (ưu tiên), không lọc cứng để farm vẫn đủ gợi ý.
     const candidates = await this.productModel
       .find({
-        $or: orClauses,
+        farmId: { $in: cartProducts.map((p) => p.farmId) },
         status: { $in: ACTIVE_STATUS },
         availableQuantity: { $gt: 0 },
         _id: { $nin: ids },
@@ -81,14 +70,16 @@ export class RecommendationsService {
       })
       .map((p) => {
         const ruleScore = scoreByCat.get(p.category) ?? 0.1;
-        const farmStr =
-          p.farmId instanceof Types.ObjectId ? p.farmId.toHexString() : (p.farmId as string);
-        const farmBoost = cartFarmIds.has(farmStr) ? FARM_BOOST : 1.0;
-        return { p, score: ruleScore * farmBoost };
+        return { p, score: ruleScore };
       })
       .sort((a, b) => b.score - a.score || (b.p.availableQuantity - a.p.availableQuantity))
       .slice(0, limit)
-      .map((x) => x.p as unknown as Product);
+      .map((x) => {
+        // .lean() bỏ virtual 'id' của schema → tự thêm để frontend dùng p.id.
+        // Thiếu 'id' thì cart item có productId rỗng → checkout lỗi "productId should not be empty".
+        const p = x.p as Record<string, unknown>;
+        return { ...p, id: String(p._id) } as unknown as Product;
+      });
 
     return ranked;
   }

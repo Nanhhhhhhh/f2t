@@ -1,3 +1,4 @@
+import { keepPreviousData } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { type Router, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -249,6 +250,9 @@ const useFarmData = (
         },
       }),
     },
+    // Giữ danh sách farm cũ khi đổi radius (query key đổi) → tránh isLoading+farms rỗng
+    // làm FarmDiscoveryScreen swap sang <LoadingState/> và remount modal (lấy lại GPS).
+    placeholderData: keepPreviousData,
   });
 
   const farms =

@@ -10,10 +10,10 @@ export const useGetAdminUsers = createInfiniteQuery<
   AxiosError
 >({
   queryKey: ['admin-users'],
-  fetcher: async ({
-    pageParam = 1,
-    ...params
-  }: AdminUsersQuery & { pageParam?: number }) => {
+  fetcher: async (
+    params: AdminUsersQuery,
+    { pageParam = 1 }: { pageParam?: number },
+  ) => {
     return client({
       url: '/admin/users',
       method: 'GET',

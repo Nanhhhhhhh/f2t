@@ -1,8 +1,9 @@
 import * as Location from 'expo-location';
+import { Navigation } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { ActivityIndicator, Alert, Pressable } from 'react-native';
 
-import { Button, Input, Text, View } from '@/components/ui';
+import { Input, Text, View } from '@/components/ui';
 import type { Address, Coordinates, FarmLocation } from '@/types';
 
 export type LocationPickerProps = {
@@ -59,55 +60,51 @@ export const LocationPicker = ({
         }
       }
 
-      // Get current location
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      const coordinates: Coordinates = {
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
-        accuracy: currentLocation.coords.accuracy || undefined,
-        timestamp: new Date().toISOString(),
-      };
-
-      // Reverse geocode to get address
+      // Lấy vị trí — race với timeout 10s để không treo; có fallback __DEV__
+      // (giống hook useLocation) nên nút vẫn dùng được trên simulator khi GPS lỗi.
+      let coordinates: Coordinates;
       try {
-        const reverseGeocode = await Location.reverseGeocodeAsync(coordinates);
-
-        if (reverseGeocode.length > 0) {
-          const addressData = reverseGeocode[0];
-
-          const address: Address = {
-            street:
-              `${addressData.streetNumber || ''} ${addressData.street || ''}`.trim(),
-            city: addressData.city || '',
-            zipCode: addressData.postalCode || '',
-            country: addressData.country || '',
-            formattedAddress: addressData.formattedAddress || undefined,
+        const currentLocation = await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Location request timeout')),
+              10000
+            )
+          ),
+        ]);
+        coordinates = {
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+          accuracy: currentLocation.coords.accuracy || undefined,
+          timestamp: new Date().toISOString(),
+        };
+      } catch (gpsError) {
+        if (__DEV__) {
+          // Fallback Hà Nội cho simulator/dev khi GPS không phản hồi.
+          coordinates = {
+            latitude: 21.0285,
+            longitude: 105.8542,
+            timestamp: new Date().toISOString(),
           };
-
-          const newLocation: FarmLocation = {
-            coordinates,
-            address,
-            farmingArea: location.farmingArea || 1,
-          };
-
-          onLocationChange(newLocation);
         } else {
-          // If reverse geocoding fails, just update coordinates
-          onLocationChange({
-            ...location,
-            coordinates,
-          });
+          Alert.alert(
+            'Location Error',
+            'Unable to get your current location. Please check your GPS settings and try again.',
+            [{ text: 'OK' }]
+          );
+          return;
         }
-      } catch (geocodeError) {
-        // Still update coordinates even if address lookup fails
-        onLocationChange({
-          ...location,
-          coordinates,
-        });
       }
+
+      // Chỉ cập nhật TOẠ ĐỘ — không tự điền/ghi đè địa chỉ. Địa chỉ do người dùng
+      // nhập tay (đã được pre-fill sẵn từ dữ liệu farm khi mở form).
+      onLocationChange({
+        ...location,
+        coordinates,
+      });
     } catch (error) {
       Alert.alert(
         'Location Error',
@@ -156,30 +153,39 @@ export const LocationPicker = ({
     });
   };
 
+  const hasCoords =
+    !!location?.coordinates?.latitude && !!location?.coordinates?.longitude;
+
   return (
-    <View className="space-y-4">
-      {/* Current Location Button */}
-      <View className="mb-4">
-        <Button
-          label={
-            isLoadingLocation ? 'Getting Location...' : 'Use Current Location'
-          }
+    <View className="gap-4">
+      {/* Use current location button */}
+      <View>
+        <Pressable
           onPress={getCurrentLocation}
-          variant="outline"
           disabled={isLoadingLocation}
-        />
+          className="flex-row items-center justify-center gap-2 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3.5 dark:border-primary-800 dark:bg-primary-900/20"
+        >
+          {isLoadingLocation ? (
+            <ActivityIndicator size="small" color="#FF6C00" />
+          ) : (
+            <Navigation size={16} color="#FF6C00" />
+          )}
+          <Text className="text-sm font-semibold text-primary-700 dark:text-primary-300">
+            {isLoadingLocation ? 'Getting location…' : 'Use current location'}
+          </Text>
+        </Pressable>
 
         {!locationPermission?.granted && (
-          <Text className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Location permission required to use this feature
+          <Text className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
+            Location permission required to auto-fill
           </Text>
         )}
       </View>
 
-      {/* Address Fields */}
-      <View className="space-y-4">
-        <Text className="text-base font-medium text-gray-900 dark:text-white">
-          Farm Address
+      {/* Address */}
+      <View className="gap-3">
+        <Text className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          Address
         </Text>
 
         <Input
@@ -189,56 +195,62 @@ export const LocationPicker = ({
           onChangeText={(value) => handleAddressChange('street', value)}
         />
 
-        <View className="flex-row space-x-4">
+        <View className="flex-row gap-3">
           <Input
             label="City"
-            placeholder="Farmville"
+            placeholder="Hà Nội"
             value={location?.address?.city || ''}
             onChangeText={(value) => handleAddressChange('city', value)}
             className="flex-1"
           />
-
-        </View>
-
-        <View className="flex-row space-x-4">
           <Input
             label="ZIP Code"
-            placeholder="12345"
+            placeholder="100000"
             value={location?.address?.zipCode || ''}
             onChangeText={(value) => handleAddressChange('zipCode', value)}
             keyboardType="numeric"
             className="flex-1"
           />
-
-          <Input
-            label="Country"
-            placeholder="USA"
-            value={location?.address?.country || ''}
-            onChangeText={(value) => handleAddressChange('country', value)}
-            className="flex-1"
-          />
         </View>
+
+        <Input
+          label="Country"
+          placeholder="Việt Nam"
+          value={location?.address?.country || ''}
+          onChangeText={(value) => handleAddressChange('country', value)}
+        />
       </View>
 
-      {/* Coordinates */}
-      <View className="space-y-4">
-        <Text className="text-base font-medium text-gray-900 dark:text-white">
-          GPS Coordinates
+      {/* GPS Coordinates */}
+      <View className="gap-3 rounded-2xl bg-gray-50 p-3 dark:bg-gray-800/40">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+            GPS Coordinates
+          </Text>
+          {hasCoords && (
+            <View className="rounded-full bg-green-100 px-2 py-0.5 dark:bg-green-900/20">
+              <Text className="text-[10px] font-semibold text-green-700 dark:text-green-300">
+                ● Set
+              </Text>
+            </View>
+          )}
+        </View>
+        <Text className="text-xs text-gray-400 dark:text-gray-500">
+          Auto-filled from GPS, or enter manually.
         </Text>
 
-        <View className="flex-row space-x-4">
+        <View className="flex-row gap-3">
           <Input
             label="Latitude"
-            placeholder="37.7749"
+            placeholder="21.0285"
             value={location?.coordinates?.latitude?.toString() || ''}
             onChangeText={(value) => handleCoordinatesChange('latitude', value)}
             keyboardType="numeric"
             className="flex-1"
           />
-
           <Input
             label="Longitude"
-            placeholder="-122.4194"
+            placeholder="105.8542"
             value={location?.coordinates?.longitude?.toString() || ''}
             onChangeText={(value) =>
               handleCoordinatesChange('longitude', value)
@@ -250,15 +262,13 @@ export const LocationPicker = ({
       </View>
 
       {/* Farming Area */}
-      <View>
-        <Input
-          label="Farming Area (acres)"
-          placeholder="10.5"
-          value={location.farmingArea?.toString() || ''}
-          onChangeText={handleFarmingAreaChange}
-          keyboardType="numeric"
-        />
-      </View>
+      <Input
+        label="Farming Area (acres)"
+        placeholder="10.5"
+        value={location.farmingArea?.toString() || ''}
+        onChangeText={handleFarmingAreaChange}
+        keyboardType="numeric"
+      />
 
       {/* Error Message */}
       {error && (

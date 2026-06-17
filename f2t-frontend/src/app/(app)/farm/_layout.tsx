@@ -10,7 +10,6 @@ export default function FarmLayout() {
       }}
     >
       <Stack.Screen name="orders" options={{ title: 'Farm Orders' }} />
-      <Stack.Screen name="edit" />
       <Stack.Screen name="analytics" />
       <Stack.Screen name="price-suggestions" />
     </Stack>

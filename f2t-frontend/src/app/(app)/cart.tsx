@@ -1,14 +1,81 @@
 import { useRouter } from 'expo-router';
-import { Clock, Gift, Tag, Truck } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { Alert, Pressable, ScrollView } from 'react-native';
 
+import { useGetFarm } from '@/api/farms';
 import { CartItem } from '@/components/cart';
 import { CrossSell } from '@/components/cart/cross-sell';
 import { Button, Text, View } from '@/components/ui';
 import { useCart, useCartIsEmpty } from '@/lib/cart';
+import type { CartItem as CartItemModel } from '@/lib/cart';
+import { formatPrice } from '@/lib/cart/utils';
 
-type DeliveryOption = 'standard' | 'express' | 'scheduled';
+// Một nhóm sản phẩm theo farm: header tên farm + nút "Thanh toán [farm]",
+// mỗi sản phẩm có checkbox chọn.
+const FarmCartGroup = ({
+  farmId,
+  items,
+  isSelected,
+  onToggle,
+  onCheckoutFarm,
+}: {
+  farmId: string;
+  items: CartItemModel[];
+  isSelected: (id: string) => boolean;
+  onToggle: (id: string) => void;
+  onCheckoutFarm: (items: CartItemModel[]) => void;
+}) => {
+  const { data } = useGetFarm({
+    variables: { id: farmId },
+    enabled: !!farmId,
+  });
+  const farmName = data?.data?.name ?? 'Nông trại';
+
+  return (
+    <View className="mb-4 overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
+      <View className="flex-row items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-800">
+        <Text
+          className="flex-1 text-sm font-bold text-gray-900 dark:text-white"
+          numberOfLines={1}
+        >
+          🏡 {farmName}
+        </Text>
+        <Pressable
+          onPress={() => onCheckoutFarm(items)}
+          className="rounded-lg bg-primary-600 px-3 py-1.5"
+        >
+          <Text className="text-xs font-semibold text-white">Thanh toán</Text>
+        </Pressable>
+      </View>
+
+      {items.map((item) => {
+        const selected = isSelected(item.id);
+        return (
+          <View
+            key={item.id}
+            className="flex-row items-center gap-2 px-2 py-1"
+          >
+            <Pressable onPress={() => onToggle(item.id)} hitSlop={8}>
+              <View
+                className={`size-6 items-center justify-center rounded-md border-2 ${
+                  selected
+                    ? 'border-primary-600 bg-primary-600'
+                    : 'border-gray-300 dark:border-gray-600'
+                }`}
+              >
+                {selected && <Check size={14} color="#fff" />}
+              </View>
+            </Pressable>
+            <View className="flex-1">
+              <CartItem item={item} variant="default" />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
 
 export default function CartScreen() {
   const router = useRouter();
@@ -20,27 +87,63 @@ export default function CartScreen() {
     [cart.items],
   );
 
-  // Promo code state
-  const [promoCode, setPromoCode] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState<{
-    code: string;
-    discount: number;
-  } | null>(null);
-  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  // Chọn sản phẩm để thanh toán (theo dõi item BỊ BỎ chọn → mặc định chọn hết).
+  const [deselected, setDeselected] = useState<Set<string>>(new Set());
+  const isSelected = (id: string) => !deselected.has(id);
+  const toggleItem = (id: string) =>
+    setDeselected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
-  // Delivery options state
-  const [deliveryOption, setDeliveryOption] =
-    useState<DeliveryOption>('standard');
+  // Nhóm sản phẩm theo farm.
+  const farmGroups = useMemo(() => {
+    const map = new Map<string, CartItemModel[]>();
+    for (const it of cart.items) {
+      const arr = map.get(it.farmId) ?? [];
+      arr.push(it);
+      map.set(it.farmId, arr);
+    }
+    return Array.from(map, ([fid, items]) => ({ farmId: fid, items }));
+  }, [cart.items]);
 
-  const handleCheckout = () => {
-    if (cart.farms.length > 1) {
+  const selectedItems = useMemo(
+    () => cart.items.filter((i) => !deselected.has(i.id)),
+    [cart.items, deselected],
+  );
+  const selectedSubtotal = useMemo(
+    () =>
+      selectedItems.reduce(
+        (s, i) =>
+          s + (i.product.dynamicPrice ?? i.product.pricePerUnit) * i.quantity,
+        0,
+      ),
+    [selectedItems],
+  );
+
+  const goCheckout = (its: CartItemModel[]) =>
+    router.push(`/checkout?productIds=${its.map((i) => i.productId).join(',')}`);
+
+  // Thanh toán các sản phẩm ĐÃ CHỌN — chỉ cho phép nếu chúng cùng một nông trại.
+  const handleCheckoutSelected = () => {
+    if (selectedItems.length === 0) {
       Alert.alert(
-        'Không thể thanh toán',
-        'Giỏ hàng chứa sản phẩm từ nhiều farm khác nhau. Vui lòng chỉ giữ lại sản phẩm từ một farm.',
+        'Chưa chọn sản phẩm',
+        'Vui lòng chọn ít nhất một sản phẩm để thanh toán.',
       );
       return;
     }
-    router.push('/checkout');
+    const farms = new Set(selectedItems.map((i) => i.farmId));
+    if (farms.size > 1) {
+      Alert.alert(
+        'Không thể thanh toán',
+        'Các sản phẩm đã chọn thuộc nhiều nông trại khác nhau. Vui lòng chỉ chọn sản phẩm cùng một nông trại, hoặc dùng nút "Thanh toán" của từng nông trại.',
+      );
+      return;
+    }
+    goCheckout(selectedItems);
   };
 
   const handleViewProducts = () => {
@@ -49,77 +152,6 @@ export default function CartScreen() {
 
   const handleViewFarms = () => {
     router.push('/farms');
-  };
-
-  const handleApplyPromo = async () => {
-    if (!promoCode.trim()) {
-      Alert.alert('Error', 'Please enter a promo code');
-      return;
-    }
-
-    setIsApplyingPromo(true);
-
-    // Simulate API call to validate promo code
-    setTimeout(() => {
-      // Mock promo codes
-      const validPromoCodes: Record<string, number> = {
-        FRESH10: 10,
-        FARM20: 20,
-        LOCAL15: 15,
-        ORGANIC25: 25,
-      };
-
-      const discount = validPromoCodes[promoCode.toUpperCase()];
-
-      if (discount) {
-        setAppliedPromo({ code: promoCode.toUpperCase(), discount });
-        Alert.alert('Success', `Promo code applied! ${discount}% off`);
-      } else {
-        Alert.alert('Error', 'Invalid promo code');
-      }
-
-      setIsApplyingPromo(false);
-    }, 500);
-  };
-
-  const handleRemovePromo = () => {
-    setAppliedPromo(null);
-    setPromoCode('');
-  };
-
-  const getDeliveryEstimate = (option: DeliveryOption): string => {
-    switch (option) {
-      case 'express':
-        return 'Today or Tomorrow';
-      case 'scheduled':
-        return 'Choose your date';
-      case 'standard':
-      default:
-        return '2-3 business days';
-    }
-  };
-
-  const getDeliveryFee = (option: DeliveryOption): number => {
-    switch (option) {
-      case 'express':
-        return 15;
-      case 'scheduled':
-        return 10;
-      case 'standard':
-      default:
-        return 5;
-    }
-  };
-
-  const calculateTotal = () => {
-    let total = cart.totalPrice;
-    const deliveryFee = getDeliveryFee(deliveryOption);
-
-    if (appliedPromo) {
-      total = total * (1 - appliedPromo.discount / 100);
-    }
-
-    return total + deliveryFee;
   };
 
   if (isEmpty) {
@@ -161,190 +193,22 @@ export default function CartScreen() {
             </Text>
           </View>
 
-          {/* Cart Items */}
-          <View className="mb-4 space-y-4">
-            {cart.items.map((item) => (
-              <CartItem key={item.id} item={item} variant="default" />
+          {/* Cart Items — nhóm theo nông trại, mỗi nhóm có nút thanh toán riêng */}
+          <View className="mb-4">
+            {farmGroups.map((g) => (
+              <FarmCartGroup
+                key={g.farmId}
+                farmId={g.farmId}
+                items={g.items}
+                isSelected={isSelected}
+                onToggle={toggleItem}
+                onCheckoutFarm={goCheckout}
+              />
             ))}
           </View>
 
           {/* Cross-sell recommendations */}
           <CrossSell productIds={crossSellProductIds} />
-
-          {/* Delivery Options */}
-          <View className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
-            <View className="mb-3 flex-row items-center">
-              <Truck size={20} className="text-gray-700 dark:text-gray-300" />
-              <Text className="ml-2 text-base font-semibold text-gray-900 dark:text-white">
-                Delivery Options
-              </Text>
-            </View>
-
-            {/* Standard Delivery */}
-            <TouchableOpacity
-              onPress={() => setDeliveryOption('standard')}
-              className={`mb-2 rounded-lg border p-3 ${
-                deliveryOption === 'standard'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
-              }`}
-            >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1">
-                  <Text className="font-medium text-gray-900 dark:text-white">
-                    Standard Delivery
-                  </Text>
-                  <View className="mt-1 flex-row items-center">
-                    <Clock
-                      size={14}
-                      className="text-gray-500 dark:text-gray-400"
-                    />
-                    <Text className="ml-1 text-sm text-gray-600 dark:text-gray-400">
-                      {getDeliveryEstimate('standard')}
-                    </Text>
-                  </View>
-                </View>
-                <Text className="font-semibold text-gray-900 dark:text-white">
-                  ${getDeliveryFee('standard').toFixed(2)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Express Delivery */}
-            <TouchableOpacity
-              onPress={() => setDeliveryOption('express')}
-              className={`mb-2 rounded-lg border p-3 ${
-                deliveryOption === 'express'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
-              }`}
-            >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1">
-                  <View className="flex-row items-center">
-                    <Text className="font-medium text-gray-900 dark:text-white">
-                      Express Delivery
-                    </Text>
-                    <View className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 dark:bg-orange-900/20">
-                      <Text className="text-xs font-medium text-orange-800 dark:text-orange-300">
-                        Fast
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="mt-1 flex-row items-center">
-                    <Clock
-                      size={14}
-                      className="text-gray-500 dark:text-gray-400"
-                    />
-                    <Text className="ml-1 text-sm text-gray-600 dark:text-gray-400">
-                      {getDeliveryEstimate('express')}
-                    </Text>
-                  </View>
-                </View>
-                <Text className="font-semibold text-gray-900 dark:text-white">
-                  ${getDeliveryFee('express').toFixed(2)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Scheduled Delivery */}
-            <TouchableOpacity
-              onPress={() => setDeliveryOption('scheduled')}
-              className={`rounded-lg border p-3 ${
-                deliveryOption === 'scheduled'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
-              }`}
-            >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1">
-                  <Text className="font-medium text-gray-900 dark:text-white">
-                    Scheduled Delivery
-                  </Text>
-                  <View className="mt-1 flex-row items-center">
-                    <Clock
-                      size={14}
-                      className="text-gray-500 dark:text-gray-400"
-                    />
-                    <Text className="ml-1 text-sm text-gray-600 dark:text-gray-400">
-                      {getDeliveryEstimate('scheduled')}
-                    </Text>
-                  </View>
-                </View>
-                <Text className="font-semibold text-gray-900 dark:text-white">
-                  ${getDeliveryFee('scheduled').toFixed(2)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Promo Code Section */}
-          <View className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
-            <View className="mb-3 flex-row items-center">
-              <Tag size={20} className="text-gray-700 dark:text-gray-300" />
-              <Text className="ml-2 text-base font-semibold text-gray-900 dark:text-white">
-                Promo Code
-              </Text>
-            </View>
-
-            {appliedPromo ? (
-              <View className="flex-row items-center justify-between rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900/20 dark:bg-green-900/10">
-                <View className="flex-1">
-                  <Text className="font-medium text-green-800 dark:text-green-300">
-                    {appliedPromo.code}
-                  </Text>
-                  <Text className="text-sm text-green-600 dark:text-green-400">
-                    {appliedPromo.discount}% discount applied
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={handleRemovePromo}>
-                  <Text className="font-medium text-red-600 dark:text-red-400">
-                    Remove
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View className="flex-row items-center space-x-2">
-                <View className="flex-1">
-                  <TextInput
-                    value={promoCode}
-                    onChangeText={setPromoCode}
-                    placeholder="Enter promo code"
-                    placeholderTextColor="#9CA3AF"
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                    autoCapitalize="characters"
-                  />
-                </View>
-                <Button
-                  label={isApplyingPromo ? 'Applying...' : 'Apply'}
-                  onPress={handleApplyPromo}
-                  disabled={isApplyingPromo || !promoCode.trim()}
-                  size="sm"
-                  className="px-6"
-                />
-              </View>
-            )}
-
-            {/* Available Promo Codes Hint */}
-            {!appliedPromo && (
-              <View className="mt-3 rounded-lg bg-blue-50 p-3 dark:bg-blue-900/10">
-                <View className="flex-row items-start">
-                  <Gift
-                    size={16}
-                    className="mt-0.5 text-blue-600 dark:text-blue-400"
-                  />
-                  <View className="ml-2 flex-1">
-                    <Text className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                      Try these codes:
-                    </Text>
-                    <Text className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                      FRESH10, FARM20, LOCAL15, ORGANIC25
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
 
           {/* Continue Shopping Button */}
           <Button
@@ -356,52 +220,22 @@ export default function CartScreen() {
         </View>
       </ScrollView>
 
-      {/* Cart Summary - Fixed at bottom */}
+      {/* Tổng đã chọn + thanh toán các sản phẩm đã chọn (phải cùng 1 nông trại) */}
       <View className="border-t border-gray-200 dark:border-gray-700">
         <View className="bg-white p-4 dark:bg-gray-900">
-          {/* Price Breakdown */}
-          <View className="mb-3 space-y-2">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-gray-600 dark:text-gray-400">Subtotal</Text>
-              <Text className="font-medium text-gray-900 dark:text-white">
-                ${cart.totalPrice.toFixed(2)}
-              </Text>
-            </View>
-
-            {appliedPromo && (
-              <View className="flex-row items-center justify-between">
-                <Text className="text-green-600 dark:text-green-400">
-                  Discount ({appliedPromo.discount}%)
-                </Text>
-                <Text className="font-medium text-green-600 dark:text-green-400">
-                  -$
-                  {((cart.totalPrice * appliedPromo.discount) / 100).toFixed(2)}
-                </Text>
-              </View>
-            )}
-
-            <View className="flex-row items-center justify-between">
-              <Text className="text-gray-600 dark:text-gray-400">Delivery</Text>
-              <Text className="font-medium text-gray-900 dark:text-white">
-                ${getDeliveryFee(deliveryOption).toFixed(2)}
-              </Text>
-            </View>
-
-            <View className="border-t border-gray-200 pt-2 dark:border-gray-700">
-              <View className="flex-row items-center justify-between">
-                <Text className="text-lg font-bold text-gray-900 dark:text-white">
-                  Total
-                </Text>
-                <Text className="text-primary text-xl font-bold">
-                  ${calculateTotal().toFixed(2)}
-                </Text>
-              </View>
-            </View>
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-gray-600 dark:text-gray-400">
+              Đã chọn {selectedItems.length} sản phẩm
+            </Text>
+            <Text className="text-primary text-xl font-bold">
+              {formatPrice(selectedSubtotal)}
+            </Text>
           </View>
 
           <Button
-            label="Proceed to Checkout"
-            onPress={handleCheckout}
+            label={`Thanh toán đã chọn${selectedItems.length ? ` (${selectedItems.length})` : ''}`}
+            onPress={handleCheckoutSelected}
+            disabled={selectedItems.length === 0}
             className="w-full"
           />
         </View>

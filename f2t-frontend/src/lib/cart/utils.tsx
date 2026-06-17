@@ -87,8 +87,8 @@ export const validateCartForCheckout = (items: CartItem[]) => {
   items.forEach((item, index) => {
     const { product, quantity } = item;
 
-    // Check if product is still available
-    if (product.status !== 'available') {
+    // 'available' và 'seasonal' đều mua được; chỉ chặn 'sold_out' / 'unavailable'.
+    if (!['available', 'seasonal'].includes(product.status)) {
       errors.push(`${product.name} is no longer available`);
     }
 

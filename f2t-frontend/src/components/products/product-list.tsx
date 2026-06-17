@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, ScrollView } from 'react-native';
+import { ActivityIndicator, FlatList, ScrollView } from 'react-native';
 
 import { Text, View } from '@/components/ui';
 import type { Product } from '@/types';
@@ -21,6 +21,38 @@ type ProductListProps = {
   refreshing?: boolean;
   onEndReached?: () => void;
   onEndReachedThreshold?: number;
+  isFetchingNextPage?: boolean;
+  hasNextPage?: boolean;
+};
+
+// Footer phân trang: spinner khi đang tải trang sau; báo "đã hết" khi không còn.
+const ListFooter = ({
+  isFetchingNextPage,
+  hasNextPage,
+  count,
+}: {
+  isFetchingNextPage?: boolean;
+  hasNextPage?: boolean;
+  count: number;
+}) => {
+  if (isFetchingNextPage) {
+    return (
+      <View className="flex-row items-center justify-center gap-2 py-5">
+        <ActivityIndicator size="small" color="#FF6C00" />
+        <Text className="text-sm text-gray-500 dark:text-gray-400">
+          Đang tải thêm…
+        </Text>
+      </View>
+    );
+  }
+  if (!hasNextPage && count > 0) {
+    return (
+      <Text className="py-5 text-center text-xs text-gray-400 dark:text-gray-500">
+        Đã hiển thị tất cả sản phẩm
+      </Text>
+    );
+  }
+  return null;
 };
 
 // Loading skeleton component
@@ -154,7 +186,9 @@ const VerticalProductList = ({
   onRefresh,
   refreshing = false,
   onEndReached,
-  onEndReachedThreshold = 0.1,
+  onEndReachedThreshold = 0.3,
+  isFetchingNextPage,
+  hasNextPage,
 }: Omit<ProductListProps, 'layout'>) => (
   <FlatList
     data={products}
@@ -176,6 +210,13 @@ const VerticalProductList = ({
     refreshing={refreshing}
     onEndReached={onEndReached}
     onEndReachedThreshold={onEndReachedThreshold}
+    ListFooterComponent={
+      <ListFooter
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        count={products.length}
+      />
+    }
   />
 );
 
@@ -190,14 +231,16 @@ const GridProductList = ({
   onRefresh,
   refreshing = false,
   onEndReached,
-  onEndReachedThreshold = 0.1,
+  onEndReachedThreshold = 0.3,
+  isFetchingNextPage,
+  hasNextPage,
 }: Omit<ProductListProps, 'layout'>) => (
   <FlatList
     data={products}
     keyExtractor={(item) => item.id}
     numColumns={2}
     renderItem={({ item }) => (
-      <View className="flex-1 px-1">
+      <View className="w-1/2 px-1">
         <ProductCard
           product={item}
           variant={variant}
@@ -209,13 +252,19 @@ const GridProductList = ({
         />
       </View>
     )}
-    contentContainerStyle={{ padding: 16 }}
+    contentContainerStyle={{ padding: 12 }}
     showsVerticalScrollIndicator={false}
     onRefresh={onRefresh}
     refreshing={refreshing}
     onEndReached={onEndReached}
     onEndReachedThreshold={onEndReachedThreshold}
-    columnWrapperStyle={{ justifyContent: 'space-between' }}
+    ListFooterComponent={
+      <ListFooter
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        count={products.length}
+      />
+    }
   />
 );
 
@@ -233,7 +282,9 @@ export const ProductList = ({
   onRefresh,
   refreshing = false,
   onEndReached,
-  onEndReachedThreshold = 0.1,
+  onEndReachedThreshold = 0.3,
+  isFetchingNextPage,
+  hasNextPage,
 }: ProductListProps) => {
   // Loading state
   if (loading) {
@@ -262,6 +313,8 @@ export const ProductList = ({
     refreshing,
     onEndReached,
     onEndReachedThreshold,
+    isFetchingNextPage,
+    hasNextPage,
   };
 
   switch (layout) {

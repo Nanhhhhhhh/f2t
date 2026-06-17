@@ -7,13 +7,29 @@ import { ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { LogBox, StyleSheet, View } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { APIProvider } from '@/api';
 import { hydrateAuth, loadSelectedTheme } from '@/lib';
 import { useThemeConfig } from '@/lib/use-theme-config';
+
+// Không hiện BẤT KỲ thông báo lỗi nào trên app — tất cả chỉ in ra console (Metro).
+// (1) LogBox.ignoreAllLogs: ẩn hộp vàng/đỏ từ console.warn/console.error.
+// (2) setGlobalHandler: ẩn cả overlay "Uncaught Error" (lỗi ném không bắt) bằng cách
+//     thay handler mặc định bằng handler chỉ console.error, không gọi handler cũ.
+LogBox.ignoreAllLogs(true);
+if (__DEV__) {
+  const g = global as unknown as {
+    ErrorUtils?: {
+      setGlobalHandler: (h: (e: unknown, isFatal?: boolean) => void) => void;
+    };
+  };
+  g.ErrorUtils?.setGlobalHandler((error, isFatal) => {
+    console.error('[App error]', isFatal ? '(fatal)' : '', error);
+  });
+}
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -43,6 +59,14 @@ export default function RootLayout() {
           <Stack.Screen name="register" options={{ headerShown: false }} />
           <Stack.Screen name="verification" options={{ headerShown: false }} />
           <Stack.Screen name="farms" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="farm-edit"
+            options={{
+              presentation: 'modal',
+              headerShown: true,
+              title: 'Chỉnh sửa trang trại',
+            }}
+          />
         </Stack>
       </View>
     </Providers>

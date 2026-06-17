@@ -99,14 +99,24 @@ export default function ProductsTabScreen() {
       inStock: modalFilters.inStock,
       sortBy: currentSort.sortBy,
       sortOrder: currentSort.sortOrder,
-      limit: 20,
+      limit: 10,
     },
   });
 
-  const products =
-    productsResponse?.pages?.flatMap((page) =>
-      page.success ? page.data?.items || page.data?.products || [] : []
-    ) || [];
+  const products = useMemo(() => {
+    const all =
+      productsResponse?.pages?.flatMap((page) =>
+        page.success ? page.data?.items || page.data?.products || [] : []
+      ) || [];
+    // Khử trùng theo id: các trang infinite query đôi khi chồng lặp sản phẩm
+    // (sort theo tên có thể không ổn định ở ranh giới trang) → tránh duplicate key.
+    const seen = new Set<string>();
+    return all.filter((p) => {
+      if (!p?.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+  }, [productsResponse]);
 
   const totalCount = productsResponse?.pages?.[0]?.success
     ? productsResponse.pages[0].data?.total || 0
@@ -271,7 +281,7 @@ export default function ProductsTabScreen() {
         products={products}
         onProductPress={handleProductPress}
         onAddToCart={handleAddToCart}
-        layout="vertical"
+        layout="grid"
         showFarmInfo={true}
         showAddToCart={!isFarm()}
         loading={isLoading}
@@ -284,7 +294,9 @@ export default function ProductsTabScreen() {
         onRefresh={() => refetch()}
         refreshing={false}
         onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.1}
+        onEndReachedThreshold={0.3}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
       />
 
       {/* ── Filter modal ── */}

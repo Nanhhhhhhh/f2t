@@ -307,7 +307,7 @@ const DefaultProductCard = ({
   return (
     <Pressable
       onPress={onPress}
-      className={`mb-4 flex-1 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${className}`}
+      className={`mb-4 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${className}`}
     >
       {/* Product Image */}
       <View
@@ -333,7 +333,7 @@ const DefaultProductCard = ({
       </View>
 
       {/* Product Info */}
-      <View className="flex-1 p-3">
+      <View className="p-3">
         <View className="min-h-[44px]">
           <Text
             className="mb-1 font-semibold text-gray-900 dark:text-white"
@@ -358,7 +358,7 @@ const DefaultProductCard = ({
         )}
 
         {/* Price */}
-        <View className="mb-2 flex-1">
+        <View className="mb-2">
           <Text
             className={`text-lg font-bold ${dynamicPrice ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'}`}
           >
@@ -392,7 +392,7 @@ const DefaultProductCard = ({
 
         {/* Add to Cart Button */}
         {showAddToCart && onAddToCart && (
-          <View className="mt-auto">
+          <View className="mt-1">
             <Button
               label="Add to Cart"
               onPress={onAddToCart}

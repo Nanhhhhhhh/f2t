@@ -58,10 +58,10 @@ export const useGetProductsInfinite = createInfiniteQuery<
   Error
 >({
   queryKey: ['products-infinite'],
-  fetcher: async ({
-    pageParam = 1,
-    ...variables
-  }: { pageParam?: number } & Omit<Variables, 'page'>) => {
+  fetcher: async (
+    variables: Omit<Variables, 'page'>,
+    { pageParam = 1 }: { pageParam?: number },
+  ) => {
     // Return mock data if enabled
     if (USE_MOCK_DATA) {
       // Simulate network delay

@@ -31,10 +31,11 @@ const productFormSchema = z.object({
     .max(500, 'Description too long'),
   category: z.string().min(1, 'Category is required'),
   subcategory: z.string().optional(),
+  // Giá tính bằng VND (số nguyên), nên dải hợp lý: từ 1đ tới 1 tỷ đồng / đơn vị.
   pricePerUnit: z
     .number()
-    .min(0.01, 'Price must be greater than 0')
-    .max(10000, 'Price too high'),
+    .min(1, 'Giá phải lớn hơn 0')
+    .max(1_000_000_000, 'Giá quá cao (tối đa 1 tỷ đồng)'),
   unit: z.string().min(1, 'Unit is required'),
   status: z
     .enum(['available', 'sold_out', 'unavailable', 'seasonal'])

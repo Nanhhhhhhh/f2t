@@ -48,10 +48,10 @@ export const useGetOrdersInfinite = createInfiniteQuery<
   AxiosError
 >({
   queryKey: ['orders-infinite'],
-  fetcher: async ({
-    pageParam = 1,
-    ...params
-  }: GetOrdersRequest & { pageParam?: number }) => {
+  fetcher: async (
+    params: GetOrdersRequest,
+    { pageParam = 1 }: { pageParam?: number },
+  ) => {
     // Return mock data if enabled
     if (USE_MOCK_DATA) {
       // Simulate network delay

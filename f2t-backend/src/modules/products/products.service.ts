@@ -126,10 +126,12 @@ export class ProductsService {
       filter.isOrganic = true;
     }
 
-    // 6. Stock filter
+    // 6. Stock filter — "còn hàng" = còn số lượng và status mua được.
+    // 'available' VÀ 'seasonal' đều mua được (seasonal chỉ là nhãn mùa vụ);
+    // chỉ loại 'sold_out' / 'unavailable'.
     if (inStock === true) {
       filter.availableQuantity = { $gt: 0 };
-      filter.status = 'available';
+      filter.status = { $in: ['available', 'seasonal'] };
     }
 
     // 7. Season filter
@@ -183,10 +185,26 @@ export class ProductsService {
       }
     }
 
+    // 9b. Loại product "orphan": chỉ giữ product có farm CÒN TỒN TẠI. Khi một farm bị
+    // xoá (vd re-seed) mà product chưa được dọn theo, product đó không được hiển thị.
+    const existingFarmIds = await this.farmModel.distinct('_id');
+    const validFarmClause = { farmId: { $in: existingFarmIds } };
+    if (filter.$and) {
+      filter.$and.push(validFarmClause);
+    } else if (filter.farmId) {
+      filter.$and = [{ farmId: filter.farmId }, validFarmClause];
+      delete filter.farmId;
+    } else {
+      filter.farmId = { $in: existingFarmIds };
+    }
+
     // 10. Sorting
     const sortField = sortBy === 'price' ? 'pricePerUnit' : sortBy;
     const sort: Record<string, 1 | -1> = {
       [sortField]: sortOrder === 'asc' ? 1 : -1,
+      // Tie-breaker theo _id để sort ổn định giữa các trang (sản phẩm seed cùng
+      // createdAt sẽ không bị xáo trộn ở ranh giới trang → tránh trùng/lặp item).
+      _id: 1,
     };
 
     const skip = (page - 1) * limit;

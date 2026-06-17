@@ -200,7 +200,7 @@ export default function ProfileScreen() {
                   )}
                   <Button
                     label="Manage Farm"
-                    onPress={() => router.push('/farm/edit')}
+                    onPress={() => router.push('/farm-edit')}
                     variant="outline"
                     size="sm"
                   />

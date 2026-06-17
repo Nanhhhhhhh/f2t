@@ -1,30 +1,51 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Alert } from 'react-native';
 
+import { useGetFarm } from '@/api/farms';
 import { useCreateOrder } from '@/api/orders';
 import { useCreateCheckout } from '@/api/payments';
 import { ConsumerRouteGuard } from '@/components/auth';
-import { CartSummary } from '@/components/cart';
 import type { CheckoutFormData } from '@/components/checkout';
 import { CheckoutForm } from '@/components/checkout';
 import { Button, Text, View } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import {
-  useCart,
-  useCartIsEmpty,
-  useCartItems,
-  useCartTotal,
-} from '@/lib/cart';
+import { useCart, useCartItems } from '@/lib/cart';
+import { formatPrice } from '@/lib/cart/utils';
 
 // Main checkout screen component
 const CheckoutScreen = () => {
   const router = useRouter();
-  const items = useCartItems();
-  const total = useCartTotal();
-  const isEmpty = useCartIsEmpty();
-  const { clearCart } = useCart();
+  const params = useLocalSearchParams<{ productIds?: string }>();
+  const allItems = useCartItems();
+
+  // Chỉ thanh toán các sản phẩm được chọn (productIds truyền từ giỏ); mặc định cả giỏ.
+  const items = useMemo(() => {
+    if (!params.productIds) return allItems;
+    const ids = new Set(params.productIds.split(','));
+    return allItems.filter((i) => ids.has(i.productId));
+  }, [allItems, params.productIds]);
+
+  const total = useMemo(
+    () =>
+      items.reduce(
+        (sum, i) =>
+          sum + (i.product.dynamicPrice ?? i.product.pricePerUnit) * i.quantity,
+        0
+      ),
+    [items]
+  );
+  const isEmpty = items.length === 0;
+
+  // Đơn hàng F2T theo 1 farm — lấy farm từ item đầu để biết phương thức giao farm hỗ trợ.
+  const farmId = items[0]?.farmId;
+  const { data: farmResponse } = useGetFarm({
+    variables: { id: farmId ?? '' },
+    enabled: !!farmId,
+  });
+  const supportedDeliveryMethods = farmResponse?.data?.deliveryMethods;
+  const { removeItem } = useCart();
   const user = useAuth.use.user();
 
   const createOrderMutation = useCreateOrder();
@@ -106,7 +127,8 @@ const CheckoutScreen = () => {
       const response = await createOrderMutation.mutateAsync(orderRequest);
 
       if (response.success) {
-        clearCart();
+        // Chỉ xoá các sản phẩm vừa thanh toán khỏi giỏ (giữ lại sản phẩm farm khác).
+        items.forEach((i) => removeItem(i.id));
         const orderId = response.data?.order.id;
 
         if (formData.paymentMethod === 'stripe') {
@@ -155,16 +177,20 @@ const CheckoutScreen = () => {
           onSubmit={handleOrderSubmit}
           isLoading={createOrderMutation.isPending}
           initialData={initialData}
+          supportedDeliveryMethods={supportedDeliveryMethods}
         />
       </View>
 
-      {/* Cart Summary Footer */}
+      {/* Tổng tiền của các sản phẩm đang thanh toán (subset) */}
       <View className="border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-        <CartSummary
-          variant="compact"
-          showCheckoutButton={false}
-          showClearButton={false}
-        />
+        <View className="flex-row items-center justify-between">
+          <Text className="text-gray-600 dark:text-gray-400">
+            Tạm tính ({items.length} sản phẩm)
+          </Text>
+          <Text className="text-lg font-bold text-gray-900 dark:text-white">
+            {formatPrice(total)}
+          </Text>
+        </View>
       </View>
     </View>
   );
