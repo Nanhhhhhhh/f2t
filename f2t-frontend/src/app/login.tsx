@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
+import { Alert } from 'react-native';
 
 import { handleLoginSuccess, needsVerification, useLogin } from '@/api';
 import type { LoginFormProps } from '@/components/login-form';
 import { LoginForm } from '@/components/login-form';
 import { FocusAwareStatusBar } from '@/components/ui';
+import axios from 'axios';
 
 export default function Login() {
   const router = useRouter();
@@ -38,7 +40,11 @@ export default function Login() {
         router.replace('/');
       }
     } catch (error) {
-      // Handle error - you might want to show a toast or error message
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        Alert.alert('Login Failed', error.response.data.message);
+      } else {
+        Alert.alert('Login Failed', 'Please check your credentials and try again.');
+      }
     }
   };
   return (

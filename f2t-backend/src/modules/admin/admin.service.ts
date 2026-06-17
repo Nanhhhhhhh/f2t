@@ -8,6 +8,9 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { Post, PostDocument } from '../posts/schemas/post.schema';
 import { PaginationResponseDto } from '../../common/dto/pagination-response.dto';
 import { AdminUsersQueryDto, AdminFarmsQueryDto, AdminOrdersQueryDto, AdminProductsQueryDto } from './dto/admin.dto';
+import { PaymentsService } from '../payments/payments.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type.enum';
 
 export interface AdminAnalyticsDto {
   totalUsers: number;
@@ -28,6 +31,8 @@ export class AdminService {
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
+    private paymentsService: PaymentsService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async findAllUsers(query: AdminUsersQueryDto): Promise<PaginationResponseDto<UserDocument>> {
@@ -64,7 +69,7 @@ export class AdminService {
 
   async banUser(id: string, isBanned: boolean): Promise<{ id: string; isBanned: boolean }> {
     if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid ID format');
-    
+
     // Keep isBanned and status consistent so the banned filter and UI agree.
     const user = await this.userModel.findByIdAndUpdate(
       id,
@@ -73,6 +78,44 @@ export class AdminService {
     ).exec();
 
     if (!user) throw new NotFoundException('User not found');
+
+    if (isBanned && user.role === 'farm') {
+      const farm = await this.farmModel.findOne({ ownerId: new Types.ObjectId(id) });
+      if (farm) {
+        // Hide farm
+        await this.farmModel.findByIdAndUpdate(farm._id, { isActive: false, verificationStatus: 'rejected' });
+
+        // Hide products
+        await this.productModel.updateMany({ farmId: farm._id }, { status: 'unavailable' });
+
+        // Find active orders
+        const activeOrders = await this.orderModel.find({
+          farmId: farm._id,
+          status: { $in: ['pending', 'confirmed', 'preparing', 'picked_up', 'in_transit'] }
+        });
+
+        for (const order of activeOrders) {
+          // Cancel order
+          await this.orderModel.findByIdAndUpdate(order._id, { status: 'cancelled' });
+
+          // Refund if paid via stripe
+          if (order.paymentMethod === 'stripe' && order.paymentStatus === 'paid') {
+            await this.paymentsService.refundOrder((order._id as Types.ObjectId).toHexString());
+          }
+
+          // Notify consumer
+          const consumerIdStr = (order.customerId as Types.ObjectId).toHexString();
+          void this.notificationsService.createAndPush({
+            userId: consumerIdStr,
+            type: NotificationType.OrderCancelled,
+            title: 'Đơn hàng bị huỷ',
+            message: `Đơn hàng #${order.orderNumber} của bạn đã bị huỷ do cửa hàng (farm) vi phạm chính sách.${order.paymentStatus === 'paid' && order.paymentMethod === 'stripe' ? ' Tiền của bạn sẽ được hoàn lại.' : ''}`,
+            referenceId: (order._id as Types.ObjectId).toHexString(),
+            referenceType: 'order',
+          });
+        }
+      }
+    }
 
     return { id: (user._id as Types.ObjectId).toHexString(), isBanned: user.isBanned };
   }
@@ -127,6 +170,43 @@ export class AdminService {
     ).exec();
 
     if (!farm) throw new NotFoundException('Farm not found');
+
+    if (verificationStatus === 'rejected') {
+      // Hide farm
+      await this.farmModel.findByIdAndUpdate(farm._id, { isActive: false });
+
+      // Hide products
+      await this.productModel.updateMany({ farmId: farm._id }, { status: 'unavailable' });
+
+      // Find active orders
+      const activeOrders = await this.orderModel.find({
+        farmId: farm._id,
+        status: { $in: ['pending', 'confirmed', 'preparing', 'picked_up', 'in_transit'] }
+      });
+
+      for (const order of activeOrders) {
+        // Cancel order
+        await this.orderModel.findByIdAndUpdate(order._id, { status: 'cancelled' });
+        
+        // Refund if paid via stripe
+        if (order.paymentMethod === 'stripe' && order.paymentStatus === 'paid') {
+          await this.paymentsService.refundOrder((order._id as Types.ObjectId).toHexString());
+        }
+
+        // Notify consumer
+        const consumerIdStr = (order.customerId as Types.ObjectId).toHexString();
+        void this.notificationsService.createAndPush({
+          userId: consumerIdStr,
+          type: NotificationType.OrderCancelled,
+          title: 'Đơn hàng bị huỷ',
+          message: `Đơn hàng #${order.orderNumber} của bạn đã bị huỷ do cửa hàng (farm) tạm ngừng hoạt động.${order.paymentStatus === 'paid' && order.paymentMethod === 'stripe' ? ' Tiền của bạn sẽ được hoàn lại.' : ''}`,
+          referenceId: (order._id as Types.ObjectId).toHexString(),
+          referenceType: 'order',
+        });
+      }
+    } else if (verificationStatus === 'verified') {
+      await this.farmModel.findByIdAndUpdate(farm._id, { isActive: true });
+    }
 
     return { id: (farm._id as Types.ObjectId).toHexString(), verificationStatus: farm.verificationStatus, reason };
   }

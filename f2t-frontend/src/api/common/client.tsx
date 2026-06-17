@@ -102,6 +102,12 @@ client.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         removeToken();
+        
+        if (axios.isAxiosError(refreshError) && refreshError.response?.data?.message?.includes('banned')) {
+          const { Alert } = require('react-native');
+          Alert.alert('Session Expired', refreshError.response.data.message);
+        }
+
         // Optional: Trigger signOut here
         return Promise.reject(refreshError);
       } finally {

@@ -74,6 +74,18 @@ export class AuthService {
   }
 
   async login(user: UserDocument): Promise<AuthResponse> {
+    if (user.isBanned || user.status === 'suspended') {
+      throw new UnauthorizedException('Your account has been banned. Please contact support.');
+    }
+
+    let farm: Awaited<ReturnType<typeof this.farmsService.findOneByOwner>> | null = null;
+    if (user.role === 'farm') {
+      farm = await this.farmsService.findOneByOwner(String(user._id));
+      if (farm && farm.verificationStatus !== 'verified') {
+        throw new UnauthorizedException('Your farm registration is pending approval or has been rejected.');
+      }
+    }
+
     const payload: JWTPayload = {
       email: user.email,
       sub: String(user._id),
@@ -86,11 +98,6 @@ export class AuthService {
     });
 
     await this.usersService.updateRefreshToken(String(user._id), refreshToken);
-
-    let farm: Awaited<ReturnType<typeof this.farmsService.findOneByOwner>> | null = null;
-    if (user.role === 'farm') {
-      farm = await this.farmsService.findOneByOwner(String(user._id));
-    }
 
     return {
       user,

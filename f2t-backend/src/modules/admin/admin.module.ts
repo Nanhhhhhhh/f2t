@@ -7,6 +7,8 @@ import { Farm, FarmSchema } from '../farms/schemas/farm.schema';
 import { Order, OrderSchema } from '../orders/schemas/order.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
 import { Post, PostSchema } from '../posts/schemas/post.schema';
+import { PaymentsModule } from '../payments/payments.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { Post, PostSchema } from '../posts/schemas/post.schema';
       { name: Product.name, schema: ProductSchema },
       { name: Post.name, schema: PostSchema },
     ]),
+    PaymentsModule,
+    NotificationsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
