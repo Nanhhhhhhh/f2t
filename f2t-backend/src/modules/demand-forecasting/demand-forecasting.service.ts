@@ -28,6 +28,7 @@ export class DemandForecastingService {
     competitorRefPrice: number,
     daysToRestock: number,
     prevDelta: number,
+    availableQuantity = 0,
   ): Promise<ForecastResultDto> {
     const key = CACHE_KEY(productId);
     try {
@@ -52,6 +53,7 @@ export class DemandForecastingService {
             days_to_restock: daysToRestock,
             prev_delta: prevDelta,
             demand_7d: 0.0,
+            available_quantity: availableQuantity,
           },
         },
         { timeout: 8000 },

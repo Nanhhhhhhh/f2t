@@ -93,6 +93,47 @@ DDQN_OBS_DIM       = OBS_DIM + (EXTRA_DIM if USE_FORECASTER_OBS else 0)
 DAILY_DECAY     = {"leafy": 0.850, "root": 0.950, "fruit": 0.880, "herbs": 0.800}
 WASTE_THRESHOLD = 0.50
 BASE_DEMAND     = {"leafy": 7.463, "root": 5.631, "fruit": 2.050, "herbs": 4.575}
+# Per-category restock cycle the policy was trained on (market_env.py:12). At train
+# days_to_next = RESTOCK_EVERY[cat] - (t % RESTOCK_EVERY[cat]) ∈ [1, RESTOCK_EVERY[cat]]
+# (market_env.py:133), so obs[4] = min(days_to_next/30, 1) never exceeds 7/30 = 0.233.
+# Production intervalDays is farmer-set in [1, 30] (farm.schema.ts:32) and would push
+# obs[4] up to 1.0 — out of the training support. Clamp the raw input back into that
+# horizon so the feature stays in-distribution; the /30 normalisation is unchanged.
+RESTOCK_EVERY   = {"leafy": 4, "root": 7, "fruit": 5, "herbs": 3}
+
+# ── Inventory revenue calibration ─────────────────────────────────────
+# At train, inventory is an abstract integer count (market_env.py:32) whose *typical*
+# level per category is small (leafy/herbs ~3, fruit ~12, root ~23 — see
+# calibrate_inventory.py), so the policy only ever saw inventory_ratio = inv/100 ∈
+# [0.03, 0.42]. Production availableQuantity is in the farmer's free unit and is far
+# larger, so raw availableQuantity/100 is both unit-contaminated (kg vs g differ for the
+# same stock) and grossly out-of-distribution. Express inventory by its monetary value
+# (unit-invariant) and rescale into the training inventory scale:
+#   inv_norm = availableQuantity * pricePerUnit * S_CAT[cat]
+# obs[1] and inv_coverage are then built from inv_norm exactly as the env built them from
+# the integer count. obs_dim / feature definition / weights are unchanged — only the value
+# is moved back in-distribution (same idea as the restock clamp). No retrain.
+_CALIB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inventory_calibration.json")
+try:
+    with open(_CALIB_PATH) as _cf:
+        INV_S_CAT: dict = _json.load(_cf)["s_cat"]
+    logger.info(f"Inventory calibration loaded: {INV_S_CAT}")
+except Exception as _e:  # noqa: BLE001 — degrade to legacy count-based inventory
+    INV_S_CAT = {}
+    logging.getLogger(__name__).warning(f"Inventory calibration unavailable ({_e}); using legacy inventory_ratio")
+
+
+def _inventory_norm(category: str, inventory_ratio: float, available_quantity: float, base_price: float) -> float:
+    """Inventory expressed on the training count scale.
+
+    Revenue path (preferred, unit-invariant): availableQuantity * pricePerUnit * S_cat.
+    Falls back to the legacy count `inventory_ratio * 100` (= availableQuantity pre-clamp)
+    when quantity/price/category are unavailable, so old callers keep working.
+    """
+    s = INV_S_CAT.get(category)
+    if s is not None and available_quantity > 0 and base_price > 0:
+        return available_quantity * base_price * s
+    return inventory_ratio * 100.0
 
 # ── Global model holders ─────────────────────────────────────────────
 ddqn_net: Optional[SharedMLPDuelingQNet] = None
@@ -110,6 +151,7 @@ def _build_obs(
     prev_delta: float,
     demand_7d: float,
     category: str,
+    available_quantity: float = 0.0,
 ) -> np.ndarray:
     dow = datetime.now().weekday()
     decay = DAILY_DECAY[category]
@@ -118,8 +160,18 @@ def _build_obs(
     else:
         days_to_waste = math.log(WASTE_THRESHOLD / freshness) / math.log(decay)
 
+    # Keep days_to_restock inside the per-category training support [1, RESTOCK_EVERY[cat]]
+    # before normalising, so obs[4] is in-distribution (see RESTOCK_EVERY note above).
+    restock_horizon = RESTOCK_EVERY.get(category, 7)
+    days_to_restock = float(np.clip(days_to_restock, 1.0, restock_horizon))
+
+    # Revenue-calibrated inventory on the training count scale (unit-invariant); both the
+    # level feature obs[1] and inv_coverage are built from it, exactly as the env built
+    # them from the integer inventory count (market_env.py:148,144). See _inventory_norm.
+    inv_norm = _inventory_norm(category, inventory_ratio, available_quantity, base_price)
+
     demand_ratio = (demand_7d / 7.0) / BASE_DEMAND[category] if demand_7d > 0 else 1.0
-    inv_units = inventory_ratio * 100.0
+    inv_units = inv_norm
     inv_coverage = inv_units / max(demand_7d, 1.0) if demand_7d > 0 else inv_units / max(BASE_DEMAND[category] * 7, 1.0)
     # comp_ratio: env divides by current price (base * (1+prev_delta)), not base_price.
     # market_env.py:134: comp_ratio = self._comp_prices[cat] / max(self._prices[cat], 1e-6)
@@ -129,7 +181,7 @@ def _build_obs(
 
     return np.array([
         float(np.clip(freshness, 0.0, 1.0)),
-        float(min(inventory_ratio, 2.0)),
+        float(min(inv_norm / 100.0, 2.0)),
         math.sin(2 * math.pi * dow / 7),
         math.cos(2 * math.pi * dow / 7),
         float(min(days_to_restock / 30.0, 1.0)),
@@ -257,6 +309,7 @@ class ProductStateVector(BaseModel):
     days_to_restock: float = 3.0
     prev_delta: float = 0.0
     demand_7d: float = 0.0
+    available_quantity: float = 0.0
 
 
 class PriceOverride(BaseModel):
@@ -318,7 +371,7 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
     obs = _build_obs(
         sv.freshness, sv.inventory_ratio, sv.base_price,
         sv.competitor_ref_price, sv.days_to_restock, sv.prev_delta,
-        sv.demand_7d, sv.category,
+        sv.demand_7d, sv.category, sv.available_quantity,
     )
     d_hat, p_waste = _run_forecaster(obs, sv.category)
     # Clamp for the public-facing demand figure only; the raw d_hat still feeds
@@ -339,7 +392,7 @@ def predict(req: PredictRequest) -> PredictResponse:
         obs = _build_obs(
             sv.freshness, sv.inventory_ratio, sv.base_price,
             sv.competitor_ref_price, sv.days_to_restock, sv.prev_delta,
-            sv.demand_7d, sv.category,
+            sv.demand_7d, sv.category, sv.available_quantity,
         )
         if USE_FORECASTER_OBS:
             # Append frozen-forecaster features [d_hat, p_waste] → obs_dim 10 → 12,

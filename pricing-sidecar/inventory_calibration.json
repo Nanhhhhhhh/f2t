@@ -1,0 +1,21 @@
+{
+  "_doc": "inv_norm = availableQuantity * pricePerUnit * s_cat[category]; obs[1] = min(inv_norm/100, 2.0); coverage uses inv_norm. See calibrate_inventory.py.",
+  "train_inv_mean": {
+    "leafy": 2.668956043956044,
+    "root": 22.6521978021978,
+    "fruit": 12.137362637362637,
+    "herbs": 3.924175824175824
+  },
+  "ref_inv_value_vnd": {
+    "leafy": 793000.0,
+    "root": 2768500.0,
+    "fruit": 3020000.0,
+    "herbs": 465000.0
+  },
+  "s_cat": {
+    "leafy": 3.3656444438285545e-06,
+    "root": 8.18211948788073e-06,
+    "fruit": 4.01899425078233e-06,
+    "herbs": 8.439087793926504e-06
+  }
+}

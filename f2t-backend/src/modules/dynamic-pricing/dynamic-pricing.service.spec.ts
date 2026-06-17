@@ -98,7 +98,7 @@ describe("DynamicPricingService", () => {
       farmId: farm._id,
       name: "Tomato",
       description: "Fresh tomato",
-      category: "vegetables",
+      category: "leafy",
       pricePerUnit: 33000,
       unit: "kg",
       availableQuantity: 100,
@@ -128,7 +128,7 @@ describe("DynamicPricingService", () => {
       farmId: farm._id,
       name: "Tomato",
       description: "Fresh tomato",
-      category: "vegetables",
+      category: "leafy",
       pricePerUnit: 33000,
       unit: "kg",
       availableQuantity: 100,
@@ -202,7 +202,7 @@ describe("DynamicPricingService", () => {
       farmId,
       name: "Tomato",
       description: "Fresh tomato",
-      category: "vegetables",
+      category: "leafy",
       pricePerUnit: 33000,
       unit: "kg",
       availableQuantity: 100,
@@ -227,6 +227,45 @@ describe("DynamicPricingService", () => {
 
     const count = await overrideModel.countDocuments();
     expect(count).toBe(1);
+
+    // The /predict state vector must carry raw available_quantity so the sidecar can
+    // build the unit-invariant revenue-calibrated inventory feature.
+    const predictCall = (httpService.post as jest.Mock).mock.calls.find(
+      ([url]: [string]) => url.endsWith("/predict"),
+    );
+    expect(predictCall).toBeDefined();
+    const sentVector = predictCall![1].state_vectors[0];
+    expect(sentVector.available_quantity).toBe(100);
+    expect(sentVector.base_price).toBe(33000);
+  });
+
+  it("getCompetitorRefPrice only averages competitors in the SAME unit", async () => {
+    const farmModel = module.get("FarmModel");
+    const productModel = module.get("ProductModel");
+    await farmModel.init(); // ensure the 2dsphere index is built for $near
+
+    const ownerId = new MongooseTypes.ObjectId();
+    const ownFarm = await farmModel.create({
+      ownerId, name: "Own", description: "d", contactEmail: "o@t.com", contactPhone: "0900000000",
+      address: { street: "1", city: "HCM", state: "HCM", zipCode: "70000", country: "VN" },
+      location: { type: "Point", coordinates: [106.6, 10.7] },
+    });
+    const rivalFarm = await farmModel.create({
+      ownerId: new MongooseTypes.ObjectId(), name: "Rival", description: "d", contactEmail: "r@t.com", contactPhone: "0900000001",
+      address: { street: "2", city: "HCM", state: "HCM", zipCode: "70000", country: "VN" },
+      location: { type: "Point", coordinates: [106.61, 10.71] }, // ~1.5km away
+    });
+
+    const base = { farmId: rivalFarm._id, description: "d", category: "fruit", status: "available" };
+    // Same-unit (kg) competitor @40000, plus a different-unit (box) competitor @250000.
+    await productModel.create({ ...base, name: "Cam", pricePerUnit: 40000, unit: "kg", availableQuantity: 50 });
+    await productModel.create({ ...base, name: "Buoi", pricePerUnit: 250000, unit: "box", availableQuantity: 50 });
+
+    const refPrice = await (service as any).getCompetitorRefPrice(
+      ownFarm._id, "fruit", 65000, "kg",
+    );
+    // Must ignore the 250000/box product → 40000, not (40000+250000)/2 = 145000.
+    expect(refPrice).toBe(40000);
   });
 
   describe('computeDaysToRestock', () => {

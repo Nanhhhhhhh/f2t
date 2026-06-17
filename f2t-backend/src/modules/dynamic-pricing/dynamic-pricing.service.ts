@@ -85,6 +85,7 @@ export class DynamicPricingService {
     farmId: Types.ObjectId | string,
     category: string,
     ownPrice: number,
+    unit: string,
   ): Promise<number> {
     try {
       const farm = await this.farmModel.findById(farmId).select("location").lean();
@@ -106,10 +107,15 @@ export class DynamicPricingService {
 
       if (!nearbyFarms.length) return ownPrice * 0.95;
 
+      // Only compare against competitors selling in the SAME unit — pricePerUnit across
+      // different units (e.g. VND/kg vs VND/box vs VND/g) is not comparable, and mixing
+      // them poisons comp_ratio (obs[7]). At train the competitor price shares the own
+      // product's scale (market_env.py:37); same-unit matching reproduces that.
       const competitorProducts = await this.productModel
         .find({
           farmId: { $in: nearbyFarms.map((f) => f._id) },
           category,
+          unit,
           status: "available",
         })
         .select("pricePerUnit")
@@ -215,14 +221,14 @@ export class DynamicPricingService {
   async generateSuggestionForProduct(productId: string): Promise<PriceOverrideDocument | null> {
     const product = await this.productModel
       .findById(productId)
-      .select("_id farmId name category pricePerUnit availableQuantity status")
+      .select("_id farmId name category pricePerUnit unit availableQuantity status")
       .lean();
     if (!product || product.status === "unavailable") return null;
 
     const cache = await this.freshnessCacheModel.findOne({ productId: product._id });
     const freshness = cache?.medianScore ?? this.computeWeibullFallback(product.category);
 
-    const competitorRefPrice = await this.getCompetitorRefPrice(product.farmId, product.category, product.pricePerUnit);
+    const competitorRefPrice = await this.getCompetitorRefPrice(product.farmId, product.category, product.pricePerUnit, product.unit);
 
     const agentCat = this.mapProductCategoryToAgent(product.category);
     const inventoryRatio = Math.min((product.availableQuantity ?? 0) / 100, 2.0);
@@ -251,6 +257,7 @@ export class DynamicPricingService {
     );
 
     // Demand forecast
+    const availableQuantity = product.availableQuantity;
     const forecast = await this.demandForecastingService.getForecast(
       product._id.toString(),
       agentCat,
@@ -260,6 +267,7 @@ export class DynamicPricingService {
       competitorRefPrice,
       daysToRestock,
       prevDelta,
+      availableQuantity,
     );
 
     const stateVector = {
@@ -272,6 +280,7 @@ export class DynamicPricingService {
       days_to_restock: daysToRestock,
       prev_delta: prevDelta,
       demand_7d: forecast.demand7d,
+      available_quantity: availableQuantity,
     };
 
     const sidecarUrl = this.configService.get<string>("PRICING_SIDECAR_URL", "http://localhost:8000");
@@ -415,7 +424,7 @@ export class DynamicPricingService {
     try {
       const products = await this.productModel
         .find({ status: "available" })
-        .select("_id farmId name category pricePerUnit availableQuantity")
+        .select("_id farmId name category pricePerUnit unit availableQuantity")
         .lean();
 
       if (products.length === 0) return;
@@ -432,12 +441,13 @@ export class DynamicPricingService {
         cacheMap.set(cache.productId.toHexString(), cache);
       }
 
-      // Build competitor price cache — one $geoNear per unique (farmId, category) pair.
+      // Build competitor price cache — one $geoNear per unique (farmId, category, unit)
+      // triple. Unit is part of the key because competitor matching is now unit-aware.
       const competitorPairCache = new Map<string, number>();
       for (const p of products) {
-        const key = `${p.farmId}:${p.category}`;
+        const key = `${p.farmId}:${p.category}:${p.unit}`;
         if (!competitorPairCache.has(key)) {
-          competitorPairCache.set(key, await this.getCompetitorRefPrice(p.farmId, p.category, p.pricePerUnit));
+          competitorPairCache.set(key, await this.getCompetitorRefPrice(p.farmId, p.category, p.pricePerUnit, p.unit));
         }
       }
 
@@ -478,7 +488,7 @@ export class DynamicPricingService {
           const cache = cacheMap.get(p._id.toString());
           const freshness = cache?.medianScore ?? this.computeWeibullFallback(p.category);
           const agentCat = this.mapProductCategoryToAgent(p.category);
-          const compKey = `${p.farmId}:${p.category}`;
+          const compKey = `${p.farmId}:${p.category}:${p.unit}`;
           const competitorRefPrice = competitorPairCache.get(compKey) ?? p.pricePerUnit * 0.95;
           const schedule = farmScheduleMap.get(p.farmId.toString()) ?? [];
           const daysToRestock = this.computeDaysToRestock(
@@ -489,6 +499,7 @@ export class DynamicPricingService {
           const prevDelta = prevDeltaMap.get(p._id.toString()) ?? 0.0;
           const inventoryRatio = Math.min((p.availableQuantity ?? 0) / 100, 2.0);
 
+          const availableQuantity = p.availableQuantity;
           const forecast = await this.demandForecastingService.getForecast(
             p._id.toString(),
             agentCat,
@@ -498,6 +509,7 @@ export class DynamicPricingService {
             competitorRefPrice,
             daysToRestock,
             prevDelta,
+            availableQuantity,
           );
 
           return {
@@ -510,6 +522,7 @@ export class DynamicPricingService {
             days_to_restock: daysToRestock,
             prev_delta: prevDelta,
             demand_7d: forecast.demand7d,
+            available_quantity: availableQuantity,
           };
         }),
       );
