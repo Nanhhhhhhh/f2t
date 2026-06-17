@@ -300,8 +300,8 @@ describe('Cart Store', () => {
 
       expect(totals.subtotal).toBe(19.0); // (5 * 2) + (3 * 3)
       expect(totals.deliveryFee).toBe(10.0); // 2 farms * $5
-      expect(totals.tax).toBe(1.52); // 8% of $19
-      expect(totals.total).toBe(30.52);
+      expect(totals.tax).toBeCloseTo(1.9, 5); // 10% of $19
+      expect(totals.total).toBeCloseTo(30.9, 5);
       expect(totals.itemCount).toBe(5);
       expect(totals.farmCount).toBe(2);
     });

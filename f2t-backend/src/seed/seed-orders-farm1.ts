@@ -88,7 +88,7 @@ async function bootstrap() {
 
       const subtotal = items.reduce((acc, item) => acc + item.totalPrice, 0);
       const deliveryFee = 25000;
-      const tax = Math.round(subtotal * 0.08); // 8% VAT
+      const tax = Math.round(subtotal * 0.1); // 10% VAT — khớp OrdersService
       const total = subtotal + deliveryFee + tax;
       
       // Status cycling

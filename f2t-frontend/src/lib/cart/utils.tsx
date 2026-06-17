@@ -2,6 +2,9 @@ import type { Product } from '@/types';
 
 import type { CartItem } from './index';
 
+// VAT 10% — phải khớp với backend OrdersService (tax = subtotal * TAX_RATE) và seed.
+export const TAX_RATE = 0.1;
+
 // Effective unit price charged: AI advisory price (dynamicPrice, set when a farm
 // has an accepted DDQN override) takes precedence over the base pricePerUnit.
 // Mirrors the backend OrdersService snapshot logic so the cart total matches the
@@ -35,8 +38,7 @@ export const calculateCartTotals = (items: CartItem[]) => {
   const deliveryFee = farms.length * 5; // $5 per farm
 
   // Calculate tax (simplified - would be based on location)
-  const taxRate = 0.08; // 8% tax
-  const tax = subtotal * taxRate;
+  const tax = subtotal * TAX_RATE;
 
   const total = subtotal + deliveryFee + tax;
 

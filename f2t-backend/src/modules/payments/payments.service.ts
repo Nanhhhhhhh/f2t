@@ -100,6 +100,21 @@ export class PaymentsService {
       });
     }
 
+    // Add tax (VAT) as a line item if > 0 — không có dòng này thì Stripe chỉ thu
+    // subtotal + ship, ít hơn order.total đúng phần thuế.
+    if (order.tax > 0) {
+      lineItems.push({
+        price_data: {
+          currency: this.configService.get<string>('STRIPE_CURRENCY') ?? 'vnd',
+          product_data: {
+            name: 'Thuế VAT (10%)',
+          },
+          unit_amount: this.toStripeAmount(order.tax),
+        },
+        quantity: 1,
+      });
+    }
+
     // 3. Create Checkout session
     const session = await this.stripe.checkout.sessions.create({
       mode: 'payment',

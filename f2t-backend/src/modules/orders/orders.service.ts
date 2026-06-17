@@ -187,7 +187,7 @@ export class OrdersService {
     }
 
     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const tax = subtotal * 0.1; // Example 10% tax
+    const tax = subtotal * 0.1; // 10% VAT — khớp frontend TAX_RATE & seed
     const total = subtotal + tax + (finalOrderData.deliveryFee || 0);
 
     const createdOrder = new this.orderModel({

@@ -306,7 +306,7 @@ async function bootstrap() {
       });
       const subtotal = items.reduce((a, it) => a + it.totalPrice, 0);
       const deliveryFee = plan.method === 'pickup' ? 0 : 25000;
-      const tax = round(subtotal * 0.08);
+      const tax = round(subtotal * 0.1); // 10% VAT — khớp OrdersService
       const total = subtotal + deliveryFee + tax;
       const totalItems = items.reduce((a, it) => a + it.quantity, 0);
 
