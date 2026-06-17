@@ -116,21 +116,27 @@ const farmRegistrationSchema = z
     deliveryMethods: z
       .array(z.string())
       .min(1, 'At least one delivery method is required'),
-    deliveryRadius: z
+    deliveryRadius: z.coerce
       .number({
         required_error: 'Delivery radius is required',
+        invalid_type_error: 'Delivery radius must be a number',
       })
       .min(1, 'Delivery radius must be at least 1 km')
       .max(100, 'Delivery radius cannot exceed 100 km'),
-    deliveryFee: z
+    deliveryFee: z.coerce
       .number({
         required_error: 'Delivery fee is required',
+        invalid_type_error: 'Delivery fee must be a number',
       })
       .min(0, 'Delivery fee cannot be negative'),
 
     // Optional Business Details
     businessLicense: z.string().optional(),
-    farmingArea: z.number().optional(),
+    farmingArea: z.coerce
+      .number({
+        invalid_type_error: 'Farming area must be a number',
+      })
+      .optional(),
     isOrganic: z.boolean().default(false),
 
     // Terms and Conditions

@@ -12,7 +12,15 @@ import { CheckoutForm } from '@/components/checkout';
 import { Button, Text, View } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useCart, useCartItems } from '@/lib/cart';
-import { formatPrice } from '@/lib/cart/utils';
+import { formatPrice, TAX_RATE } from '@/lib/cart/utils';
+
+// Map giá trị country lưu trong DB về đúng value option của Select (VNM/USA).
+// Mặc định Việt Nam cho mọi biến thể VN/Vietnam/Việt Nam/rỗng.
+const normalizeCountry = (raw?: string): string => {
+  const v = (raw ?? '').trim().toLowerCase();
+  if (['usa', 'us', 'united states', 'hoa kỳ', 'hoa ky'].includes(v)) return 'USA';
+  return 'VNM';
+};
 
 // Main checkout screen component
 const CheckoutScreen = () => {
@@ -27,7 +35,7 @@ const CheckoutScreen = () => {
     return allItems.filter((i) => ids.has(i.productId));
   }, [allItems, params.productIds]);
 
-  const total = useMemo(
+  const subtotal = useMemo(
     () =>
       items.reduce(
         (sum, i) =>
@@ -36,6 +44,9 @@ const CheckoutScreen = () => {
       ),
     [items]
   );
+  // Thuế VAT tính server-side khi tạo đơn (OrdersService); hiển thị ở đây để khớp.
+  const tax = subtotal * TAX_RATE;
+  const total = subtotal + tax;
   const isEmpty = items.length === 0;
 
   // Đơn hàng F2T theo 1 farm — lấy farm từ item đầu để biết phương thức giao farm hỗ trợ.
@@ -63,7 +74,9 @@ const CheckoutScreen = () => {
           addressLine1: '',
           city: user.location.address.city || '',
           postalCode: user.location.address.zipCode || '',
-          country: user.location.address.country || 'VNM',
+          // Chuẩn hoá về đúng value của Select (VNM/USA); DB có thể lưu "Vietnam"/"VN"/…
+          // không khớp 'VNM' → Select hiện placeholder và bắt chọn lại.
+          country: normalizeCountry(user.location.address.country),
         } : undefined,
       }
     : undefined;
@@ -183,9 +196,21 @@ const CheckoutScreen = () => {
 
       {/* Tổng tiền của các sản phẩm đang thanh toán (subset) */}
       <View className="border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-        <View className="flex-row items-center justify-between">
+        <View className="mb-1 flex-row items-center justify-between">
           <Text className="text-gray-600 dark:text-gray-400">
             Tạm tính ({items.length} sản phẩm)
+          </Text>
+          <Text className="text-gray-900 dark:text-white">
+            {formatPrice(subtotal)}
+          </Text>
+        </View>
+        <View className="mb-2 flex-row items-center justify-between">
+          <Text className="text-gray-600 dark:text-gray-400">Thuế VAT (10%)</Text>
+          <Text className="text-gray-900 dark:text-white">{formatPrice(tax)}</Text>
+        </View>
+        <View className="flex-row items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-700">
+          <Text className="font-semibold text-gray-900 dark:text-white">
+            Tổng (chưa gồm phí giao hàng)
           </Text>
           <Text className="text-lg font-bold text-gray-900 dark:text-white">
             {formatPrice(total)}

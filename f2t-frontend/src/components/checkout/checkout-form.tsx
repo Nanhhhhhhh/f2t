@@ -107,13 +107,6 @@ export const CheckoutForm = ({
       lastName: '',
       email: '',
       phone: '',
-      shippingAddress: {
-        street: '',
-        addressLine1: '',
-        city: '',
-        postalCode: '',
-        country: 'VNM',
-      },
       deliveryMethod: 'delivery',
       deliveryDate: '',
       deliveryTimeSlot: '',
@@ -123,6 +116,16 @@ export const CheckoutForm = ({
       specialInstructions: '',
       discountCode: '',
       ...initialData,
+      // Merge sâu shippingAddress: nếu user chưa có địa chỉ thì initialData.shippingAddress
+      // là undefined và spread nông sẽ xoá mất country mặc định → ép country = VNM (Việt Nam).
+      shippingAddress: {
+        street: '',
+        addressLine1: '',
+        city: '',
+        postalCode: '',
+        country: 'VNM',
+        ...initialData?.shippingAddress,
+      },
     },
   });
 
