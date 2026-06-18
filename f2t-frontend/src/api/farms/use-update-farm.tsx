@@ -1,5 +1,6 @@
 import { createMutation } from 'react-query-kit';
 
+import { queryClient } from '../common/api-provider';
 import { client } from '../common/client';
 import type { UpdateFarmRequest, UpdateFarmResponse } from './types';
 
@@ -16,13 +17,9 @@ export const useUpdateFarm = createMutation<Response, Variables, Error>({
       data: updateData,
     }).then((response) => response.data);
   },
-  onSuccess: (data, _variables) => {
-    // You could add additional side effects here like:
-    // - Invalidating related queries
-    // - Showing success notification
-    // - Updating cache
-  },
-  onError: (error, _variables) => {
-    // Handle error logging or notifications
+  onSuccess: () => {
+    // Làm mới farm detail (edit form fetch lại đúng giá trị vừa lưu) + danh sách.
+    queryClient.invalidateQueries({ queryKey: ['farm'] });
+    queryClient.invalidateQueries({ queryKey: ['farms'] });
   },
 });

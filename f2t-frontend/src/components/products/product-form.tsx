@@ -6,7 +6,7 @@ import {
   type FieldErrors,
   useForm,
 } from 'react-hook-form';
-import { ScrollView } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { z } from 'zod';
 
 import {
@@ -17,7 +17,6 @@ import {
 } from '@/api/products';
 import { Button, Checkbox, Input, Select, Text, View } from '@/components/ui';
 import type { Product } from '@/types';
-import { SEASONS } from '@/types/constants';
 
 import { ProductImagePicker } from './image-picker';
 import { NutritionalInfoForm } from './nutritional-info-form';
@@ -372,27 +371,29 @@ const QualitySection = ({
   control: Control<ProductFormData>;
   errors: FieldErrors<ProductFormData>;
 }) => {
+  // Vocabulary KHỚP dữ liệu thật (seed/backend): quality 'A+'/'A'/..., freshness
+  // fresh/good/aging, farming method là chuỗi tiếng Việt — để prefill & dropdown nhất quán.
   const qualityOptions = [
-    { label: 'Premium', value: 'premium' },
-    { label: 'Standard', value: 'standard' },
-    { label: 'Seconds', value: 'seconds' },
-    { label: 'Bulk', value: 'bulk' },
+    { label: 'A+ (Đặc biệt)', value: 'A+' },
+    { label: 'A (Tốt)', value: 'A' },
+    { label: 'B (Khá)', value: 'B' },
+    { label: 'C (Thường)', value: 'C' },
   ];
 
   const freshnessOptions = [
-    { label: 'Same Day', value: 'same_day' },
-    { label: 'Next Day', value: 'next_day' },
-    { label: 'Within Week', value: 'within_week' },
-    { label: 'Stored', value: 'stored' },
+    { label: 'Tươi', value: 'fresh' },
+    { label: 'Khá tươi', value: 'good' },
+    { label: 'Đang héo', value: 'aging' },
   ];
 
   const farmingMethodOptions = [
-    { label: 'Hữu cơ', value: 'organic' },
-    { label: 'Thông thường', value: 'conventional' },
-    { label: 'Nhà kính', value: 'greenhouse' },
-    { label: 'Thủy canh', value: 'hydroponic' },
-    { label: 'Bền vững', value: 'sustainable' },
-    { label: 'Tự nhiên', value: 'natural' },
+    { label: 'Hữu cơ', value: 'Hữu cơ' },
+    { label: 'VietGAP', value: 'VietGAP' },
+    { label: 'Thông thường', value: 'Thông thường' },
+    { label: 'Nhà kính', value: 'Nhà kính' },
+    { label: 'Thủy canh', value: 'Thủy canh' },
+    { label: 'Bền vững', value: 'Bền vững' },
+    { label: 'Tự nhiên', value: 'Tự nhiên' },
   ];
 
   return (
@@ -459,9 +460,15 @@ const QualitySection = ({
         <Controller
           control={control}
           name="farmingMethods"
-          render={({ field: { onChange, value = [] } }) => (
+          render={({ field: { onChange, value = [] } }) => {
+            // Gộp các giá trị đã lưu nhưng không có trong options cố định để
+            // prefill hiển thị đúng (vd dữ liệu seed 'Hữu cơ'/'VietGAP').
+            const extra = value
+              .filter((v: string) => !farmingMethodOptions.some((o) => o.value === v))
+              .map((v: string) => ({ label: v, value: v }));
+            return (
             <View className="flex-row flex-wrap gap-2">
-              {farmingMethodOptions.map((method) => (
+              {[...farmingMethodOptions, ...extra].map((method) => (
                 <Checkbox
                   key={method.value}
                   label={method.label}
@@ -477,7 +484,8 @@ const QualitySection = ({
                 />
               ))}
             </View>
-          )}
+            );
+          }}
         />
         {errors.farmingMethods && (
           <Text className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -496,10 +504,14 @@ const SeasonalSection = ({
   control: Control<ProductFormData>;
   errors: FieldErrors<ProductFormData>;
 }) => {
-  const seasonOptions = Object.values(SEASONS).map((season) => ({
-    label: season.charAt(0).toUpperCase() + season.slice(1).replace('_', ' '),
-    value: season,
-  }));
+  // Mùa vụ theo vocabulary tiếng Việt khớp seed/backend filter ('Quanh năm', Xuân…).
+  const seasonOptions = [
+    { label: 'Xuân', value: 'Xuân' },
+    { label: 'Hè', value: 'Hè' },
+    { label: 'Thu', value: 'Thu' },
+    { label: 'Đông', value: 'Đông' },
+    { label: 'Quanh năm', value: 'Quanh năm' },
+  ];
 
   return (
     <View className="mb-6">
@@ -514,9 +526,13 @@ const SeasonalSection = ({
         <Controller
           control={control}
           name="seasonalAvailability"
-          render={({ field: { onChange, value = [] } }) => (
+          render={({ field: { onChange, value = [] } }) => {
+            const extra = value
+              .filter((v: string) => !seasonOptions.some((o) => o.value === v))
+              .map((v: string) => ({ label: v, value: v }));
+            return (
             <View className="flex-row flex-wrap gap-2">
-              {seasonOptions.map((season) => (
+              {[...seasonOptions, ...extra].map((season) => (
                 <Checkbox
                   key={season.value}
                   label={season.label}
@@ -532,7 +548,8 @@ const SeasonalSection = ({
                 />
               ))}
             </View>
-          )}
+            );
+          }}
         />
         {errors.seasonalAvailability && (
           <Text className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -556,13 +573,6 @@ const StorageSection = ({
     { label: 'Frozen', value: 'frozen' },
     { label: 'Room Temperature', value: 'room_temperature' },
     { label: 'Cool & Dry', value: 'cool_dry' },
-  ];
-
-  const packagingOptions = [
-    { label: 'Loose', value: 'loose' },
-    { label: 'Bagged', value: 'bagged' },
-    { label: 'Boxed', value: 'boxed' },
-    { label: 'Wrapped', value: 'wrapped' },
   ];
 
   return (
@@ -594,12 +604,11 @@ const StorageSection = ({
             control={control}
             name="packagingType"
             render={({ field: { onChange, value } }) => (
-              <Select
+              <Input
                 label="Packaging Type"
                 value={value}
-                onSelect={onChange}
-                options={packagingOptions}
-                placeholder="Select packaging"
+                onChangeText={onChange}
+                placeholder="vd: Túi giấy thân thiện môi trường"
                 error={errors.packagingType?.message}
               />
             )}
@@ -668,8 +677,8 @@ export const ProductForm = ({
           availableQuantity: product.availableQuantity,
           minimumOrder: product.minimumOrder,
           images: product.images,
-          harvestDate: product.harvestDate,
-          deliveryDate: product.deliveryDate,
+          harvestDate: product.harvestDate?.slice(0, 10),
+          deliveryDate: product.deliveryDate?.slice(0, 10),
           estimatedShelfLife: product.estimatedShelfLife,
           isOrganic: product.isOrganic,
           farmingMethods: product.farmingMethods,
@@ -726,7 +735,13 @@ export const ProductForm = ({
           onSuccess(result.data);
         }
       }
-    } catch (error) {}
+    } catch (error) {
+      // KHÔNG nuốt lỗi im lặng: trước đây save fail (vd validation) vẫn tưởng thành công.
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? 'Không lưu được sản phẩm. Vui lòng thử lại.';
+      Alert.alert('Lưu thất bại', String(message));
+    }
   };
 
   const handleReset = () => {

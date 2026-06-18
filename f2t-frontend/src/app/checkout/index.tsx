@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Alert } from 'react-native';
 
 import { useGetFarm } from '@/api/farms';
@@ -55,6 +55,21 @@ const CheckoutScreen = () => {
     variables: { id: farmId ?? '' },
     enabled: !!farmId,
   });
+
+  useEffect(() => {
+    if (
+      farmResponse?.success &&
+      (farmResponse.data.verificationStatus !== 'verified' ||
+        !farmResponse.data.isActive)
+    ) {
+      Alert.alert(
+        'Thông báo',
+        `Nông trại "${farmResponse.data.name}" hiện không còn hoạt động. Bạn không thể thanh toán sản phẩm từ nông trại này.`,
+        [{ text: 'Quay lại giỏ hàng', onPress: () => router.replace('/cart') }]
+      );
+    }
+  }, [farmResponse, router]);
+
   const supportedDeliveryMethods = farmResponse?.data?.deliveryMethods;
   const { removeItem } = useCart();
   const user = useAuth.use.user();
@@ -221,11 +236,15 @@ const CheckoutScreen = () => {
   );
 };
 
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+
 // Export with route guard
 export default function CheckoutScreenWithGuard() {
   return (
-    <ConsumerRouteGuard>
-      <CheckoutScreen />
-    </ConsumerRouteGuard>
+    <BottomSheetModalProvider>
+      <ConsumerRouteGuard>
+        <CheckoutScreen />
+      </ConsumerRouteGuard>
+    </BottomSheetModalProvider>
   );
 }

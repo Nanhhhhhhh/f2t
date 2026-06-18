@@ -147,9 +147,11 @@ export const DeliveryZoneManager = ({
             Current Delivery Zones
           </Text>
 
-          {zones.map((zone) => (
+          {zones
+            .filter((zone) => zone && typeof zone === 'object')
+            .map((zone, i) => (
             <View
-              key={zone.id}
+              key={zone.id ?? i}
               className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
             >
               <View className="mb-2 flex-row items-center justify-between">
@@ -180,17 +182,17 @@ export const DeliveryZoneManager = ({
 
               <View className="space-y-1">
                 <Text className="text-sm text-gray-600 dark:text-gray-400">
-                  📍 Radius: {formatRadius(zone.area.radius)} km
+                  📍 Radius: {formatRadius(zone.area?.radius ?? 0)} km
                 </Text>
                 <Text className="text-sm text-gray-600 dark:text-gray-400">
-                  💰 Delivery Fee: ${zone.deliveryFee.toFixed(2)}
+                  💰 Delivery Fee: ${(zone.deliveryFee ?? 0).toFixed(2)}
                 </Text>
                 <Text className="text-sm text-gray-600 dark:text-gray-400">
                   ⏱️ Estimated Time: {zone.estimatedDeliveryTime} hours
                 </Text>
                 <Text className="text-sm text-gray-600 dark:text-gray-400">
                   📅 Working Days:{' '}
-                  {zone.workingDays
+                  {(zone.workingDays ?? [])
                     .map(
                       (day) =>
                         WORKING_DAYS_OPTIONS.find((opt) => opt.value === day)

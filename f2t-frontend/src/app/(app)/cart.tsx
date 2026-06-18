@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router';
 import { Check } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView } from 'react-native';
 
 import { useGetFarm } from '@/api/farms';
 import { CartItem } from '@/components/cart';
 import { CrossSell } from '@/components/cart/cross-sell';
 import { Button, Text, View } from '@/components/ui';
-import { useCart, useCartIsEmpty } from '@/lib/cart';
+import { useCart, useCartIsEmpty, useClearFarmItems } from '@/lib/cart';
 import type { CartItem as CartItemModel } from '@/lib/cart';
 import { formatPrice } from '@/lib/cart/utils';
 
@@ -30,6 +30,22 @@ const FarmCartGroup = ({
     variables: { id: farmId },
     enabled: !!farmId,
   });
+  const clearFarmItems = useClearFarmItems();
+
+  useEffect(() => {
+    // Nếu farm bị rejected hoặc không còn hoạt động, xoá khỏi giỏ hàng
+    if (
+      data?.success &&
+      (data.data.verificationStatus !== 'verified' || !data.data.isActive)
+    ) {
+      clearFarmItems(farmId);
+      Alert.alert(
+        'Thông báo',
+        `Nông trại "${data.data.name}" hiện không còn hoạt động. Các sản phẩm của nông trại này đã được xóa khỏi giỏ hàng của bạn.`
+      );
+    }
+  }, [data, farmId, clearFarmItems]);
+
   const farmName = data?.data?.name ?? 'Nông trại';
 
   return (

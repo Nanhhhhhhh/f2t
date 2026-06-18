@@ -197,6 +197,7 @@ export type Farm = {
   name: string;
   description: string;
   location: FarmLocation;
+  farmingArea?: number; // diện tích canh tác (acres) — lưu top-level ở backend
   contactEmail: string;
   contactPhone: string;
   deliveryMethods: DeliveryMethod[];

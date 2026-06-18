@@ -1,5 +1,6 @@
 import { createMutation } from 'react-query-kit';
 
+import { queryClient } from '../common/api-provider';
 import { client } from '../common/client';
 import type {
   UpdateDeliveryZonesRequest,
@@ -23,14 +24,8 @@ export const useUpdateDeliveryZones = createMutation<
       data: { zones },
     }).then((response) => response.data);
   },
-  onSuccess: (data, variables) => {
-    // You could add additional side effects here like:
-    // - Invalidating farm query to refresh data
-    // - Showing success notification
-    // - Updating local cache
-    // - Invalidating nearby farms queries
-  },
-  onError: (error, _variables) => {
-    // Handle error logging or notifications
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['farm'] });
+    queryClient.invalidateQueries({ queryKey: ['farms'] });
   },
 });

@@ -56,6 +56,7 @@ export class CreateFarmDto {
   deliveryMethods!: string[];
 
   @IsOptional() @IsBoolean() isActive?: boolean;
+  @ApiProperty({ required: false }) @IsOptional() @IsNumber() farmingArea?: number;
 }
 
 export class UpdateFarmDto extends PartialType(CreateFarmDto) {

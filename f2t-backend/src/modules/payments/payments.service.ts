@@ -213,4 +213,24 @@ export class PaymentsService {
       ? Math.round(amount)
       : Math.round(amount * 100);
   }
+
+  async refundOrder(orderId: string): Promise<void> {
+    const order = await this.ordersService.findById(orderId);
+    if (!order) return;
+
+    if (
+      order.paymentMethod === 'stripe' &&
+      order.paymentStatus === 'paid' &&
+      order.stripePaymentIntentId
+    ) {
+      try {
+        await this.stripe.refunds.create({
+          payment_intent: order.stripePaymentIntentId,
+        });
+        await this.ordersService.updatePaymentStatus(orderId, 'refunded');
+      } catch (error) {
+        console.error(`Failed to refund order ${orderId}:`, error);
+      }
+    }
+  }
 }

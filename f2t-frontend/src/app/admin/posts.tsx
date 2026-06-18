@@ -81,10 +81,15 @@ export default function AdminPosts() {
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => {
             const author = item.authorId;
+            // typeof null === 'object' → phải check null trước, nếu không crash
+            // "Cannot read property 'firstName' of null" khi author đã bị xoá.
             const authorName =
-              typeof author === 'object'
-                ? `${author.firstName} ${author.lastName}`
-                : String(author);
+              author && typeof author === 'object'
+                ? `${author.firstName ?? ''} ${author.lastName ?? ''}`.trim() ||
+                  'Người dùng'
+                : author
+                  ? String(author)
+                  : 'Người dùng đã xoá';
             const bodyPreview =
               item.body.length > 80
                 ? `${item.body.substring(0, 80)}...`

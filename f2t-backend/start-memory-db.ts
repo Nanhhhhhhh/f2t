@@ -11,6 +11,14 @@ async function start() {
   const uri = mongo.getUri();
   console.log(`Memory MongoDB started at: ${uri}`);
   console.log('You can now connect to it on port 27017');
+  
+  // Keep the process alive
+  process.stdin.resume();
+  
+  process.on('SIGINT', async () => {
+    await mongo.stop();
+    process.exit(0);
+  });
 }
 
 start().catch(err => {

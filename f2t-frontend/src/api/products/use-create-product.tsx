@@ -1,5 +1,6 @@
 import { createMutation } from 'react-query-kit';
 
+import { queryClient } from '../common/api-provider';
 import { client } from '../common/client';
 import type { CreateProductRequest, CreateProductResponse } from './types';
 
@@ -11,9 +12,8 @@ export const useCreateProduct = createMutation<Response, Variables, Error>({
     const response = await client.post('/products', variables);
     return response.data;
   },
-  onSuccess: (_data, _variables) => {
-    // TODO: Invalidate product queries
-  },
-  onError: (error, _variables) => {
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['products'] });
+    queryClient.invalidateQueries({ queryKey: ['products-infinite'] });
   },
 });

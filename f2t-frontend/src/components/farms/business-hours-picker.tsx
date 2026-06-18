@@ -1,7 +1,9 @@
 import React from 'react';
 
-import { Checkbox, Select, Text, View } from '@/components/ui';
+import { Checkbox, Text, View } from '@/components/ui';
 import type { BusinessHours } from '@/types';
+
+import { TimeField } from './time-field';
 
 export type BusinessHoursPickerProps = {
   businessHours: BusinessHours;
@@ -207,29 +209,31 @@ export const BusinessHoursPicker = ({
                   <View className="flex-row space-x-4">
                     <View className="flex-1">
                       <Text className="mb-1 text-sm text-gray-600 dark:text-gray-400">
-                        Open Time
+                        Mở cửa
                       </Text>
-                      <Select
+                      <TimeField
+                        caption={`${label} — giờ mở cửa`}
                         options={TIME_OPTIONS}
                         value={daySchedule.openTime}
-                        onSelect={(time) =>
-                          handleTimeChange(key, 'openTime', time as string)
+                        onChange={(time) =>
+                          handleTimeChange(key, 'openTime', time)
                         }
-                        placeholder="Select open time"
+                        placeholder="Chọn giờ mở"
                       />
                     </View>
 
                     <View className="flex-1">
                       <Text className="mb-1 text-sm text-gray-600 dark:text-gray-400">
-                        Close Time
+                        Đóng cửa
                       </Text>
-                      <Select
+                      <TimeField
+                        caption={`${label} — giờ đóng cửa`}
                         options={TIME_OPTIONS}
                         value={daySchedule.closeTime}
-                        onSelect={(time) =>
-                          handleTimeChange(key, 'closeTime', time as string)
+                        onChange={(time) =>
+                          handleTimeChange(key, 'closeTime', time)
                         }
-                        placeholder="Select close time"
+                        placeholder="Chọn giờ đóng"
                       />
                     </View>
                   </View>

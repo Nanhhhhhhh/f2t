@@ -229,11 +229,11 @@ export default function FarmProfileScreen() {
               <Text className="text-gray-600 dark:text-gray-400">
                 📍 {formatFarmAddress(farm)}
               </Text>
-              {farm.location.farmingArea && (
+              {(farm.farmingArea ?? farm.location?.farmingArea) ? (
                 <Text className="text-gray-600 dark:text-gray-400">
-                  🌾 {farm.location.farmingArea} acres
+                  🌾 {farm.farmingArea ?? farm.location?.farmingArea} acres
                 </Text>
-              )}
+              ) : null}
               <Button
                 label="Get Directions"
                 onPress={handleDirections}
@@ -273,21 +273,23 @@ export default function FarmProfileScreen() {
                 Delivery Areas
               </Text>
               <View className="space-y-2">
-                {farm.deliveryZones.map((zone) => (
-                  <View
-                    key={zone.id}
-                    className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
-                  >
-                    <Text className="font-medium text-gray-900 dark:text-white">
-                      {zone.name}
-                    </Text>
-                    <Text className="text-sm text-gray-600 dark:text-gray-400">
-                      Radius: {(zone.area.radius / 1000).toFixed(1)} km • Fee: $
-                      {zone.deliveryFee.toFixed(2)} • Time:{' '}
-                      {zone.estimatedDeliveryTime}h
-                    </Text>
-                  </View>
-                ))}
+                {farm.deliveryZones
+                  .filter((zone) => zone && typeof zone === 'object')
+                  .map((zone, i) => (
+                    <View
+                      key={zone.id ?? i}
+                      className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+                    >
+                      <Text className="font-medium text-gray-900 dark:text-white">
+                        {zone.name}
+                      </Text>
+                      <Text className="text-sm text-gray-600 dark:text-gray-400">
+                        Radius: {((zone.area?.radius ?? 0) / 1000).toFixed(1)} km •
+                        Fee: ${(zone.deliveryFee ?? 0).toFixed(2)} • Time:{' '}
+                        {zone.estimatedDeliveryTime ?? 0}h
+                      </Text>
+                    </View>
+                  ))}
               </View>
             </View>
           )}

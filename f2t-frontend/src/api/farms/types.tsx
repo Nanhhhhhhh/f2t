@@ -16,6 +16,7 @@ export type CreateFarmProfileRequest = {
   contactPhone: string;
   deliveryMethods: ('pickup' | 'farm_delivery' | 'both')[];
   isActive?: boolean;
+  farmingArea?: number;
   logoUrl?: string;
   coverImageUrl?: string;
 };
@@ -99,7 +100,7 @@ export type UpdateBusinessHoursResponse = ApiResponse<BusinessHours>;
 // Farm Delivery Zone Types
 export type UpdateDeliveryZonesRequest = {
   farmId: string;
-  zones: string[]; // backend UpdateDeliveryZonesDto nhận string[] (tên zone)
+  zones: DeliveryZone[]; // gửi full object để round-trip area/deliveryFee/… cho view
 };
 
 export type UpdateDeliveryZonesResponse = ApiResponse<DeliveryZone[]>;

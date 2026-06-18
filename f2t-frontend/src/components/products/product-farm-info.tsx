@@ -97,8 +97,8 @@ export const ProductFarmInfo = ({
               Farm Size
             </Text>
             <Text className="font-medium text-gray-900 dark:text-white">
-              {farm.location?.farmingArea
-                ? `${farm.location.farmingArea} acres`
+              {farm.farmingArea ?? farm.location?.farmingArea
+                ? `${farm.farmingArea ?? farm.location?.farmingArea} acres`
                 : 'Not specified'}
             </Text>
           </View>

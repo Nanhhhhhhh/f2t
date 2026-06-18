@@ -185,17 +185,22 @@ export class ProductsService {
       }
     }
 
-    // 9b. Loại product "orphan": chỉ giữ product có farm CÒN TỒN TẠI. Khi một farm bị
-    // xoá (vd re-seed) mà product chưa được dọn theo, product đó không được hiển thị.
-    const existingFarmIds = await this.farmModel.distinct('_id');
-    const validFarmClause = { farmId: { $in: existingFarmIds } };
+    // 9b. Loại product "orphan": chỉ giữ product có farm CÒN TỒN TẠI VÀ ĐÃ ĐƯỢC DUYỆT. 
+    // Khi một farm bị rejected hoặc inactive, product của nó không được hiển thị.
+    const validFarms = await this.farmModel
+      .find({ verificationStatus: 'verified', isActive: true })
+      .select('_id')
+      .exec();
+    const validFarmIds = validFarms.map((f) => f._id as Types.ObjectId);
+    const validFarmClause = { farmId: { $in: validFarmIds } };
+
     if (filter.$and) {
       filter.$and.push(validFarmClause);
     } else if (filter.farmId) {
       filter.$and = [{ farmId: filter.farmId }, validFarmClause];
       delete filter.farmId;
     } else {
-      filter.farmId = { $in: existingFarmIds };
+      filter.farmId = { $in: validFarmIds };
     }
 
     // 10. Sorting

@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Alert } from 'react-native';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 import { FarmRouteGuard } from '@/components/auth';
 import { ProductForm } from '@/components/products';
@@ -65,12 +66,14 @@ export default function AddProductScreen() {
   }
 
   return (
-    <FarmRouteGuard>
-      <ProductForm
-        farmId={farmId}
-        onSuccess={handleSuccess}
-        onCancel={handleCancel}
-      />
-    </FarmRouteGuard>
+    <BottomSheetModalProvider>
+      <FarmRouteGuard>
+        <ProductForm
+          farmId={farmId}
+          onSuccess={handleSuccess}
+          onCancel={handleCancel}
+        />
+      </FarmRouteGuard>
+    </BottomSheetModalProvider>
   );
 }

@@ -63,6 +63,9 @@ export class Farm {
   @Prop({ type: AddressSchema, required: true })
   address!: Address;
 
+  @Prop()
+  farmingArea?: number; // diện tích canh tác (acres)
+
   @Prop({ required: true })
   contactEmail!: string;
 

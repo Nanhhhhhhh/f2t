@@ -1,10 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsString, ArrayMinSize } from 'class-validator';
+import { IsArray } from 'class-validator';
 
 export class UpdateDeliveryZonesDto {
-  @ApiProperty({ type: [String] })
+  // Mỗi zone là object đầy đủ ({ id, name, area:{center,radius,name}, deliveryFee,
+  // estimatedDeliveryTime, ... }) — lưu nguyên để trang farm đọc lại zone.area.radius.
+  @ApiProperty({ type: [Object] })
   @IsArray()
-  @ArrayMinSize(1)
-  @IsString({ each: true })
-  zones!: string[];
+  zones!: Record<string, unknown>[];
 }

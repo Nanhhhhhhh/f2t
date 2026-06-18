@@ -121,12 +121,26 @@ export class FarmsService {
         pipeline.push({ $match: match });
       }
 
+      // Determine sort stage. If sortBy is 'distance' or not provided, sort by distance.
+      // Otherwise, use the user-provided sortBy field.
+      const sortField = sortBy === 'distance' ? 'distance' : sortBy;
+      const sortDirection = sortOrder === 'asc' ? 1 : -1;
+      
+      const sortObj: Record<string, 1 | -1> = {
+        [sortField]: sortDirection,
+      };
+
+      // Add distance as tie-breaker only if not already sorting by it
+      if (sortField !== 'distance') {
+        sortObj.distance = 1;
+      }
+
       // Pagination using facet for count and data in one go
       pipeline.push({
         $facet: {
           metadata: [{ $count: 'total' }],
           data: [
-            { $sort: { distance: 1 } },
+            { $sort: sortObj },
             { $skip: (page - 1) * limit },
             { $limit: limit },
             { $addFields: { id: { $toString: '$_id' } } },
@@ -244,7 +258,7 @@ export class FarmsService {
   async updateDeliveryZones(
     id: string,
     ownerId: string,
-    zones: string[],
+    zones: Record<string, unknown>[],
   ): Promise<FarmDocument> {
     const farm = await this.findOne(id);
     if (farm.ownerId.toHexString() !== ownerId) {
@@ -253,7 +267,7 @@ export class FarmsService {
     const updatedFarm = await this.farmModel
       .findByIdAndUpdate(
         id,
-        { deliveryZones: zones as unknown as Record<string, unknown>[] },
+        { deliveryZones: zones },
         { new: true },
       )
       .exec();

@@ -174,13 +174,13 @@ export const Select = (props: SelectProps) => {
     [error, disabled]
   );
 
-  const textValue = React.useMemo(
-    () =>
-      value !== undefined
-        ? (options?.filter((t) => t.value === value)?.[0]?.label ?? placeholder)
-        : placeholder,
-    [value, options, placeholder]
-  );
+  const textValue = React.useMemo(() => {
+    if (value === undefined || value === '') return placeholder;
+    const match = options?.find((t) => t.value === value);
+    // Nếu value không nằm trong options (vd dữ liệu cũ/khác vocabulary) thì vẫn
+    // hiển thị chính giá trị đó để form edit prefill đúng, thay vì rơi về placeholder.
+    return match?.label ?? String(value);
+  }, [value, options, placeholder]);
 
   return (
     <>

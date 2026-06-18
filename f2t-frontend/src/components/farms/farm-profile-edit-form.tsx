@@ -152,7 +152,8 @@ export const FarmProfileEditForm = ({
   // RIÊNG (không nằm trong location). Map về shape của form để PRE-FILL các ô ngay khi
   // mở form — không phải đợi bấm "Use current location".
   const raw = farm as unknown as {
-    location?: { coordinates?: number[] };
+    location?: { coordinates?: number[]; farmingArea?: number };
+    farmingArea?: number;
     address?: {
       street?: string;
       city?: string;
@@ -171,7 +172,8 @@ export const FarmProfileEditForm = ({
       zipCode: raw.address?.zipCode ?? '',
       country: raw.address?.country ?? '',
     },
-    farmingArea: 1,
+    // Đọc từ data farm thật (top-level; fallback location.farmingArea cho mock).
+    farmingArea: raw.farmingArea ?? raw.location?.farmingArea ?? 1,
   };
 
   const {
@@ -252,6 +254,7 @@ export const FarmProfileEditForm = ({
         description: data.description,
         coordinates: data.location.coordinates,
         address: data.location.address,
+        farmingArea: data.location.farmingArea,
         contactEmail: data.contactEmail,
         contactPhone: data.contactPhone,
         deliveryMethods: data.deliveryMethods,
@@ -277,12 +280,12 @@ export const FarmProfileEditForm = ({
         businessHours,
       });
 
-      // 3) Vùng giao hàng — endpoint riêng; backend nhận string[] (tên zone)
-      const zones = deliveryZones.map((z) => z.name).filter(Boolean);
-      if (zones.length > 0) {
+      // 3) Vùng giao hàng — gửi FULL object (area/deliveryFee/…) để view đọc lại
+      // được zone.area.radius; trước đây chỉ gửi tên (string) nên trang farm crash.
+      if (deliveryZones.length > 0) {
         await updateDeliveryZonesMutation.mutateAsync({
           farmId: farm.id,
-          zones,
+          zones: deliveryZones,
         });
       }
 

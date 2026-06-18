@@ -1,5 +1,6 @@
 import { createMutation } from 'react-query-kit';
 
+import { queryClient } from '../common/api-provider';
 import { client } from '../common/client';
 import type { UpdateProductRequest, UpdateProductResponse } from './types';
 
@@ -12,9 +13,12 @@ export const useUpdateProduct = createMutation<Response, Variables, Error>({
     const response = await client.put(`/products/${id}`, updateData);
     return response.data;
   },
-  onSuccess: (_data, _variables) => {
-    // TODO: Invalidate product queries
-  },
-  onError: (error, _variables) => {
+  onSuccess: () => {
+    // Làm mới data: chi tiết sản phẩm (edit form đọc lại đúng giá trị vừa lưu)
+    // và danh sách (cả paginated lẫn infinite). Trước đây thiếu bước này nên mở
+    // lại form edit thấy data CŨ trong cache dù DB đã cập nhật.
+    queryClient.invalidateQueries({ queryKey: ['product'] });
+    queryClient.invalidateQueries({ queryKey: ['products'] });
+    queryClient.invalidateQueries({ queryKey: ['products-infinite'] });
   },
 });
