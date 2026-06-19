@@ -5,7 +5,11 @@ import { of, throwError } from 'rxjs';
 import { REDIS_CLIENT } from '@common/redis/redis.constants';
 import { DemandForecastingService } from './demand-forecasting.service';
 
-const mockRedis = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
+const mockRedis = {
+  get: jest.fn(),
+  set: jest.fn().mockResolvedValue('OK'),
+  del: jest.fn().mockResolvedValue(1),
+};
 const mockHttp = { post: jest.fn() };
 const mockConfig = { get: jest.fn((key: string, def?: string) => def ?? '') };
 

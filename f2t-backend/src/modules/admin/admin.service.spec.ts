@@ -8,6 +8,8 @@ import { Farm } from '../farms/schemas/farm.schema';
 import { Order } from '../orders/schemas/order.schema';
 import { Product } from '../products/schemas/product.schema';
 import { Post } from '../posts/schemas/post.schema';
+import { PaymentsService } from '../payments/payments.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -55,6 +57,14 @@ describe('AdminService', () => {
         { provide: getModelToken(Order.name), useValue: mockOrderModel },
         { provide: getModelToken(Product.name), useValue: mockProductModel },
         { provide: getModelToken(Post.name), useValue: mockPostModel },
+        {
+          provide: PaymentsService,
+          useValue: { refundOrder: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { createAndPush: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

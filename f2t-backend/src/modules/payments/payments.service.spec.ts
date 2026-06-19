@@ -6,6 +6,7 @@ import { Types } from 'mongoose';
 import { PaymentsService } from './payments.service';
 import { OrdersService } from '../orders/orders.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FarmsService } from '../farms/farms.service';
 
 // ── Stripe SDK mock ───────────────────────────────────────────────────────────
 const mockSessionsCreate = jest.fn();
@@ -22,11 +23,13 @@ jest.mock('stripe', () =>
 
 const CONSUMER_ID = new Types.ObjectId().toHexString();
 const ORDER_ID = new Types.ObjectId().toHexString();
+const FARM_ID = new Types.ObjectId().toHexString();
 
 function makeOrder(overrides: Record<string, unknown> = {}) {
   return {
     id: ORDER_ID,
     customerId: new Types.ObjectId(CONSUMER_ID),
+    farmId: new Types.ObjectId(FARM_ID),
     paymentStatus: 'pending',
     paymentMethod: 'stripe',
     deliveryFee: 20000,
@@ -61,6 +64,12 @@ describe('PaymentsService', () => {
           provide: NotificationsService,
           useValue: {
             createAndPush: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: FarmsService,
+          useValue: {
+            findOne: jest.fn().mockResolvedValue({ ownerId: new Types.ObjectId() }),
           },
         },
         {

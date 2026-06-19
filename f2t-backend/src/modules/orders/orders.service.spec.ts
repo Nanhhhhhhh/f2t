@@ -114,6 +114,7 @@ describe('OrdersService', () => {
         _id: farmObjId,
         name: 'Green Farm',
         ownerId: new Types.ObjectId(),
+        deliveryMethods: ['pickup', 'farm_delivery'],
       } as any);
       jest
         .spyOn(dynamicPricingService, 'getAcceptedOverridesForProducts')

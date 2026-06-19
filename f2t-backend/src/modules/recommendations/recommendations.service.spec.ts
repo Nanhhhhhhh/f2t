@@ -37,16 +37,19 @@ describe('RecommendationsService', () => {
     expect(mockHttp.post).not.toHaveBeenCalled();
   });
 
-  it('maps sidecar categories to in-stock products, excludes cart items, boosts same farm', async () => {
+  it('maps sidecar categories to same-farm in-stock products and ranks the recommended category first', async () => {
     mockProductModel.find.mockReturnValueOnce(
       leanResult([{ _id: 'p1', category: 'leafy', farmId: 'farmA' }]),
     );
     mockHttp.post.mockReturnValue(
       of({ data: { recommendations: [{ category: 'herbs', score: 2.1, source: 'rule' }] } }),
     );
+    // Candidate query already filters to cart farms (farmA); ranking is by
+    // recommended-category score (herbs=2.1) then availableQuantity, so the
+    // herbs product (p3) must come before the un-recommended root product (p2).
     mockProductModel.find.mockReturnValueOnce(
       leanResult([
-        { _id: 'p2', category: 'herbs', farmId: 'farmB', availableQuantity: 5 },
+        { _id: 'p2', category: 'root', farmId: 'farmA', availableQuantity: 5 },
         { _id: 'p3', category: 'herbs', farmId: 'farmA', availableQuantity: 5 },
       ]),
     );
